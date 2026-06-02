@@ -88,7 +88,7 @@
 | 音频播放 | Android MediaPlayer + 有道词典 TTS |
 | 音频录制 | AudioRecord (PCM 16bit 16kHz) |
 | 本地词库 | Raw JSON 资源文件 |
-| AI 集成 | Coze API (流式对话) |
+| AI 功能 | 由后端服务统一处理 |
 
 ### 2.3 数据流
 
@@ -99,7 +99,7 @@
               ↓
          HttpManager (Apache HttpClient)
               ↓
-         后端 API 服务 / Coze AI
+         后端 API 服务
               ↓
          JSON 响应
               ↓
@@ -140,8 +140,7 @@ d:\Codes\Memory\
                 ├── network/           # 网络通信层
                 │   ├── ApiConstants.java
                 │   ├── HttpManager.java
-                │   ├── GetDataByThread.java
-                │   └── CozeAPI.java
+                │   └── GetDataByThread.java
                 ├── settings/          # 设置管理
                 │   ├── UserSettingsManager.java
                 │   └── InnerSettingsManager.java
@@ -710,10 +709,10 @@ OCR 文本解析与过滤:
 **过滤策略的核心考量**：
 
 | 字段 | 是否加入黑名单 | 原因 |
-|------|:--:|------|
-| `headWord` | ✅ | 打印在听写单提示区，OCR 可能识别到，不应作为答案 |
-| `targetForm` | ❌ | 这就是用户应写出的正确答案，绝不能过滤 |
-| `contextText` 中的单词 | ❌ | 过滤范围过大可能误伤合法答案 |
+|------|:---:|------|
+| `headWord` | 是 | 打印在听写单提示区，OCR 可能识别到，不应作为答案 |
+| `targetForm` | 否 | 这就是用户应写出的正确答案，绝不能过滤 |
+| `contextText` 中的单词 | 否 | 过滤范围过大可能误伤合法答案 |
 
 **边界情况处理**：当 `headWord == targetForm` 时（如直接听写 "container"），输入框内的提示词和答案相同。此时依赖 **UCrop 裁剪**隔离——用户裁剪到右侧书写方格区域，左侧提示区不在裁剪范围内。
 
@@ -939,53 +938,19 @@ GET /evaluation/dashboard
 
 ### 13.1 设计思路
 
-通过 **Coze AI** 生成适合用户水平的英语阅读材料，包含词汇分析和句子翻译，帮助用户在语境中学习单词。
+通过后端服务生成适合用户水平的英语阅读材料，包含词汇分析和句子翻译，帮助用户在语境中学习单词。
 
 ### 13.2 涉及文件
 
 | 文件 | 职责 |
 |------|------|
 | `DailyReadingFragment.java` | 阅读主界面 |
-| `CozeAPI.java` | Coze AI 平台对接 |
 
 ### 13.3 技术实现
 
-#### 13.3.1 Coze AI 集成
+#### 13.3.1 阅读内容获取
 
-```java
-CozeAPI coze = new CozeAPI(apiKey, botId);
-
-coze.questionService(prompt, new QuestionCallback() {
-    @Override
-    public void onResult(String answer, String[] followUpQuestions) {
-        // answer 是 Markdown 格式的文章
-        // 使用 Markwon 渲染
-    }
-
-    @Override
-    public void onError(String errorMessage) {
-        // 错误处理
-    }
-});
-```
-
-**Coze API 调用流程**：
-
-```
-POST https://api.coze.cn/v3/chat
-    Header: Authorization: Bearer {apiKey}
-    Body: {bot_id, user_id, stream: false, additional_messages: [...]}
-    ↓
-获取 conversation_id + chat_id
-    ↓
-轮询 GET /v3/chat/retrieve?conversation_id=X&chat_id=Y
-    状态: "in_progress" → 继续等待
-    状态: "completed" → 下一步
-    ↓
-GET /v3/chat/message/list?conversation_id=X&chat_id=Y
-    ↓
-解析 AI 回复 → 通过 QuestionCallback 回调
-```
+客户端通过接口获取 AI 生成的阅读文章，文章内容为 Markdown 格式。
 
 #### 13.3.2 Markdown 渲染
 
@@ -994,8 +959,6 @@ GET /v3/chat/message/list?conversation_id=X&chat_id=Y
 Markwon markwon = Markwon.create(context);
 markwon.setMarkdown(textView, markdownContent);
 ```
-
-**Bot 配置**：API Key `pat_IIANC6ApULu0iK2AkEj8...`，Bot ID `7486395931509178405`。
 
 ---
 
@@ -1072,7 +1035,6 @@ markwon.setMarkdown(textView, markdownContent);
 | `ApiConstants.java` | 环境切换（DEV/TEST/PROD） |
 | `HttpManager.java` | 底层 HTTP 客户端（20+ 方法） |
 | `GetDataByThread.java` | 高层 API 封装（60+ 业务方法） |
-| `CozeAPI.java` | Coze AI 平台对接 |
 
 ### 16.3 技术实现
 
