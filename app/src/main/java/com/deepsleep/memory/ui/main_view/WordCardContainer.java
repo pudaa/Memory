@@ -331,6 +331,35 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
         }
     }
 
+    /** 移除指定卡片视图（用于更新总结卡片等场景） */
+    public void removeCard(View cardView) {
+        if (cardView == null)
+            return;
+        int idx = cardList.indexOf(cardView);
+        if (idx < 0)
+            return;
+        cardList.remove(idx);
+        if (cardStackContainer != null) {
+            cardStackContainer.removeView(cardView);
+        }
+        // 如果移除的是当前卡片，尝试展示下一个
+        if (cardView == currentCard) {
+            currentCard = null;
+            if (idx < cardList.size()) {
+                currentCardIndex = idx;
+                showCard(idx);
+            } else if (!cardList.isEmpty()) {
+                currentCardIndex = cardList.size() - 1;
+                showCard(currentCardIndex);
+            } else {
+                currentCardIndex = 0;
+            }
+        } else if (idx <= currentCardIndex) {
+            // 移除的卡片在当前卡片之前，调整索引
+            currentCardIndex = Math.max(0, currentCardIndex - 1);
+        }
+    }
+
     /** 获取当前展示的卡片视图（用于外部重置计时器等操作） */
     public View getCurrentCardView() {
         return currentCard;

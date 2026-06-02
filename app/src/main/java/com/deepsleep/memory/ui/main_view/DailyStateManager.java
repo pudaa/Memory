@@ -13,8 +13,8 @@ import java.util.Set;
 /**
  * 每日学习状态管理：已完成单词追踪、SharedPreferences 持久化、跨天重置。
  *
- * 重要：所有持久化 key 均按 userId 隔离，防止切换账户后交叉污染。
- *       同时持久化单词详情（wordId + isCorrect），确保离开页面后总结卡片仍可重建完整单词列表。
+ * 重要：所有持久化 key 均按 userId 隔离，防止切换账户后交叉污染。 同时持久化单词详情（wordId +
+ * isCorrect），确保离开页面后总结卡片仍可重建完整单词列表。
  */
 public class DailyStateManager {
     private static final String PREF_NAME = "UserPrefs";
@@ -35,9 +35,17 @@ public class DailyStateManager {
     private final List<WordCard> filteredCardSnapshot = new ArrayList<>();
 
     // ── 动态 key ──
-    private String keyCompletedIds() { return userId + SUFFIX_COMPLETED_IDS; }
-    private String keyLastDate()    { return userId + SUFFIX_LAST_DATE; }
-    private String keyDetails()     { return userId + SUFFIX_COMPLETED_DETAILS; }
+    private String keyCompletedIds() {
+        return userId + SUFFIX_COMPLETED_IDS;
+    }
+
+    private String keyLastDate() {
+        return userId + SUFFIX_LAST_DATE;
+    }
+
+    private String keyDetails() {
+        return userId + SUFFIX_COMPLETED_DETAILS;
+    }
 
     public DailyStateManager(Context context, int userId) {
         this.context = context;
@@ -62,8 +70,8 @@ public class DailyStateManager {
             return true;
         }
         lastDate = today;
-        Log.i("WordLearning", "[防重复] userId=" + userId + " 同日，已完成 " + completedWordIds.size()
-                + " 个单词, savedDate=" + savedDate);
+        Log.i("WordLearning",
+                "[防重复] userId=" + userId + " 同日，已完成 " + completedWordIds.size() + " 个单词, savedDate=" + savedDate);
         return false;
     }
 
@@ -159,16 +167,13 @@ public class DailyStateManager {
             // 恢复单词详情
             parseDetailsFromJson(savedDetails);
             lastDate = today;
-            Log.i("WordLearning", "[防重复] userId=" + userId + " 从本地恢复了 "
-                    + completedWordIds.size() + " 个已完成单词, " + completedWordDetails.size() + " 条详情");
+            Log.i("WordLearning", "[防重复] userId=" + userId + " 从本地恢复了 " + completedWordIds.size() + " 个已完成单词, "
+                    + completedWordDetails.size() + " 条详情");
         } else {
-            // 跨天：只清内存+磁盘，保留旧的 lastDate 让 checkAndResetDailyState() 能检测到变更
-            if (!savedDate.isEmpty()) {
-                try { lastDate = LocalDate.parse(savedDate); } catch (Exception ignored) {}
-            }
+            // 跨天：清空内存+磁盘，并将 lastDate 设为今天（不再保留旧日期，避免 saveToPrefs 写入错误日期）
             clearPersisted();
-            Log.i("WordLearning", "[防重复] userId=" + userId + " 无有效本地记录，lastDate="
-                    + lastDate + "，从零开始");
+            lastDate = today;
+            Log.i("WordLearning", "[防重复] userId=" + userId + " 跨天重置，lastDate=" + lastDate + "，从零开始");
         }
     }
 
@@ -176,38 +181,34 @@ public class DailyStateManager {
         SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         StringBuilder sb = new StringBuilder();
         for (Integer id : completedWordIds) {
-            if (sb.length() > 0) sb.append(",");
+            if (sb.length() > 0)
+                sb.append(",");
             sb.append(id);
         }
         String detailsJson = buildDetailsJson();
-        sp.edit()
-                .putString(keyCompletedIds(), sb.toString())
-                .putString(keyLastDate(), lastDate.toString())
-                .putString(keyDetails(), detailsJson)
-                .apply();
-        Log.i("WordLearning", "[防重复] userId=" + userId + " 持久化 "
-                + completedWordIds.size() + " 个已完成单词, " + completedWordDetails.size() + " 条详情");
+        sp.edit().putString(keyCompletedIds(), sb.toString()).putString(keyLastDate(), lastDate.toString())
+                .putString(keyDetails(), detailsJson).apply();
+        Log.i("WordLearning", "[防重复] userId=" + userId + " 持久化 " + completedWordIds.size() + " 个已完成单词, "
+                + completedWordDetails.size() + " 条详情");
     }
 
     private void clearPersisted() {
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
-                .remove(keyCompletedIds())
-                .remove(keyLastDate())
-                .remove(keyDetails())
-                .apply();
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().remove(keyCompletedIds())
+                .remove(keyLastDate()).remove(keyDetails()).apply();
     }
 
     // ── 单词详情 JSON 序列化 ──
 
     private String buildDetailsJson() {
-        if (completedWordDetails.isEmpty()) return "";
+        if (completedWordDetails.isEmpty())
+            return "";
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         for (CompletedWordEntry entry : completedWordDetails) {
-            if (!first) sb.append(",");
+            if (!first)
+                sb.append(",");
             first = false;
-            sb.append("{\"id\":").append(entry.wordId)
-                    .append(",\"correct\":").append(entry.isCorrect).append("}");
+            sb.append("{\"id\":").append(entry.wordId).append(",\"correct\":").append(entry.isCorrect).append("}");
         }
         sb.append("]");
         return sb.toString();
@@ -215,19 +216,22 @@ public class DailyStateManager {
 
     private void parseDetailsFromJson(String json) {
         completedWordDetails.clear();
-        if (json == null || json.isEmpty()) return;
+        if (json == null || json.isEmpty())
+            return;
         try {
             // 简易 JSON 数组解析（避免引入 Gson 增加依赖）
             int pos = 0;
             while ((pos = json.indexOf("{\"id\":", pos)) >= 0) {
                 int idStart = pos + 6;
                 int idEnd = json.indexOf(",", idStart);
-                if (idEnd < 0) break;
+                if (idEnd < 0)
+                    break;
                 int wordId = Integer.parseInt(json.substring(idStart, idEnd).trim());
 
                 int correctStart = json.indexOf("\"correct\":", idEnd) + 10;
                 int correctEnd = json.indexOf("}", correctStart);
-                if (correctEnd < 0) break;
+                if (correctEnd < 0)
+                    break;
                 boolean isCorrect = Boolean.parseBoolean(json.substring(correctStart, correctEnd).trim());
 
                 completedWordDetails.add(new CompletedWordEntry(wordId, isCorrect));

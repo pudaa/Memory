@@ -26,6 +26,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +66,39 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     /** 防止 onCreateView 和 onResume 重复触发 loadTodayTask */
     private boolean isLoadingTask = false;
+
+    /** 当前总结卡片视图引用（用于避免重复创建，更新时移除旧卡片再添加新卡片） */
+    private View summaryCardView = null;
+
+    // ── 前台跨夜检测 ──
+    /** 上一次检测到的日期（用于前台跨天检测），null 表示尚未记录 */
+    private String lastKnownDate = null;
+    /** 专用于跨夜检测的 Handler，确保 postDelayed/removeCallbacks 使用同一实例 */
+    private final Handler midnightCheckHandler = new Handler(Looper.getMainLooper());
+    /** 跨夜检测定时任务 */
+    private final Runnable midnightCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isAdded())
+                return;
+            String todayStr = java.time.LocalDate.now().toString();
+            if (lastKnownDate != null && !lastKnownDate.equals(todayStr)) {
+                Log.i("WordLearning", "[跨夜检测] 前台跨天! " + lastKnownDate + " → " + todayStr);
+                lastKnownDate = todayStr;
+                boolean dayChanged = dailyState.checkAndResetDailyState();
+                if (dayChanged) {
+                    wordCards.clear();
+                    isLoadingTask = false;
+                    summaryCardView = null;
+                    if (cardContainer != null)
+                        cardContainer.removeAllCards();
+                    loadTodayTask();
+                }
+            }
+            // 每 60 秒检测一次
+            midnightCheckHandler.postDelayed(this, 60_000);
+        }
+    };
 
     @Override
     public void onSettingChanged(String key, Object value) {
@@ -116,12 +150,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             loadTodayTask();
         }
 
+        // 初始化前台跨夜检测
+        lastKnownDate = LocalDate.now().toString();
+
         return view;
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // 停止前台跨夜检测
+        stopMidnightCheck();
         if (userSettingsManager != null) {
             userSettingsManager.removeSettingsChangeListener(this);
         }
@@ -135,6 +174,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             // 日切时强制清空内存中的旧卡片，避免昨日残留数据
             wordCards.clear();
             isLoadingTask = false;
+            summaryCardView = null;
             if (cardContainer != null)
                 cardContainer.removeAllCards();
         }
@@ -144,6 +184,27 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         }
         // 重置当前卡片的计时器：用户可能从其他 Tab 切回，或 App 从后台恢复
         resetCurrentCardTimer();
+        // 启动/刷新前台跨夜检测
+        lastKnownDate = LocalDate.now().toString();
+        startMidnightCheck();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        stopMidnightCheck();
+    }
+
+    // ── 前台跨夜检测控制 ──
+
+    private void startMidnightCheck() {
+        // 先移除旧的，避免重复调度
+        midnightCheckHandler.removeCallbacks(midnightCheckRunnable);
+        midnightCheckHandler.postDelayed(midnightCheckRunnable, 60_000);
+    }
+
+    private void stopMidnightCheck() {
+        midnightCheckHandler.removeCallbacks(midnightCheckRunnable);
     }
 
     /**
@@ -274,6 +335,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             return;
         }
 
+        // 有新练习卡片时，移除旧的总结卡片（如果有）
+        if (summaryCardView != null && cardContainer != null) {
+            cardContainer.removeCard(summaryCardView);
+            summaryCardView = null;
+        }
+
         totalWords = wordCards.size();
         operatedCount = 0;
         currentCardIndex = 0;
@@ -363,11 +430,19 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         }
     }
 
-    /** 添加今日学习总结卡片（委托给 SummaryCardBuilder） */
+    /** 添加今日学习总结卡片（幂等：先移除旧总结卡片，再添加新的，避免重复堆积） */
     private void addSummaryCard() {
+        // 移除旧的总结卡片（如果存在），确保容器中始终只有一张总结卡片
+        if (summaryCardView != null && cardContainer != null) {
+            cardContainer.removeCard(summaryCardView);
+            Log.i("StudyLog", "[总结卡片] 已移除旧卡片");
+        }
         View summaryView = summaryBuilder.buildTodaySummary(wordCards, dailyState.getFilteredSnapshot(),
                 dailyState.getCompletedCount(), dailyState.getCompletedDetails(), lexiconId);
-        cardContainer.addCard(summaryView);
+        summaryCardView = summaryView;
+        if (cardContainer != null) {
+            cardContainer.addCard(summaryView);
+        }
         Log.i("StudyLog", "[总结卡片] 已添加 (词书=" + lexiconId + ")");
     }
 
@@ -413,7 +488,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
-            if (!isAdded()) return;
+            if (!isAdded())
+                return;
             switch (msg.what) {
             case msg_success:
                 String result = (String) msg.obj;
@@ -444,7 +520,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
-            if (!isAdded()) return;
+            if (!isAdded())
+                return;
             switch (msg.what) {
             case msg_success:
                 String result = (String) msg.obj;
