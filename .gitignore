@@ -13,7 +13,6 @@
 build/
 */build/
 local.properties
-*.properties
 
 # IDE files
 .idea/
@@ -42,3 +41,16 @@ Desktop.ini
 
 # Environment files
 .env
+
+# Keystore & signing (security sensitive)
+*.jks
+*.keystore
+*.key
+
+# Fastlane
+fastlane/
+
+# Android Studio capture files
+captures/
+gen-external-apk/
+*.hprof
