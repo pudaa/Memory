@@ -29,6 +29,8 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.network.HttpManager;
 import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.deepsleep.memory.ui.components.CameraCaptureActivity;
+import com.deepsleep.memory.ui.components.UcropHelper;
 import com.yalantis.ucrop.UCrop;
 
 import org.json.JSONArray;
@@ -487,17 +489,17 @@ public class DictationExecutionActivity extends AppCompatActivity {
     // ── 拍照 OCR ──
 
     private void openCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            try {
-                File photoFile = createImageFile();
-                currentPhotoPath = photoFile.getAbsolutePath();
-                cameraImageUri = FileProvider.getUriForFile(this, "com.deepsleep.memory.fileprovider", photoFile);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
-                startActivityForResult(intent, REQUEST_CAMERA);
-            } catch (IOException e) {
-                Toast.makeText(this, "无法创建照片文件", Toast.LENGTH_SHORT).show();
-            }
+        try {
+            File photoFile = createImageFile();
+            currentPhotoPath = photoFile.getAbsolutePath();
+            cameraImageUri = Uri.fromFile(photoFile);
+
+            // 使用自定义相机（无确认界面，拍照后直接返回）
+            Intent intent = new Intent(this, CameraCaptureActivity.class);
+            intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
+            startActivityForResult(intent, REQUEST_CAMERA);
+        } catch (IOException e) {
+            Toast.makeText(this, "无法创建照片文件", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -511,7 +513,15 @@ public class DictationExecutionActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CAMERA && resultCode == RESULT_OK) {
-            // 拍照完成后 → 进入裁剪
+            // 从自定义相机返回的照片路径
+            if (data != null) {
+                String photoPath = data.getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
+                if (photoPath != null) {
+                    currentPhotoPath = photoPath;
+                    cameraImageUri = Uri.fromFile(new File(photoPath));
+                }
+            }
+            // 进入裁剪
             startUCropActivity();
         } else if (requestCode == REQUEST_CROP && resultCode == RESULT_OK) {
             // 裁剪完成 → 获取裁剪后的图片进行 OCR
@@ -526,6 +536,9 @@ public class DictationExecutionActivity extends AppCompatActivity {
             if (error != null)
                 error.printStackTrace();
             Toast.makeText(this, "裁剪失败", Toast.LENGTH_SHORT).show();
+        } else if (requestCode == REQUEST_CROP) {
+            // 用户在裁剪界面点击取消 → 返回相机重新拍摄
+            openCamera();
         }
     }
 
@@ -538,12 +551,8 @@ public class DictationExecutionActivity extends AppCompatActivity {
         File destFile = new File(getCacheDir(), destFileName);
         Uri destUri = Uri.fromFile(destFile);
 
-        UCrop.Options options = new UCrop.Options();
-        options.setCompressionQuality(90);
-        options.setToolbarTitle("");
-        options.setFreeStyleCropEnabled(true);
-        options.setHideBottomControls(false);
-        options.setShowCropGrid(true);
+        // 使用应用主题的 UCrop 配置
+        UCrop.Options options = UcropHelper.createThemedOptions(this);
 
         UCrop.of(sourceUri, destUri).withMaxResultSize(2048, 2048).withOptions(options).start(this, REQUEST_CROP);
     }

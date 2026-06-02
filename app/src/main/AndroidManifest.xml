@@ -75,6 +75,11 @@
                 android:name=".ui.treasure_view.dictation_view.DictationResultActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
+        <!-- 自定义相机 -->
+        <activity
+                android:name=".ui.components.CameraCaptureActivity"
+                android:exported="false"
+                android:screenOrientation="portrait" />
         <activity
                 android:name=".ui.extra_view.setting_view.SettingActivity"
                 android:exported="false"/>

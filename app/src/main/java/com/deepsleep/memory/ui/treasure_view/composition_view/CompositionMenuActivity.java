@@ -24,6 +24,8 @@ import androidx.core.content.FileProvider;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.ui.components.CameraCaptureActivity;
+import com.deepsleep.memory.ui.components.UcropHelper;
 import com.yalantis.ucrop.UCrop;
 import com.yalantis.ucrop.model.AspectRatio;
 import com.yalantis.ucrop.view.CropImageView;
@@ -52,11 +54,11 @@ public class CompositionMenuActivity extends AppCompatActivity {
     private CompositionRecordAdapter recordAdapter;
     private List<CompositionRecord> compositionRecords;
 
-    static final  int msg_success = 1;
-    static final  int msg_failed = -1;
+    static final int msg_success = 1;
+    static final int msg_failed = -1;
     static final int msg_records_success = 2;
     static final int msg_records_failed = -2;
-    private static final int REQUEST_IMAGE_EDIT = 2;  // 添加编辑请求码
+    private static final int REQUEST_IMAGE_EDIT = 2; // 添加编辑请求码
     private boolean isImageEdited = false;
     private Uri croppedImageUri;
 
@@ -104,29 +106,25 @@ public class CompositionMenuActivity extends AppCompatActivity {
             public void handleMessage(@NonNull Message msg) {
                 super.handleMessage(msg);
                 switch (msg.what) {
-                    case msg_records_success:
-                        String recordsJson = (String) msg.obj;
-                        parseAndDisplayRecords(recordsJson);
-                        break;
+                case msg_records_success:
+                    String recordsJson = (String) msg.obj;
+                    parseAndDisplayRecords(recordsJson);
+                    break;
 
-                    case msg_records_failed:
-                        break;
+                case msg_records_failed:
+                    break;
                 }
             }
-        }
-        , msg_records_success
-        , msg_records_failed
-        , userId);
+        }, msg_records_success, msg_records_failed, userId);
     }
 
     private void setListeners() {
         btnTakePhoto.setOnClickListener(v -> {
             // 检查相机权限
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,// 请求权限
-                        new String[]{Manifest.permission.CAMERA},
-                        REQUEST_CAMERA_PERMISSION);
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, // 请求权限
+                        new String[] { Manifest.permission.CAMERA }, REQUEST_CAMERA_PERMISSION);
             } else {
                 dispatchTakePictureIntent();
             }
@@ -139,43 +137,30 @@ public class CompositionMenuActivity extends AppCompatActivity {
     }
 
     private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        // 确保有相机应用可以处理intent
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            // 创建文件用于保存照片
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException ex) {
-                Toast.makeText(this, "创建图片文件失败", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            // 继续只有文件成功创建
-            if (photoFile != null) {
-                Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.deepsleep.memory.fileprovider",
-                        photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-
-                // 禁用拍照确认界面
-                takePictureIntent.putExtra("noConfirmation", true);
-                takePictureIntent.putExtra("android.intent.extra.quickCapture", true);
-                takePictureIntent.putExtra(MediaStore.EXTRA_FINISH_ON_COMPLETION, true);
-
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-            }
+        // 创建文件用于保存照片
+        File photoFile = null;
+        try {
+            photoFile = createImageFile();
+        } catch (IOException ex) {
+            Toast.makeText(this, "创建图片文件失败", Toast.LENGTH_SHORT).show();
+            return;
         }
+        if (photoFile == null)
+            return;
+
+        currentPhotoPath = photoFile.getAbsolutePath();
+
+        // 使用自定义相机（无确认界面，拍照后直接返回）
+        Intent intent = new Intent(this, CameraCaptureActivity.class);
+        intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
+        startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
     }
 
     private File createImageFile() throws IOException {
         // 创建一个临时文件名
         String imageFileName = "JPEG_Composition_" + System.currentTimeMillis() + "_";
         File storageDir = getExternalFilesDir(null);
-        File image = File.createTempFile(
-                imageFileName,
-                ".jpg",
-                storageDir
-        );
+        File image = File.createTempFile(imageFileName, ".jpg", storageDir);
 
         // 保存文件路径
         currentPhotoPath = image.getAbsolutePath();
@@ -186,6 +171,13 @@ public class CompositionMenuActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            // 从自定义相机返回的照片路径
+            if (data != null) {
+                String photoPath = data.getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
+                if (photoPath != null) {
+                    currentPhotoPath = photoPath;
+                }
+            }
             startUCropActivity();
         } else if (requestCode == REQUEST_IMAGE_CROP && resultCode == RESULT_OK) {
             // uCrop编辑完成，进行OCR识别
@@ -195,6 +187,9 @@ public class CompositionMenuActivity extends AppCompatActivity {
                     uploadImageForOCR();
                 }
             }
+        } else if (requestCode == REQUEST_IMAGE_CROP) {
+            // 用户在裁剪界面点击取消 → 返回相机重新拍摄
+            dispatchTakePictureIntent();
         }
     }
 
@@ -206,45 +201,17 @@ public class CompositionMenuActivity extends AppCompatActivity {
         File destinationFile = new File(getCacheDir(), destinationFileName);
         Uri destinationUri = Uri.fromFile(destinationFile);
 
-        // 配置uCrop选项
-        UCrop.Options options = new UCrop.Options();
+        // 使用应用主题的 UCrop 配置
+        UCrop.Options options = UcropHelper.createThemedOptions(this);
 
-        // 界面美化选项
-        options.setCompressionQuality(90);
-
-        // 隐藏标题栏文字（通过设置为空字符串）
-        options.setToolbarTitle("");
-
-        // 启用自由裁剪模式
-        options.setFreeStyleCropEnabled(true);
-
-        // 设置更多预设的裁剪比例
-        options.setAspectRatioOptions(0,
-                new AspectRatio("自由", 0, 0),
+        // 设置更多预设的裁剪比例（作文批改专用）
+        options.setAspectRatioOptions(0, new AspectRatio("自由", 0, 0),
                 new AspectRatio("原始", CropImageView.SOURCE_IMAGE_ASPECT_RATIO, CropImageView.SOURCE_IMAGE_ASPECT_RATIO),
-                new AspectRatio("1:1", 1, 1),
-                new AspectRatio("3:2", 3, 2),
-                new AspectRatio("4:3", 4, 3),
-                new AspectRatio("16:9", 16, 9),
-                new AspectRatio("16:10", 16, 10),
-                new AspectRatio("A4", 210, 297));
-
-        // 设置网格线颜色
-        options.setCropGridColor(ContextCompat.getColor(this, R.color.theme_color));
-        options.setCropGridStrokeWidth(1);
-
-        // 设置裁剪框颜色
-        options.setCropFrameColor(ContextCompat.getColor(this, R.color.theme_color));
-        options.setCropFrameStrokeWidth(1);
-
-        // 设置其他UI选项
-        options.setShowCropGrid(true);
-        options.setHideBottomControls(false);
+                new AspectRatio("1:1", 1, 1), new AspectRatio("3:2", 3, 2), new AspectRatio("4:3", 4, 3),
+                new AspectRatio("16:9", 16, 9), new AspectRatio("16:10", 16, 10), new AspectRatio("A4", 210, 297));
 
         // 启动uCrop
-        UCrop uCrop = UCrop.of(sourceUri, destinationUri)
-                .withMaxResultSize(2048, 2048)
-                .withOptions(options);
+        UCrop uCrop = UCrop.of(sourceUri, destinationUri).withMaxResultSize(2048, 2048).withOptions(options);
 
         uCrop.start(this, REQUEST_IMAGE_CROP);
     }
@@ -260,11 +227,12 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
         // 使用GetDataByThread进行OCR识别
         GetDataByThread getDataByThread = new GetDataByThread("/composition/extractText");
-        getDataByThread.extractTextFromImageUri(new OCRHandler() , msg_success, msg_failed, croppedImageUri, this);
+        getDataByThread.extractTextFromImageUri(new OCRHandler(), msg_success, msg_failed, croppedImageUri, this);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NotNull String[] permissions, @NotNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NotNull String[] permissions,
+            @NotNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CAMERA_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -291,21 +259,21 @@ public class CompositionMenuActivity extends AppCompatActivity {
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
-                case msg_success: // OCR成功
-                    String result = (String) msg.obj;
-                    Log.d("OCR", "识别结果：" + result);
-                    // 删除临时文件
-                    deleteTempImageFile();
-                    // 跳转到预览界面并传递识别结果
-                    Intent intent = new Intent(CompositionMenuActivity.this, CompositionPreviewActivity.class);
-                    intent.putExtra("ocr_text", result);
-                    startActivity(intent);
-                    break;
-                case msg_failed: // OCR失败
-                    // 删除临时文件
-                    deleteTempImageFile();
-                    Toast.makeText(CompositionMenuActivity.this, "文字识别失败", Toast.LENGTH_SHORT).show();
-                    break;
+            case msg_success: // OCR成功
+                String result = (String) msg.obj;
+                Log.d("OCR", "识别结果：" + result);
+                // 删除临时文件
+                deleteTempImageFile();
+                // 跳转到预览界面并传递识别结果
+                Intent intent = new Intent(CompositionMenuActivity.this, CompositionPreviewActivity.class);
+                intent.putExtra("ocr_text", result);
+                startActivity(intent);
+                break;
+            case msg_failed: // OCR失败
+                // 删除临时文件
+                deleteTempImageFile();
+                Toast.makeText(CompositionMenuActivity.this, "文字识别失败", Toast.LENGTH_SHORT).show();
+                break;
             }
         }
     }
@@ -322,12 +290,8 @@ public class CompositionMenuActivity extends AppCompatActivity {
                 String correctionResult = recordObj.getString("correctionResult");
                 String createdTime = recordObj.getString("createdTime");
 
-                CompositionRecord record = new CompositionRecord(
-                        compositionId,
-                        compositionContent,
-                        correctionResult,
-                        createdTime
-                );
+                CompositionRecord record = new CompositionRecord(compositionId, compositionContent, correctionResult,
+                        createdTime);
                 compositionRecords.add(record);
             }
 

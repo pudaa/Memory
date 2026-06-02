@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 外圈白色环形 -->
+    <item>
+        <shape android:shape="oval">
+            <stroke
+                android:width="4dp"
+                android:color="@android:color/white" />
+            <solid android:color="@android:color/transparent" />
+            <size
+                android:width="72dp"
+                android:height="72dp" />
+        </shape>
+    </item>
+    <!-- 内圆白色实心 -->
+    <item
+        android:bottom="8dp"
+        android:left="8dp"
+        android:right="8dp"
+        android:top="8dp">
+        <shape android:shape="oval">
+            <solid android:color="@android:color/white" />
+        </shape>
+    </item>
+</layer-list>
