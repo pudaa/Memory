@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 趋势详情行 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="6dp">
+
+    <TextView
+        android:id="@+id/tv_date"
+        android:layout_width="50dp"
+        android:layout_height="wrap_content"
+        android:text="05-15"
+        android:textSize="12sp"
+        android:textColor="@color/theme_text_primary" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_weight="1"
+        android:gravity="bottom|center_horizontal"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="4dp">
+
+        <View
+            android:id="@+id/bar_new"
+            android:layout_width="16dp"
+            android:layout_height="0dp"
+            android:layout_marginEnd="2dp"
+            android:background="@color/theme_stress" />
+
+        <View
+            android:id="@+id/bar_review"
+            android:layout_width="16dp"
+            android:layout_height="0dp"
+            android:background="#FFB74D" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_score"
+        android:layout_width="45dp"
+        android:layout_height="wrap_content"
+        android:text="3.5"
+        android:textSize="12sp"
+        android:textColor="@color/theme_stress"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tv_response"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:text="3200ms"
+        android:textSize="11sp"
+        android:textColor="@color/theme_text_secondary"
+        android:gravity="end" />
+</LinearLayout>

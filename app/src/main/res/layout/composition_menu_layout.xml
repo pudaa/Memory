@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:id="@+id/title_bar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/white"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:elevation="4dp">
+
+            <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/back"
+                android:padding="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:layout_gravity="center_vertical"/>
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="作文评分"
+                android:layout_gravity="center"
+                android:textSize="23sp"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+            />
+        </LinearLayout>
+
+        <!-- 拍照批改和作文键入按钮 -->
+        <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="294dp"
+                android:layout_marginTop="20dp">
+
+            <!-- 拍照批改按钮 -->
+            <ImageButton
+                android:id="@+id/btn_take_photo"
+                android:layout_width="260dp"
+                android:layout_height="260dp"
+                android:layout_centerInParent="true"
+                android:background="@drawable/composition_menu_button"
+                android:contentDescription="拍照批改按钮"
+                android:textColor="@color/white"
+                android:elevation="8dp"
+                android:src="@drawable/baseline_photo_camera_24"
+                android:drawablePadding="20dp"
+                android:paddingTop="15dp"
+            />
+
+            <!-- 作文键入按钮android:elevation="12dp" -->
+            <ImageButton
+                android:id="@+id/btn_type_composition"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:layout_alignEnd="@id/btn_take_photo"
+                android:layout_alignBottom="@id/btn_take_photo"
+                android:layout_marginEnd="-7dp"
+                android:layout_marginBottom="-8dp"
+                android:background="@drawable/composition_menu_button2"
+                android:contentDescription="作文键入"
+                android:textColor="@color/white"
+                android:src="@drawable/composition_write_in"
+                android:scaleType="fitCenter"
+                android:padding="17dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="17dp"
+                android:elevation="8dp"
+            />
+
+        </RelativeLayout>
+
+        <!-- 作文本区域，设置滚动条不可见 -->
+        <LinearLayout
+            android:id="@+id/composition_books_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:layout_marginTop="5dp"
+            android:padding="20dp"
+        >
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="作文本"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="15dp"/>
+
+            <!-- 历史作文列表 -->
+            <ListView
+                android:id="@+id/history_composition_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/custom_listitem_shadow"
+                android:divider="@null"
+                android:scrollbars="none"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/no_history_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="暂无历史作文"
+                android:gravity="center"
+                android:padding="50dp"
+                android:textSize="18sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,122 @@
+package com.deepsleep.memory.settings;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class UserSettingsManager { // 用于用户设置信息获取和设置
+    private static final String PREF_NAME = "AppSettings";
+    // 键名
+    public static final String KEY_IS_SLIDE_BACK = "is_slide_back"; // 用户右滑是否回到上一个卡片
+    public static final String KEY_STUDY_MODE = "study_mode"; // 学习模式: "choice"(选择题) / "input"(输入题)
+    public static final String KEY_DAILY_NEW_WORDS = "daily_new_words"; // 每日新学单词数
+    // 默认值
+    private static final boolean DEFAULT_IS_SLIDE_BACK = true;
+    private static final String DEFAULT_STUDY_MODE = "choice"; // 默认选择题模式
+    private static final int DEFAULT_DAILY_NEW_WORDS = 10; // 默认每日10个新词
+    private static UserSettingsManager instance;
+    private final SharedPreferences sharedPreferences;
+    private final List<OnSettingsChangedListener> listeners = new ArrayList<>();
+
+    private UserSettingsManager(Context context) {
+        sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+
+    public static synchronized UserSettingsManager getInstance(Context context) { // 单例模式，确保只有一个实例
+        if (instance == null) {
+            instance = new UserSettingsManager(context);
+        }
+        return instance;
+    }
+
+    // 设置相关方法
+    public void setIsSlideBack(boolean enabled) {
+        sharedPreferences.edit().putBoolean(KEY_IS_SLIDE_BACK, enabled).apply();
+        notifySettingsChanged(KEY_IS_SLIDE_BACK, enabled);
+    }
+
+    // 获取相关方法
+    public boolean isSlideBackEnabled() {
+        return sharedPreferences.getBoolean(KEY_IS_SLIDE_BACK, DEFAULT_IS_SLIDE_BACK);
+    }
+
+    /** 获取学习模式: "choice" 或 "input" */
+    public String getStudyMode() {
+        return sharedPreferences.getString(KEY_STUDY_MODE, DEFAULT_STUDY_MODE);
+    }
+
+    /** 设置学习模式: "choice" 或 "input" */
+    public void setStudyMode(String mode) {
+        sharedPreferences.edit().putString(KEY_STUDY_MODE, mode).apply();
+        notifySettingsChanged(KEY_STUDY_MODE, mode);
+    }
+
+    /** 获取每日新词数 */
+    public int getDailyNewWords() {
+        return sharedPreferences.getInt(KEY_DAILY_NEW_WORDS, DEFAULT_DAILY_NEW_WORDS);
+    }
+
+    /** 设置每日新词数 */
+    public void setDailyNewWords(int count) {
+        sharedPreferences.edit().putInt(KEY_DAILY_NEW_WORDS, count).apply();
+        notifySettingsChanged(KEY_DAILY_NEW_WORDS, count);
+    }
+
+    // 重置相关方法
+    public void resetIsSlideBack() {
+        setIsSlideBack(DEFAULT_IS_SLIDE_BACK);
+        notifySettingsChanged(KEY_IS_SLIDE_BACK, DEFAULT_IS_SLIDE_BACK);
+    }
+
+    /** 重置学习模式为默认值 */
+    public void resetStudyMode() {
+        setStudyMode(DEFAULT_STUDY_MODE);
+        notifySettingsChanged(KEY_STUDY_MODE, DEFAULT_STUDY_MODE);
+    }
+
+    /** 重置每日新词数为默认值 */
+    public void resetDailyNewWords() {
+        setDailyNewWords(DEFAULT_DAILY_NEW_WORDS);
+        notifySettingsChanged(KEY_DAILY_NEW_WORDS, DEFAULT_DAILY_NEW_WORDS);
+    }
+
+    public void resetAllSettings() {
+        sharedPreferences.edit().clear().apply();
+        notifySettingsReset();
+    }
+
+    // 设置变化监听器接口
+    public interface OnSettingsChangedListener {
+        void onSettingChanged(String key, Object value);
+
+        void onSettingsReset();
+    }
+
+    // 添加监听器
+    public void addSettingsChangeListener(OnSettingsChangedListener listener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    // 移除监听器
+    public void removeSettingsChangeListener(OnSettingsChangedListener listener) {
+        listeners.remove(listener);
+    }
+
+    // 通知设置变化
+    private void notifySettingsChanged(String key, Object value) {
+        for (OnSettingsChangedListener listener : listeners) {
+            listener.onSettingChanged(key, value);
+        }
+    }
+
+    // 通知设置重置
+    private void notifySettingsReset() {
+        for (OnSettingsChangedListener listener : listeners) {
+            listener.onSettingsReset();
+        }
+    }
+}

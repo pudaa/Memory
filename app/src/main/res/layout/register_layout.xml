@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/theme_primary"
+                android:fitsSystemWindows="true"
+                android:backgroundTint="@color/white"
+
+        >
+    <ImageView
+        android:id="@+id/iv_logo"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginTop="110dp"
+        android:layout_centerHorizontal="true"
+        android:contentDescription="@string/logo_description"
+        android:src="@drawable/app_logo" />
+
+    <!-- 注册标题 -->
+    <TextView
+        android:id="@+id/tv_register_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:layout_below="@id/iv_logo"
+        android:layout_centerHorizontal="true"
+        android:text="@string/register_title"
+        android:textColor="@color/black"
+        android:textSize="38sp"
+        android:textStyle="bold" />
+
+    <!-- 手机号码输入框 -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_register_phone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="48dp"
+        android:layout_marginEnd="32dp"
+        android:layout_below="@id/tv_register_title"
+        android:background="@drawable/custom_shadow"
+        android:elevation="5dp"
+        app:boxBackgroundColor="@color/white"
+        app:boxStrokeColor="@color/theme_color"
+        app:boxStrokeWidth="2dp"
+        app:hintEnabled="false">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/text_input_edit_register_phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/custom_textinput_background"
+            android:hint="@string/phone_hint"
+            android:inputType="phone" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- 密码输入框 -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_register_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_below="@id/til_register_phone"
+        android:background="@drawable/custom_shadow"
+        android:elevation="5dp"
+        app:boxBackgroundColor="@color/white"
+        app:boxStrokeColor="@color/theme_color"
+        app:boxStrokeWidth="2dp"
+        app:endIconMode="password_toggle"
+        app:hintEnabled="false">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/text_input_edit_register_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/custom_textinput_background"
+            android:hint="@string/password_hint"
+            android:inputType="textPassword" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- 确认密码输入框 -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_register_confirm_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_below="@id/til_register_password"
+        android:background="@drawable/custom_shadow"
+        android:elevation="5dp"
+        app:boxBackgroundColor="@color/white"
+        app:boxStrokeColor="@color/theme_color"
+        app:boxStrokeWidth="2dp"
+        app:endIconMode="password_toggle"
+        app:hintEnabled="false">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/text_input_edit_register_confirm_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/custom_textinput_background"
+            android:hint="@string/confirm_password_hint"
+            android:inputType="textPassword" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- 注册按钮 -->
+    <Button
+        android:id="@+id/btn_register"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="58dp"
+        android:layout_marginEnd="32dp"
+        android:layout_below="@id/til_register_confirm_password"
+        android:background="@drawable/custom_shadow"
+        android:elevation="5dp"
+        android:stateListAnimator="@null"
+        android:text="@string/register_button"
+        android:textSize="19sp" />
+
+    <!-- 底部登录提示 -->
+    <TextView
+        android:id="@+id/tv_login_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="32dp"
+        android:text="@string/already_have_account"
+        android:textColor="@color/black"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tv_login"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@id/tv_login_hint"
+        android:layout_toEndOf="@id/tv_login_hint"
+        android:layout_marginStart="4dp"
+        android:clickable="true"
+        android:fontFamily="sans-serif-medium"
+        android:text="@string/login"
+        android:textColor="@color/theme_stress"
+        android:textSize="14sp" />
+
+</RelativeLayout>

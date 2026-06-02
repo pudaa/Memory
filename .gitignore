@@ -1,0 +1,44 @@
+# Android built artifacts
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+*.iml
+*.hprof
+*.prof
+
+# Gradle files
+.gradle/
+build/
+*/build/
+local.properties
+*.properties
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.settings/
+.project
+.classpath
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# NDK
+.cxx/
+
+# Logs
+*.log
+
+# Environment files
+.env

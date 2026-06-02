@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/item_bg_selector"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:layout_marginBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_history_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="2026-05-26"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/theme_text_primary" />
+
+        <TextView
+            android:id="@+id/tv_history_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="已完成"
+            android:textSize="11sp"
+            android:textColor="@color/theme_text_secondary"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/item_rounded_bg" />
+
+        <TextView
+            android:id="@+id/btn_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="删除"
+            android:textSize="12sp"
+            android:textColor="@color/theme_error"
+            android:paddingStart="10dp"
+            android:paddingEnd="2dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/tv_history_words"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10/15"
+            android:textSize="13sp"
+            android:textColor="@color/theme_text_secondary" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="12dp"
+            android:background="#E0E0E0"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="正确率："
+            android:textSize="13sp"
+            android:textColor="@color/theme_text_secondary" />
+
+        <TextView
+            android:id="@+id/tv_history_accuracy"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="67%"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

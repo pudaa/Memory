@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginBottom="6dp"
+    android:background="@color/card_background"
+    android:elevation="1dp"
+    android:padding="0dp">
+
+    <View
+        android:layout_width="4dp"
+        android:layout_height="match_parent"
+        android:background="#F44336" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_word"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/theme_text_primary" />
+
+        <TextView
+            android:id="@+id/tv_intervention"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/theme_error"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+</LinearLayout>

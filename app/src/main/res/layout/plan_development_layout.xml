@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/theme_background"
+                android:fitsSystemWindows="true"
+                android:backgroundTint="@color/theme_background"
+>
+    <RelativeLayout android:layout_width="match_parent" android:layout_height="50dp"
+                    android:orientation="horizontal"
+                    android:background="@color/theme_color"
+                    android:id="@+id/top_bar"
+                  >
+        <ImageButton android:layout_width="wrap_content" android:layout_height="wrap_content"
+                     android:id="@+id/back_button"
+                     android:layout_alignParentStart="true"
+                     android:contentDescription="返回书籍选择视图"
+                     android:layout_centerVertical="true"
+                     android:src="@drawable/baseline_arrow_back_ios_new_24"
+                     android:layout_marginStart="12dp"
+                     android:background="@null"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                  android:id="@+id/book_name"
+                  android:text="选择书本"
+                  android:textColor="@color/white"
+                  android:layout_centerInParent="true"
+                   android:textSize="20sp"
+                  android:textStyle="bold"/>
+    </RelativeLayout>
+    <!-- 包含两个 NumberPicker 的上部区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/top_pickers"
+        android:background="@color/white"
+        android:layout_below="@+id/top_bar"
+        android:paddingTop="28dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+         <!-- 左侧每日新词选择区域 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="每日新词"
+                android:textSize="18sp"
+                android:textColor="@android:color/black"
+                android:layout_marginBottom="8dp"
+                android:textStyle="bold"/>
+
+            <com.deepsleep.memory.ui.components.TextCustomNumberPicker
+                    android:id="@+id/daily_new_words_picker"
+                    android:layout_width="74dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:descendantFocusability="blocksDescendants"
+            />
+        </LinearLayout>
+
+        <!-- 右侧完成天数选择区域 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="完成天数"
+                android:textSize="18sp"
+                android:textColor="@android:color/black"
+                android:layout_marginBottom="8dp"
+                android:textStyle="bold"/>
+
+            <com.deepsleep.memory.ui.components.TextCustomNumberPicker
+                android:id="@+id/completion_days_picker"
+                android:layout_width="74dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:descendantFocusability="blocksDescendants"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                  android:orientation="vertical"
+                  android:background="@color/white"
+                  android:layout_below="@+id/top_pickers"
+                  android:layout_marginTop="8dp"
+                  android:id="@+id/word_list_view_container">
+        <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:padding="8dp"
+        >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:id="@+id/isSequential_text"
+                      android:text="@string/isSequential_text"
+                      android:layout_alignParentStart="true"
+                      android:layout_marginStart="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+                      />
+            <RadioGroup
+                android:id="@+id/radio_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/custom_tag_background"
+                android:orientation="horizontal"
+                android:layout_alignParentEnd="true"
+                android:layout_marginEnd="15dp"
+                android:padding="4dp"
+                >
+
+                <RadioButton
+                        android:id="@+id/radio_button1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="原书序"
+                        android:checked="true"
+                        android:textSize="16sp"
+                        android:buttonTint="@color/black"/>
+
+                <RadioButton
+                        android:id="@+id/radio_button2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:paddingEnd="5dp"
+                        android:text="乱序"
+                        android:textSize="16sp"
+                        android:buttonTint="@color/black"/>
+            </RadioGroup>
+        </RelativeLayout>
+        <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:id="@+id/learning_plan_text"
+                      android:text="学习计划表"
+                      android:layout_alignParentStart="true"
+                      android:layout_marginStart="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+            <TextView android:layout_width="wrap_content" android:layout_height="40dp"
+                      android:id="@+id/learning_plan_num"
+                      android:text="总95list"
+                      android:gravity="center"
+                      android:layout_alignParentEnd="true"
+                      android:layout_marginEnd="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+        </RelativeLayout>
+        <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:id="@+id/book_word_num_text"
+                      android:text="词书单词数"
+                      android:layout_alignParentStart="true"
+                      android:layout_marginStart="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+            <TextView android:layout_width="wrap_content" android:layout_height="40dp"
+                      android:id="@+id/book_word_num"
+                      android:text="3783词"
+                      android:gravity="center"
+                      android:layout_alignParentEnd="true"
+                      android:layout_marginEnd="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+        </RelativeLayout>
+        <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:id="@+id/maximum_pressure_text"
+                      android:text="最高压力值"
+                      android:layout_alignParentStart="true"
+                      android:layout_marginStart="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+            <TextView android:layout_width="wrap_content" android:layout_height="40dp"
+                      android:id="@+id/maximum_pressure_num"
+                      android:gravity="center"
+                      android:text="@string/maximum_pressure_example"
+                      android:layout_alignParentEnd="true"
+                      android:layout_marginEnd="20dp"
+                      android:layout_centerVertical="true"
+                      android:textColor="@android:color/black"
+                      android:textSize="16sp"
+            />
+        </RelativeLayout>
+    </LinearLayout>
+
+    <!-- 开始单词学习按钮 -->
+    <Button
+            android:id="@+id/start_word_learning_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_margin="16dp"
+            android:text="开始单词记忆之旅"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="33dp"
+            android:textSize="17sp"
+    />
+
+</RelativeLayout>

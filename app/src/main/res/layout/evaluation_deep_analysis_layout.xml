@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/theme_surface">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="56dp"
+        android:background="@color/white" android:elevation="1dp"
+        android:gravity="center_vertical" android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
+        <ImageButton android:id="@+id/btn_back"
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:src="@drawable/back" android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitCenter" android:layout_gravity="center_vertical" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="深度分析"
+            android:textSize="20sp" android:textStyle="bold" android:gravity="center"
+            android:textColor="@color/theme_text_primary" />
+        <View android:layout_width="40dp" android:layout_height="40dp" />
+    </LinearLayout>
+
+    <ProgressBar android:id="@+id/progress_bar"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="center" android:layout_marginTop="80dp" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tab_layout"
+        android:layout_width="match_parent" android:layout_height="44dp"
+        android:background="@color/white"
+        app:tabMode="fixed"
+        app:tabIndicatorColor="@color/theme_primary"
+        app:tabIndicatorHeight="3dp"
+        app:tabSelectedTextColor="@color/theme_primary"
+        app:tabTextColor="@color/middle_gray" />
+
+    <ScrollView android:id="@+id/content_layout"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:visibility="gone" android:scrollbars="none">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- 掌握度分布 -->
+            <LinearLayout android:id="@+id/panel_distribution"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp"
+                android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="掌握度分布" android:textSize="17sp" android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary" android:layout_marginBottom="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="单词掌握程度的整体分布情况" android:textSize="12sp"
+                    android:textColor="@color/middle_gray" android:layout_marginBottom="14dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    app:cardCornerRadius="10dp" app:cardElevation="1dp"
+                    app:cardBackgroundColor="@color/card_background"
+                    android:layout_marginBottom="14dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:padding="14dp">
+                        <TextView android:id="@+id/tv_mastery_rate"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="26sp" android:textStyle="bold"
+                            android:textColor="@color/theme_primary" />
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:layout_marginTop="12dp">
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                    android:text="中位数" android:textSize="11sp" android:textColor="@color/middle_gray" />
+                                <TextView android:id="@+id/tv_median_r"
+                                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                    android:textSize="15sp" android:textStyle="bold"
+                                    android:textColor="@color/theme_text_primary" android:layout_marginTop="2dp" />
+                            </LinearLayout>
+                            <View android:layout_width="1dp" android:layout_height="32dp"
+                                android:background="@color/light_gray" android:layout_marginHorizontal="8dp" />
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                    android:text="标准差" android:textSize="11sp" android:textColor="@color/middle_gray" />
+                                <TextView android:id="@+id/tv_std_dev"
+                                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                    android:textSize="15sp" android:textStyle="bold"
+                                    android:textColor="@color/theme_text_primary" android:layout_marginTop="2dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                        <TextView android:id="@+id/tv_quartiles"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="12sp" android:textColor="@color/middle_gray"
+                            android:layout_marginTop="10dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    app:cardCornerRadius="10dp" app:cardElevation="1dp"
+                    app:cardBackgroundColor="@color/card_background">
+                    <com.github.mikephil.charting.charts.PieChart
+                        android:id="@+id/distribution_pie_chart"
+                        android:layout_width="match_parent" android:layout_height="240dp"
+                        android:layout_margin="8dp" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- FSRS 趋势 -->
+            <LinearLayout android:id="@+id/panel_trend"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp"
+                android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="FSRS 指标趋势" android:textSize="17sp" android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary" android:layout_marginBottom="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="难度、提取率、稳定性的近 7 日变化" android:textSize="12sp"
+                    android:textColor="@color/middle_gray" android:layout_marginBottom="14dp" />
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="14dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+                        android:padding="12dp" android:background="@drawable/trend_bg_orange"
+                        android:layout_marginEnd="4dp">
+                        <TextView android:id="@+id/tv_d_trend" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="13sp" android:textStyle="bold"
+                            android:textColor="@color/theme_stress" />
+                        <TextView android:id="@+id/tv_d_slope" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="11sp"
+                            android:textColor="@color/theme_error" android:layout_marginTop="2dp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+                        android:padding="12dp" android:background="@drawable/trend_bg_blue"
+                        android:layout_marginStart="4dp">
+                        <TextView android:id="@+id/tv_r_trend" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="13sp" android:textStyle="bold"
+                            android:textColor="@color/theme_stress" />
+                        <TextView android:id="@+id/tv_r_slope" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="11sp"
+                            android:textColor="@color/theme_stress" android:layout_marginTop="2dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    app:cardCornerRadius="10dp" app:cardElevation="1dp"
+                    app:cardBackgroundColor="@color/card_background">
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/fsrs_trend_chart"
+                        android:layout_width="match_parent" android:layout_height="240dp"
+                        android:layout_margin="8dp" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- 薄弱单词 -->
+            <LinearLayout android:id="@+id/panel_weak_words"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp"
+                android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="薄弱单词" android:textSize="17sp" android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary" android:layout_marginBottom="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="提取率最低的单词，建议优先复习" android:textSize="12sp"
+                    android:textColor="@color/middle_gray" android:layout_marginBottom="12dp" />
+                <LinearLayout android:id="@+id/weak_words_container"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <!-- 危急单词 -->
+            <LinearLayout android:id="@+id/panel_critical"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="16dp"
+                android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="危急单词" android:textSize="17sp" android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary" android:layout_marginBottom="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="难度极高且连续出错的单词，需要紧急干预" android:textSize="12sp"
+                    android:textColor="@color/middle_gray" android:layout_marginBottom="12dp" />
+                <LinearLayout android:id="@+id/critical_words_container"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

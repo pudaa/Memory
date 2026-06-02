@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 基础色（暗色模式下语义反转，white 用作表面色） -->
+    <color name="black">#FFE8E8EC</color>
+    <color name="white">#FF252538</color>
+    <color name="light_gray">#FF3A3A4C</color>
+    <color name="middle_gray">#FF707088</color>
+    <color name="dark_gray">#FF505068</color>
+
+    <!-- 主题色（暗色模式下略微提亮） -->
+    <color name="theme_color">#FF6EB4F0</color>
+    <color name="theme_behind">#E5303A50</color>
+    <color name="theme_background">#FF13131A</color>
+    <color name="theme_stress">#FF6EB4F0</color>
+    <color name="theme_primary">#FF4A6FA5</color>
+    <color name="theme_cursor">#FF90CAF9</color>
+
+    <!-- 表面色 -->
+    <color name="activity_background">#FF13131A</color>
+    <color name="item_background">#F1262638</color>
+    <color name="item_background_stress">#E9203050</color>
+    <color name="card_background">#FF252538</color>
+    <color name="card_background_stress">#E9203050</color>
+    <color name="theme_surface">#FF1A1A24</color>
+
+    <!-- 文本色 -->
+    <color name="theme_on_primary">#FF13131A</color>
+    <color name="theme_on_stress">#FFE8E8EC</color>
+    <color name="theme_text_primary">#FFE8E8EC</color>
+    <color name="theme_text_secondary">#FFA0A0B0</color>
+
+    <!-- 错误色 -->
+    <color name="theme_error">#FFFF6B6B</color>
+
+    <!-- Chip 颜色保持不变 -->
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="orange_200">#FFFFB74D</color>
+    <color name="red_200">#FFEF9A9A</color>
+
+    <!-- 百宝箱卡片阴影（暗色：深色填充） -->
+    <color name="box_shadow_border">#FF2A2A3C</color>
+    <color name="box_shadow_fill">#FF2A2A3C</color>
+    <color name="shadow_border">#FF1A1A1A</color>
+</resources>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="light_gray">#FFD3D3D3</color>
+    <color name="middle_gray">#FFA4A4A4</color>
+    <color name="dark_gray">#808080</color>
+    <color name="theme_color">#FF82B0DA</color>
+    <color name="theme_behind">#E57E99B4</color>
+    <!--    主题背景，和下面的界面背景还是有些不一样的-->
+    <color name="theme_background">#657E99B4</color>
+    <color name="theme_stress">#4E9BF8</color>
+    <color name="theme_primary">#FF82B0DA</color>
+    <color name="theme_cursor">#4C535F</color>
+    <color name="activity_background">#FFFFFFFF</color>
+    <color name="item_background">#F1E6E6E6</color>
+    <color name="item_background_stress">#E9F1FD</color>
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="card_background_stress">#E9F1FD</color>
+    <color name="theme_on_primary">#FFFFFF</color>
+    <color name="theme_on_stress">#222222</color>
+    <color name="theme_surface">#F8F9FB</color>
+    <color name="theme_text_primary">#222222</color>
+    <color name="theme_text_secondary">#666666</color>
+    <color name="theme_error">#FF5252</color>
+
+    <!-- 评估 Chip 颜色 -->
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="orange_200">#FFFFB74D</color>
+    <color name="red_200">#FFEF9A9A</color>
+
+    <!-- 百宝箱卡片阴影 -->
+    <color name="box_shadow_border">#8EABE0</color>
+    <color name="box_shadow_fill">#F5EBF3FA</color>
+    <color name="shadow_border">#CC444444</color>
+
+</resources>

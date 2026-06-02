@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:background="@color/activity_background"
+>
+
+    <LinearLayout
+            android:id="@+id/title_bar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/white"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:elevation="4dp">
+
+        <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/back"
+                android:padding="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:layout_gravity="center_vertical"/>
+
+        <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="计划更换"
+                android:layout_gravity="center"
+                android:textSize="23sp"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
+        <ImageButton
+                android:id="@+id/btn_add"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/baseline_add_24"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:layout_gravity="center_vertical"/>
+    </LinearLayout>
+
+    <ListView android:layout_width="match_parent" android:layout_height="0dp"
+              android:id="@+id/plan_list"
+              android:divider="@null"
+              android:dividerHeight="0dp"
+              android:layout_weight="1"
+              android:scrollbars="none"
+              android:scrollingCache="false"
+              android:cacheColorHint="@android:color/transparent"
+              android:choiceMode="singleChoice"
+              android:padding="10dp"
+              android:background="@android:color/transparent"
+    />
+
+</LinearLayout>

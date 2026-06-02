@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/theme_surface"
+    tools:context=".ui.treasure_view.dictation_view.DictationMenuActivity">
+
+    <!-- ═══ 标题栏 ═══ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/white"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="12dp"
+        android:gravity="center_vertical"
+        android:elevation="1dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/back"
+            android:padding="10dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="听写练习"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textColor="@color/theme_text_primary" />
+
+        <View
+            android:layout_width="44dp"
+            android:layout_height="44dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="32dp"
+            android:gravity="center_horizontal">
+
+            <!-- ═══ 生成卡片 ═══ -->
+            <LinearLayout
+                android:id="@+id/btn_generate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="36dp"
+                android:background="@drawable/dictation_menu_card_bg"
+                android:elevation="2dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:src="@drawable/test"
+                    android:layout_gravity="center"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="生成今日听写"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI 智能组题 · 语境分级 · 即时反馈"
+                    android:textSize="13sp"
+                    android:textColor="@color/theme_text_secondary"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+
+            <!-- ═══ 历史记录 ═══ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="28dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="历史记录"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary"
+                    android:layout_marginBottom="14dp"
+                    android:layout_marginStart="4dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/history_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tv_no_history"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="暂无听写记录，开始第一次听写吧！"
+                    android:gravity="center"
+                    android:padding="40dp"
+                    android:textSize="15sp"
+                    android:textColor="@color/theme_text_secondary"
+                    android:visibility="visible" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
+

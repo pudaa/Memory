@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <!-- 用户文本气泡 -->
+    <LinearLayout
+        android:id="@+id/layoutUserMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_chat_bubble_user"
+        android:orientation="vertical"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvUserContent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/white"
+            android:lineSpacingExtra="2dp" />
+    </LinearLayout>
+
+    <!-- 用户语音气泡 -->
+    <LinearLayout
+        android:id="@+id/layoutUserVoice"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_gravity="end"
+        android:layout_marginStart="56dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_chat_bubble_user"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageButton
+            android:id="@+id/btnUserVoicePlay"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@null"
+            android:src="@drawable/ic_play_24dp"
+            android:tint="@color/white"
+            android:scaleType="fitCenter"
+            android:contentDescription="播放语音" />
+
+        <View
+            android:id="@+id/viewVoiceWave"
+            android:layout_width="60dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_voice_wave_placeholder" />
+
+        <TextView
+            android:id="@+id/tvVoiceDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="0″"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:alpha="0.8" />
+    </LinearLayout>
+
+    <!-- AI 消息气泡 -->
+    <LinearLayout
+        android:id="@+id/layoutAiMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="56dp"
+        android:background="@drawable/bg_chat_bubble_ai"
+        android:orientation="vertical"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvAiContent"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="@color/theme_text_primary"
+                android:lineSpacingExtra="2dp" />
+
+            <ImageButton
+                android:id="@+id/btnPlayAudio"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_play_24dp"
+                android:contentDescription="@string/play_audio"
+                android:visibility="gone"
+                android:tint="@color/theme_primary"
+                android:scaleType="fitCenter" />
+        </LinearLayout>
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="@color/white"
+            app:chipBackgroundColor="@color/theme_stress"
+            app:chipStrokeWidth="0dp"
+            app:chipCornerRadius="10dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutEvaluation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupEval"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleLine="false"
+                app:chipSpacingHorizontal="6dp"
+                app:chipSpacingVertical="6dp" />
+
+            <TextView
+                android:id="@+id/tvFeedback"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="@color/theme_text_secondary"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

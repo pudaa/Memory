@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+>
+
+    <LinearLayout
+        android:id="@+id/title_bar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:orientation="horizontal"
+        android:background="@color/white"
+        android:padding="8dp"
+        android:elevation="4dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:visibility="invisible"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <ImageButton
+                android:id="@+id/btn_plan"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/program_revisions"
+                android:background="@null"
+                android:scaleType="centerInside"
+                android:layout_gravity="center_vertical"
+                android:textSize="14sp"
+            />
+
+
+        </LinearLayout>
+
+        <TextView
+                android:id="@+id/tv_day_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="每日一读"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_gravity="center"
+                android:textSize="23sp"
+                android:textStyle="bold"/>
+
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:padding="4dp">
+
+            <ImageButton
+                android:id="@+id/btn_refresh"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/refresh"
+                android:background="@null"
+                android:scaleType="centerInside"
+                android:layout_gravity="center_vertical"
+                android:textSize="14sp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@color/theme_surface"
+    >
+
+        <TextView
+            android:id="@+id/markdown_title_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:textColor="@color/theme_color"
+            android:text="每日一读"
+            android:textSize="28sp"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/light_gray"
+            android:layout_marginVertical="8dp"/>
+
+
+        <ScrollView android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:scrollbars="vertical">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/markdown_content_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="start"
+                    android:textSize="22sp"
+                    android:textColor="@color/dark_gray"/>
+                <TextView
+                    android:id="@+id/markdown_sentenceAnalysis_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="|长难句分析及对应的中文释义："
+                    android:gravity="start"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="15dp"
+                    android:textSize="23sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_color"
+                />
+                <LinearLayout
+                    android:id="@+id/markdown_sentenceAnalysis_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="start"/>
+                <TextView
+                    android:id="@+id/markdown_highFrequencyWords_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="start"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="15dp"
+                    android:text="|高频易错单词标注及解释："
+                    android:textSize="23sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_color"/>
+                <LinearLayout
+                    android:id="@+id/markdown_highFrequencyWords_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="start"/>
+
+                <ProgressBar
+                    android:id="@+id/loading_progress_bar"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                />
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

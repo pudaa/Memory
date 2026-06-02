@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:contentPadding="4dp"
+    android:layout_margin="8dp"
+>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:id="@+id/container">
+
+        <!-- 左侧：单词信息 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_word"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="care"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                          android:orientation="vertical">
+                <TextView
+                    android:id="@+id/tv_phonetic_UK"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="美音:/ker/"
+                    android:textSize="12sp"
+                    android:textColor="@color/theme_primary"/>
+                <TextView
+                    android:id="@+id/tv_phonetic_US"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="英音:/keə/"
+                    android:textSize="12sp"
+                    android:textColor="@color/theme_primary"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 右侧：释义 -->
+        <LinearLayout
+            android:id="@+id/definition_container"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="50dp"
+            android:orientation="vertical"
+            android:visibility="invisible">
+
+            <TextView
+                android:id="@+id/tv_definition"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="关心；在意"
+                android:textSize="14sp"
+                android:maxLines="3"
+                android:textColor="@color/theme_text_primary"
+            />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

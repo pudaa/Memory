@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/theme_surface">
+
+        <LinearLayout
+            android:id="@+id/title_bar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/white"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:elevation="4dp">
+
+            <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/back"
+                android:layout_marginStart="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:layout_gravity="center_vertical"/>
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="设置"
+                android:layout_gravity="center"
+                android:textSize="23sp"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
+            <View
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginEnd="8dp"
+            />
+        </LinearLayout>
+
+        <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+                    android:layout_weight="1">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+            >
+                <!-- ========== 单词学习设置 ========== -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="单词学习"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_gray"
+                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="8dp"/>
+
+                <!-- 学习模式选择 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="学习模式"
+                    android:textSize="16sp"
+                    android:textColor="@color/dark_gray"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:padding="8dp"
+                    android:background="@drawable/custom_setting_item"
+                    android:elevation="2dp">
+
+                    <LinearLayout
+                        android:id="@+id/option_mode_choice"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:background="@drawable/option_background_selected"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📝 选择题"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/theme_text_primary"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="四选一，快速学习"
+                            android:textSize="12sp"
+                            android:textColor="@color/tag_text_color"
+                            android:layout_marginTop="4dp"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/option_mode_input"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:layout_marginStart="4dp"
+                        android:background="@drawable/option_background_default"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="✍️ 输入题"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/theme_text_primary"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="主动输入，记忆深刻"
+                            android:textSize="12sp"
+                            android:textColor="@color/tag_text_color"
+                            android:layout_marginTop="4dp"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 每日新词数 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="每日学习量"
+                    android:textSize="16sp"
+                    android:textColor="@color/dark_gray"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:padding="16dp"
+                    android:background="@drawable/custom_setting_item"
+                    android:elevation="2dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="每日新学单词"
+                        android:textSize="18sp"
+                        android:layout_weight="1"
+                        android:layout_gravity="center_vertical"/>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageButton
+                            android:id="@+id/btn_new_words_minus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:src="@drawable/ic_minus"
+                            android:background="@drawable/button_round_background"
+                            android:scaleType="center"
+                            android:contentDescription="减少"/>
+
+                        <TextView
+                            android:id="@+id/tv_new_words_count"
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:text="10"
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/theme_stress"
+                            android:gravity="center"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginEnd="12dp"/>
+
+                        <ImageButton
+                            android:id="@+id/btn_new_words_plus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:src="@drawable/ic_plus"
+                            android:background="@drawable/button_round_background"
+                            android:scaleType="center"
+                            android:contentDescription="增加"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- ========== 卡片操作设置 ========== -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="卡片操作"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_gray"
+                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="8dp"/>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:layout_gravity="center_horizontal"
+                              android:layout_marginBottom="16dp"
+                              android:padding="16dp"
+                              android:background="@drawable/custom_setting_item"
+                              android:elevation="2dp"
+                >
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                              android:text="右滑返回上一卡片"
+                              android:textSize="18sp"
+                              android:layout_weight="1"
+                              android:layout_gravity="center_vertical"
+                    />
+                    <Switch
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/switch_swipe_back"
+                            android:layout_gravity="center_vertical"/>
+                </LinearLayout>
+
+                <!-- ========== 外观设置 ========== -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="外观"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_gray"
+                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="8dp"/>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:layout_marginBottom="16dp"
+                              android:padding="16dp"
+                              android:background="@drawable/custom_setting_item"
+                              android:elevation="2dp"
+                              android:gravity="center_vertical">
+
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                              android:text="主题模式"
+                              android:textSize="18sp"
+                              android:layout_weight="1"/>
+
+                    <TextView
+                        android:id="@+id/tv_theme_mode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="跟随系统"
+                        android:textSize="16sp"
+                        android:textColor="@color/theme_stress"
+                        android:textStyle="bold"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"/>
+                </LinearLayout>
+
+                <!-- 提示文字 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="💡 提示：学习模式可在任意时刻切换，每日新词数的修改将在下次学习时生效。"
+                    android:textSize="13sp"
+                    android:textColor="@color/middle_gray"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4dp"/>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:src="@drawable/back"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="fitCenter"
+            android:layout_gravity="center_vertical"
+            android:contentDescription="返回" />
+
+        <TextView
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="学习周报"
+            android:textSize="20sp" android:textStyle="bold" android:gravity="center" />
+
+        <View android:layout_width="40dp" android:layout_height="40dp" />
+    </LinearLayout>
+
+    <ProgressBar android:id="@+id/progress_bar"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="center" android:layout_marginTop="80dp" />
+
+    <ScrollView
+        android:id="@+id/content_layout"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:visibility="gone" android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="12dp">
+
+            <!-- 周范围 -->
+            <TextView android:id="@+id/tv_week_range"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="2026-05-18 ~ 2026-05-24"
+                android:textSize="14sp" android:textColor="@color/theme_text_secondary"
+                android:layout_marginBottom="12dp" android:layout_gravity="center" />
+
+            <!-- 本周概览 -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="本周概览" android:textSize="17sp"
+                android:textStyle="bold" android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@color/white" android:elevation="2dp"
+                android:orientation="vertical" android:padding="16dp"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:baselineAligned="false">
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                                  android:layout_gravity="center_vertical"
+                        android:layout_weight="1" android:gravity="center" android:padding="8dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                  android:layout_gravity="center_vertical"
+                            android:text="学习天数" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
+                        <TextView android:id="@+id/tv_week_study_days"
+                                  android:layout_gravity="center_vertical"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="--" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/theme_stress" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                                  android:layout_gravity="center_vertical"
+                        android:layout_weight="1" android:gravity="center" android:padding="8dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                  android:layout_gravity="center_vertical"
+                            android:text="新词" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                  android:layout_gravity="center_vertical"
+                            android:orientation="horizontal" android:gravity="center">
+                            <TextView android:id="@+id/tv_week_new_words"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="--" android:textSize="20sp" android:textStyle="bold" />
+                            <TextView android:id="@+id/tv_new_words_change"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:text="" android:textSize="12sp" android:layout_marginStart="4dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                                  android:layout_gravity="center_vertical"
+                        android:layout_weight="1" android:gravity="center" android:padding="8dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="复习" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:gravity="center">
+                            <TextView android:id="@+id/tv_week_reviews"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="--" android:textSize="20sp" android:textStyle="bold" />
+                            <TextView android:id="@+id/tv_reviews_change"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:text="" android:textSize="12sp" android:layout_marginStart="4dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:background="#EEE" android:layout_marginVertical="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:baselineAligned="false">
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:gravity="center" android:padding="4dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="平均评分" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
+                        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:gravity="center">
+                            <TextView android:id="@+id/tv_week_avg_score"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="--" android:textSize="16sp" android:textStyle="bold" />
+                            <TextView android:id="@+id/tv_avg_score_change"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="" android:textSize="12sp" android:layout_marginStart="4dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:gravity="center" android:padding="4dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="学习时长" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
+                        <TextView android:id="@+id/tv_week_study_time"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="--" android:textSize="16sp" android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- AI 周报总结 -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="AI 周报总结" android:textSize="17sp"
+                android:textStyle="bold" android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@color/white" android:elevation="2dp"
+                android:padding="16dp" android:layout_marginBottom="12dp">
+                <TextView android:id="@+id/tv_ai_weekly_summary"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="加载中..." android:textSize="14sp"
+                    android:textColor="@color/theme_text_primary" android:lineSpacingMultiplier="1.4" />
+            </LinearLayout>
+
+            <!-- 薄弱单词 -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="薄弱单词 TOP5" android:textSize="17sp"
+                android:textStyle="bold" android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@color/white" android:elevation="2dp"
+                android:orientation="vertical" android:padding="8dp"
+                android:id="@+id/weak_words_layout"
+                android:layout_marginBottom="12dp" />
+
+            <!-- 新掌握 -->
+            <TextView android:id="@+id/tv_newly_mastered"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="本周新掌握 0 个单词"
+                android:textSize="15sp" android:textColor="@color/theme_stress"
+                android:gravity="center" android:padding="16dp" />
+
+            <!-- FSRS 7日趋势 -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="FSRS 本周趋势" android:textSize="17sp"
+                android:textStyle="bold" android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:background="@color/white" android:elevation="2dp"
+                android:orientation="vertical" android:padding="8dp"
+                android:layout_marginBottom="12dp">
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/weekly_trend_chart"
+                    android:layout_width="match_parent" android:layout_height="200dp" />
+            </LinearLayout>
+
+            <!-- 危急单词 -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="需要紧急关注的单词" android:textSize="17sp"
+                android:textStyle="bold" android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout android:id="@+id/critical_words_container"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="20dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,22 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Base.Theme.Memory" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 主色 -->
+        <item name="colorPrimary">@color/theme_primary</item>
+        <item name="colorOnPrimary">@color/theme_on_primary</item>
+        <!-- 强调色 -->
+        <item name="colorSecondary">@color/theme_stress</item>
+        <item name="colorOnSecondary">@color/theme_on_stress</item>
+        <!-- 背景色 -->
+        <item name="android:windowBackground">@color/theme_background</item>
+        <item name="colorSurface">@color/theme_surface</item>
+        <!-- 文本色 -->
+        <item name="android:textColorPrimary">@color/theme_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_text_secondary</item>
+        <!-- 错误色 -->
+        <item name="colorError">@color/theme_error</item>
+        <!-- 状态栏透明 + 浅色图标（暗色背景用） -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/theme_background</item>
+    </style>
+</resources>

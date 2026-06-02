@@ -1,0 +1,67 @@
+<resources
+        xmlns:tools="http://schemas.android.com/tools"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+>
+
+    <!-- 基础主题 -->
+    <style name="Base.Theme.Memory" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 主色 -->
+        <item name="colorPrimary">@color/theme_primary</item>
+        <item name="colorOnPrimary">@color/theme_on_primary</item>
+        <!-- 强调色 -->
+        <item name="colorSecondary">@color/theme_stress</item>
+        <item name="colorOnSecondary">@color/theme_on_stress</item>
+        <!-- 背景色 -->
+        <item name="android:windowBackground">@color/white</item>
+        <item name="colorSurface">@color/theme_surface</item>
+        <!-- 文本色 -->
+        <item name="android:textColorPrimary">@color/theme_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_text_secondary</item>
+        <!-- 错误色 -->
+        <item name="colorError">@color/theme_error</item>
+        <!-- 光标颜色 -->
+        <item name="android:textCursorDrawable">@null</item>
+        <!-- 状态栏：透明 + 深色图标（浅色背景用） -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/theme_surface</item>
+    </style>
+
+
+
+    <style name="Theme.Memory" parent="Base.Theme.Memory"/>
+    <!-- 输入框提示样式 -->
+    <style name="CustomHintTextAppearance" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="android:background">@drawable/custom_textinput_background</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+    <!-- 标签按钮样式 -->
+    <style name="CustomTagButton" parent="android:Widget.Button">
+        <item name="minWidth">40dp</item>
+        <item name="minHeight">20dp</item>
+        <item name="android:background">@drawable/custom_tag_background</item>
+        <item name="android:textColor">@color/tag_text_color</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_margin">16dp</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+    <!-- Tab文字样式 -->
+    <style name="CustomTabTextAppearance" parent="TextAppearance.AppCompat.Button">
+        <item name="android:textColor">@color/theme_cursor</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="CustomTabTextAppearance2" parent="TextAppearance.AppCompat.Button">
+        <item name="android:textColor">@color/theme_cursor</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+
+    <!-- 评估 Chip 文字样式：白字加粗，适配彩色 Chip 背景 -->
+    <style name="ChipTextStyle" parent="TextAppearance.MaterialComponents.Chip">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

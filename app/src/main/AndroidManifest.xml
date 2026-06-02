@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+
+
+    <uses-feature
+            android:name="android.hardware.camera"
+            android:required="true"/>
+
+    <application
+            android:allowBackup="true"
+            android:dataExtractionRules="@xml/data_extraction_rules"
+            android:fullBackupContent="@xml/backup_rules"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:networkSecurityConfig="@xml/network_security_config"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:supportsRtl="true"
+            android:theme="@style/Theme.Memory"
+            tools:targetApi="31">
+        <activity
+                android:name=".ui.treasure_view.pronunciation_view.PronunciationReportActivity"
+                android:exported="false"/>
+        <activity
+                android:name=".ui.treasure_view.pronunciation_view.PronunciationMinuteFollowActivity"
+                android:exported="false"/>        <!-- 学情分析模块 -->
+        <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationDashboardActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationTrendActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationWeeklyReportActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationAiSuggestionActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationDeepAnalysisActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>        <activity
+                android:name=".ui.treasure_view.pronunciation_view.PronunciationMenuActivity"
+                android:exported="false"/>
+        <activity
+                android:name=".ui.treasure_view.aichat_view.AiConversationActivity"
+                android:exported="false"/>
+        <!-- 听写练习模块 -->
+        <activity
+                android:name=".ui.treasure_view.dictation_view.DictationMenuActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.dictation_view.DictationGenerateActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.dictation_view.DictationExecutionActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.dictation_view.DictationResultActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.extra_view.setting_view.SettingActivity"
+                android:exported="false"/>
+        <activity
+                android:name=".ui.extra_view.plan_view.PlanListActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.extra_view.plan_view.PlanCheckActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name="com.yalantis.ucrop.UCropActivity"
+                android:screenOrientation="fullSensor"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+                tools:ignore="DiscouragedApi"/>
+        <activity
+                android:name=".ui.treasure_view.composition_view.CompositionResultActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.composition_view.CompositionPreviewActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.treasure_view.composition_view.CompositionMenuActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.extra_view.my_word_view.MyWordBookActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.extra_view.word_search_view.SearchingActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.init_view.PlanDevelopmentActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.init_view.BookSelectActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.auth_view.RegisterActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.auth_view.LoginActivity"
+                android:exported="true"
+                android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity
+                android:name=".ui.MainActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="com.deepsleep.memory.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/file_paths"/>
+        </provider>
+    </application>
+
+</manifest>

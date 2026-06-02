@@ -1,0 +1,49 @@
+<resources>
+    <string name="app_name">水滴Memory</string>
+    <string name="logo_description">App Logo</string>
+    <string name="login_title">欢迎登录</string>
+    <string name="phone_hint">手机号码</string>
+    <string name="password_hint">密码</string>
+    <string name="forgot_password">忘记密码？</string>
+    <string name="login_button">登录</string>
+    <string name="register_hint">还没有账号？</string>
+    <string name="register">立即注册</string>
+    <string name="already_have_account">已经创建账号？</string>
+    <string name="login">登录</string>
+    <string name="register_title">欢迎注册</string>
+    <string name="register_button">注册</string>
+    <string name="confirm_password_hint">确认密码</string>
+    <string name="plan_title">词书选择</string>
+    <string name="isSequential_text">背诵顺序</string>
+    <string name="maximum_pressure_example">30词/天</string>
+    <string name="word_count">%d words</string>
+    <string name="learning_plan_num">总 %d list</string>
+    <string name="maximum_pressure_num">%d 词/每天</string>
+    <string name="on_searching_title">单词查询</string>
+    <string name="relogin_button">退 出 登 录</string>
+    <string name="separator">|</string>
+    <string name="backBtn_name">返回按钮</string>
+    <string name="hint_type_message">Type a message...</string>
+    <string name="play_audio">Play audio</string>
+    <string name="switch_input_mode">Switch input mode</string>
+    <string name="send">Send</string>
+    <!-- FSRS 学习模式 -->
+    <string name="study_mode_choice">选择题模式</string>
+    <string name="study_mode_input">输入题模式</string>
+    <string name="study_mode_desc_choice">四选一，快速学习</string>
+    <string name="study_mode_desc_input">主动输入释义，记忆更深刻</string>
+    <string name="btn_confirm">确 认</string>
+    <string name="btn_next_word">下 一 个</string>
+    <string name="btn_submit">提 交</string>
+    <string name="btn_skip">跳 过</string>
+    <string name="hint_choice_meaning">请选择最合适的释义：</string>
+    <string name="hint_input_meaning">请输入该单词的中文释义：</string>
+    <string name="feedback_correct">✅ 正确！</string>
+    <string name="feedback_wrong">❌ 错误</string>
+    <string name="feedback_skip">⊘ 已跳过</string>
+    <string name="label_correct_meaning">正确释义：</string>
+    <string name="today_learning_complete">今日学习已完成！</string>
+    <string name="all_learning_complete">恭喜🎉您已完成这本词书的学习！</string>
+    <string name="submit_failed_retry">提交失败，请重试</string>
+
+</resources>

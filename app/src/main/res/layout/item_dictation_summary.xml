@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="14dp"
+    android:background="@drawable/item_bg_selector"
+    android:layout_marginBottom="4dp">
+
+    <!-- 左侧颜色条 -->
+    <View
+        android:id="@+id/color_bar"
+        android:layout_width="4dp"
+        android:layout_height="48dp"
+        android:background="@color/theme_stress" />
+
+    <!-- 序号 -->
+    <TextView
+        android:id="@+id/tv_summary_index"
+        android:layout_width="32dp"
+        android:layout_height="wrap_content"
+        android:text="1"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/theme_text_secondary"
+        android:gravity="center"
+        android:layout_marginStart="10dp" />
+
+    <!-- 单词详情 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="10dp">
+
+        <TextView
+            android:id="@+id/tv_summary_target"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="apple"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/black" />
+
+        <TextView
+            android:id="@+id/tv_summary_user"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="apple"
+            android:textSize="14sp"
+            android:textColor="@color/theme_stress"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <!-- 得分 -->
+    <TextView
+        android:id="@+id/tv_summary_score"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="✓ 完全掌握"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="@color/theme_stress" />
+</LinearLayout>
