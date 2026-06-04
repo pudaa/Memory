@@ -11,7 +11,9 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -26,6 +28,7 @@ import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.GetDataByThread;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.card.MaterialCardView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -64,7 +67,9 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
 
     // BottomSheet 视图
     private TextView bsScore, bsLevel, bsAsrText, bsPhoneme, bsFeedback;
-    private LinearLayout bsTextCompare, bsWordScores;
+    private MaterialCardView bsTextCompare, bsWordScoresContainer;
+    private LinearLayout bsWordScores;
+    private FrameLayout bsScoreCircle;
 
     private ImageButton backButton;
 
@@ -81,7 +86,8 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         phraseCount = getIntent().getIntExtra("phraseCount", 0);
         sentenceCount = getIntent().getIntExtra("sentenceCount", 0);
         hasIntro = getIntent().getIntExtra("hasIntro", 0);
-        if (topicName == null) topicName = "每日一分钟";
+        if (topicName == null)
+            topicName = "每日一分钟";
 
         wordsListView = findViewById(R.id.words_list_view);
         tvTitle = findViewById(R.id.tv_title);
@@ -89,12 +95,14 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
 
         bottomSheetBehavior = BottomSheetBehavior.from(findViewById(R.id.bottom_sheet));
         bsScore = findViewById(R.id.bs_score);
+        bsScoreCircle = findViewById(R.id.bs_score_circle);
         bsLevel = findViewById(R.id.bs_level);
         bsAsrText = findViewById(R.id.bs_asr_text);
         bsPhoneme = findViewById(R.id.bs_phoneme);
         bsFeedback = findViewById(R.id.bs_feedback);
         bsTextCompare = findViewById(R.id.bs_text_compare);
         bsWordScores = findViewById(R.id.bs_word_scores);
+        bsWordScoresContainer = findViewById(R.id.bs_word_scores_container);
 
         backButton = findViewById(R.id.btn_back);
         backButton.setOnClickListener(v -> finish());
@@ -125,15 +133,15 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
     // ==================== 评分回调（来自 Adapter） ====================
 
     @Override
-    public void onScoreResult(String word, double overallScore, String level, String feedback,
-                              String asrTranscript, String referenceText, JSONArray words) {
-        // 大分数
+    public void onScoreResult(String word, double overallScore, String level, String feedback, String asrTranscript,
+            String referenceText, JSONArray words) {
+        // 大分数 - 用圆圈背景色表示状态，文字始终白色
         if (overallScore >= 0) {
             bsScore.setText(String.format(Locale.getDefault(), "%.0f", overallScore));
-            bsScore.setTextColor(ContextCompat.getColor(this, R.color.theme_primary));
+            bsScoreCircle.setBackgroundResource(R.drawable.bg_follow_score_circle);
         } else {
             bsScore.setText("?");
-            bsScore.setTextColor(ContextCompat.getColor(this, R.color.theme_error));
+            bsScoreCircle.setBackgroundResource(R.drawable.bg_follow_score_circle_error);
         }
 
         // 等级（仅有效评分时显示）
@@ -162,9 +170,9 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
 
         // 逐词评分
         bsWordScores.removeAllViews();
-        bsWordScores.setVisibility(View.GONE);
+        bsWordScoresContainer.setVisibility(View.GONE);
         if (words != null && words.length() > 0) {
-            bsWordScores.setVisibility(View.VISIBLE);
+            bsWordScoresContainer.setVisibility(View.VISIBLE);
             for (int i = 0; i < words.length(); i++) {
                 try {
                     JSONObject w = words.getJSONObject(i);
@@ -180,30 +188,29 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
                     tvWord.setText(wrd);
                     tvWord.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
                     tvWord.setTextColor(ContextCompat.getColor(this, R.color.theme_text_primary));
-                    tvWord.setLayoutParams(new LinearLayout.LayoutParams(0,
-                            LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                    tvWord.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
                     row.addView(tvWord);
 
                     TextView tvScore = new TextView(this);
                     tvScore.setGravity(Gravity.END);
+                    tvScore.setMinWidth(dpToPx(48));
                     if (wScore >= 0) {
                         tvScore.setText(String.format(Locale.getDefault(), "%.0f", wScore));
-                        tvScore.setTextColor(ContextCompat.getColor(this,
-                                "missing".equals(status) ? R.color.theme_error :
-                                "mispronounced".equals(status) ? R.color.theme_stress :
-                                R.color.teal_200));
+                        tvScore.setTextColor(ContextCompat.getColor(this, "missing".equals(status) ? R.color.theme_error
+                                : "mispronounced".equals(status) ? R.color.theme_stress : R.color.teal_200));
                     } else {
                         tvScore.setText("?");
                         tvScore.setTextColor(ContextCompat.getColor(this, R.color.theme_text_secondary));
                     }
                     tvScore.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
                     tvScore.setTypeface(null, Typeface.BOLD);
-                    tvScore.setLayoutParams(new LinearLayout.LayoutParams(60,
+                    tvScore.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT));
                     row.addView(tvScore);
 
                     bsWordScores.addView(row);
-                } catch (JSONException ignored) {}
+                } catch (JSONException ignored) {
+                }
             }
         }
 
@@ -213,12 +220,18 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
 
     private String toLevelText(String level) {
         switch (level) {
-            case "excellent": return "🏆 优秀 Excellent";
-            case "good":      return "👍 良好 Good";
-            case "fair":      return "📝 一般 Fair";
-            case "poor":      return "🔇 较弱 Poor";
-            case "very_poor": return "⛔ 很弱 Very Poor";
-            default:          return level;
+        case "excellent":
+            return "优秀 Excellent";
+        case "good":
+            return "良好 Good";
+        case "fair":
+            return "一般 Fair";
+        case "poor":
+            return "较弱 Poor";
+        case "very_poor":
+            return "很弱 Very Poor";
+        default:
+            return level;
         }
     }
 
@@ -242,8 +255,8 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         }
 
         GetDataByThread api = new GetDataByThread("/pronunciation/words");
-        api.getPronunciationWords(wordHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL,
-                String.valueOf(userId), wordBookId, phraseCount, sentenceCount);
+        api.getPronunciationWords(wordHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL, String.valueOf(userId), wordBookId,
+                phraseCount, sentenceCount);
     }
 
     private final Handler wordHandler = new Handler(Looper.getMainLooper()) {
@@ -269,8 +282,8 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
                         adapter.notifyDataSetChanged();
                         Log.i(TAG, "加载了 " + wordPhraseList.size() + " 个单词");
                     } else {
-                        Toast.makeText(PronunciationMinuteFollowActivity.this,
-                                root.optString("message", "获取单词列表失败"), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(PronunciationMinuteFollowActivity.this, root.optString("message", "获取单词列表失败"),
+                                Toast.LENGTH_SHORT).show();
                         useFallbackWords();
                     }
                 } catch (JSONException e) {
@@ -278,8 +291,7 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
                     useFallbackWords();
                 }
             } else {
-                Toast.makeText(PronunciationMinuteFollowActivity.this,
-                        "获取单词列表失败，使用测试数据", Toast.LENGTH_SHORT).show();
+                Toast.makeText(PronunciationMinuteFollowActivity.this, "获取单词列表失败，使用测试数据", Toast.LENGTH_SHORT).show();
                 useFallbackWords();
             }
         }
@@ -287,14 +299,16 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
 
     /** 用 wordId 从已加载的本地词书中查找中文释义 */
     private String lookupMeaning(String wordId) {
-        if (currentLexiconId == null || wordId.isEmpty()) return "";
+        if (currentLexiconId == null || wordId.isEmpty())
+            return "";
         try {
             int rank = Integer.parseInt(wordId);
             WordEntry entry = LexiconResourceMap.getWordByRank(currentLexiconId, rank);
             if (entry != null) {
                 return entry.getChineseTranslation();
             }
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
         return "";
     }
 
@@ -305,5 +319,9 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         wordPhraseList.add(new WordPhraseItem("Thank you", "谢谢", false));
         wordPhraseList.add(new WordPhraseItem("Nice to meet you", "很高兴认识你", false));
         adapter.notifyDataSetChanged();
+    }
+
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

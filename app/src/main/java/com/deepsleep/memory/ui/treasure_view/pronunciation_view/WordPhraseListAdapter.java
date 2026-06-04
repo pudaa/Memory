@@ -1,5 +1,9 @@
 package com.deepsleep.memory.ui.treasure_view.pronunciation_view;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -29,8 +33,8 @@ public class WordPhraseListAdapter extends BaseAdapter {
      * 评分结果回调——通知 Activity 在 BottomSheet 中展示详细结果
      */
     public interface OnScoreResultListener {
-        void onScoreResult(String word, double overallScore, String level, String feedback,
-                          String asrTranscript, String referenceText, JSONArray words);
+        void onScoreResult(String word, double overallScore, String level, String feedback, String asrTranscript,
+                String referenceText, JSONArray words);
     }
 
     private List<WordPhraseItem> wordPhraseList;
@@ -100,14 +104,7 @@ public class WordPhraseListAdapter extends BaseAdapter {
 
         final WordPhraseItem item = wordPhraseList.get(position);
         Integer score = scoreMap.get(position);
-        if (score != null && score >= 0) {
-            holder.recordButton.setText(String.valueOf(score));
-        } else if (score != null && score < 0) {
-            holder.recordButton.setText("?");
-        } else {
-            holder.recordButton.setText("●");
-        }
-        holder.bind(item, position == expandedPosition);
+        holder.bind(item, position == expandedPosition, position, score);
 
         // 设置点击事件
         view.setOnClickListener(new View.OnClickListener() {
@@ -157,18 +154,16 @@ public class WordPhraseListAdapter extends BaseAdapter {
 
                     @Override
                     public void onRecordStop(String filePath) {
-                        // Toast.makeText(context, "录音已保存: " + item.getWord(), Toast.LENGTH_SHORT).show();
+                        holder.stopRecordingAnimation();
                         holder.replayButton.setEnabled(true);
+                        holder.replayButton.setAlpha(1.0f);
                         byte[] audioData = audioRecord.getPCMData();
-
-                        // holder.recordButton.setText("99");
                         uploadPronunciationForCorrection(filePath, item.getWord());
-
                     }
 
                     @Override
                     public void onError(String error) {
-                        // Toast.makeText(context, "录音错误: " + error, Toast.LENGTH_SHORT).show();
+                        holder.stopRecordingAnimation();
                     }
                 });
             } else {
@@ -177,8 +172,8 @@ public class WordPhraseListAdapter extends BaseAdapter {
                 audioRecord.startRecording(fileName, new MemAudioRecord.OnRecordListener() {
                     @Override
                     public void onRecordStart() {
-                        // Toast.makeText(context, "开始录音: " + item.getWord(), Toast.LENGTH_SHORT).show();
-                        holder.recordButton.setText("~");
+                        holder.recordIcon.setImageResource(R.drawable.ic_follow_stop);
+                        holder.startRecordingAnimation();
                     }
 
                     @Override
@@ -187,8 +182,8 @@ public class WordPhraseListAdapter extends BaseAdapter {
 
                     @Override
                     public void onError(String error) {
-                        // Toast.makeText(context, "录音错误: " + error, Toast.LENGTH_SHORT).show();
-                        holder.recordButton.setText("●");
+                        holder.recordIcon.setImageResource(R.drawable.ic_mic_24dp);
+                        holder.stopRecordingAnimation();
                     }
                 }, context);
             }
@@ -198,23 +193,22 @@ public class WordPhraseListAdapter extends BaseAdapter {
         holder.replayButton.setOnClickListener(v -> {
             if (audioRecord.isPlaying()) {
                 audioRecord.stopPlaying();
-                holder.replayButton.setText("↺");
+                holder.replayButton.setAlpha(1.0f);
             } else {
                 audioRecord.playRecording(new MemAudioRecord.OnPlayListener() {
                     @Override
                     public void onPlayStart() {
-                        holder.replayButton.setText("~");
+                        holder.replayButton.setAlpha(0.4f);
                     }
 
                     @Override
                     public void onPlayComplete() {
-                        holder.replayButton.setText("↺");
+                        holder.replayButton.setAlpha(1.0f);
                     }
 
                     @Override
                     public void onError(String error) {
-                        // Toast.makeText(context, "播放错误: " + error, Toast.LENGTH_SHORT).show();
-                        holder.replayButton.setText("↺");
+                        holder.replayButton.setAlpha(1.0f);
                     }
                 });
             }
@@ -243,8 +237,14 @@ public class WordPhraseListAdapter extends BaseAdapter {
                         try {
                             JSONObject jsonResponse = new JSONObject(response);
                             /*
-                            示例响应体
-                            PhonemeScoreResult(overallScore=100.0, phonemeAccuracy=1.0, wordCountReference=1, wordCountSpoken=1, asrTranscript=Institution, referenceText=institution, level=excellent, feedback=发音非常标准！, words=[PhonemeScoreResult.WordPhonemeScore(word=institution, spokenWord=institution, startTime=0.0, endTime=1.32, score=100.0, expectedPhonemes=[IH, N, S, T, IH, T, UW, SH, AH, N], actualPhonemes=[IH, N, S, T, IH, T, UW, SH, AH, N], phonemeAccuracy=1.0, errors=[], status=correct)])
+                             * 示例响应体 PhonemeScoreResult(overallScore=100.0, phonemeAccuracy=1.0,
+                             * wordCountReference=1, wordCountSpoken=1, asrTranscript=Institution,
+                             * referenceText=institution, level=excellent, feedback=发音非常标准！,
+                             * words=[PhonemeScoreResult.WordPhonemeScore(word=institution,
+                             * spokenWord=institution, startTime=0.0, endTime=1.32, score=100.0,
+                             * expectedPhonemes=[IH, N, S, T, IH, T, UW, SH, AH, N], actualPhonemes=[IH, N,
+                             * S, T, IH, T, UW, SH, AH, N], phonemeAccuracy=1.0, errors=[],
+                             * status=correct)])
                              */
                             if ("200".equals(String.valueOf(jsonResponse.optInt("code", -1)))) {
                                 JSONObject data = jsonResponse.getJSONObject("data");
@@ -262,8 +262,7 @@ public class WordPhraseListAdapter extends BaseAdapter {
                                     handleRecordStop(filePath, referenceText, displayScore);
                                     // 通知 Activity 弹出 BottomSheet 展示详细结果
                                     if (scoreResultListener != null) {
-                                        scoreResultListener.onScoreResult(
-                                                referenceText, overallScore, level, feedback,
+                                        scoreResultListener.onScoreResult(referenceText, overallScore, level, feedback,
                                                 asrTranscript, data.optString("referenceText", referenceText), words);
                                     }
                                 });
@@ -279,9 +278,8 @@ public class WordPhraseListAdapter extends BaseAdapter {
                                 ((Activity) context).runOnUiThread(() -> {
                                     handleRecordStop(filePath, referenceText, overallScore);
                                     if (scoreResultListener != null) {
-                                        scoreResultListener.onScoreResult(
-                                                referenceText, overallScore, "", "",
-                                                "", referenceText, null);
+                                        scoreResultListener.onScoreResult(referenceText, overallScore, "", "", "",
+                                                referenceText, null);
                                     }
                                 });
                             } catch (JSONException e2) {
@@ -307,16 +305,30 @@ public class WordPhraseListAdapter extends BaseAdapter {
     static class ViewHolder {
         TextView wordText;
         TextView meaningText;
+        TextView wordIndex;
+        TextView scoreBadge;
         LinearLayout expandedSection;
-        Button playButton, recordButton, replayButton; // 添加按钮引用
+        ImageButton playButton;
+        FrameLayout recordButton;
+        ImageView recordIcon;
+        TextView recordScore;
+        ImageButton replayButton;
+        View recordRipple;
+        ValueAnimator pulseAnimator;
+        ValueAnimator rippleAnimator;
 
         ViewHolder(View view) {
             wordText = view.findViewById(R.id.word_text);
             meaningText = view.findViewById(R.id.meaning_text);
+            wordIndex = view.findViewById(R.id.word_index);
+            scoreBadge = view.findViewById(R.id.score_badge);
             expandedSection = view.findViewById(R.id.expanded_section);
             playButton = view.findViewById(R.id.play_button);
             recordButton = view.findViewById(R.id.record_button);
+            recordIcon = view.findViewById(R.id.record_icon);
+            recordScore = view.findViewById(R.id.record_score);
             replayButton = view.findViewById(R.id.replay_button);
+            recordRipple = view.findViewById(R.id.record_ripple);
 
             initView();
         }
@@ -327,10 +339,82 @@ public class WordPhraseListAdapter extends BaseAdapter {
             replayButton.setEnabled(false);
         }
 
-        void bind(WordPhraseItem item, boolean isExpanded) {
+        /** 开始录音动画：按钮脉冲 + 外层涟漪扩散 */
+        void startRecordingAnimation() {
+            // 按钮脉冲动画
+            pulseAnimator = ValueAnimator.ofFloat(1.0f, 1.08f);
+            pulseAnimator.setDuration(600);
+            pulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+            pulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            pulseAnimator.addUpdateListener(animation -> {
+                float scale = (float) animation.getAnimatedValue();
+                recordButton.setScaleX(scale);
+                recordButton.setScaleY(scale);
+            });
+            pulseAnimator.start();
+
+            // 涟漪扩散动画
+            recordRipple.setVisibility(View.VISIBLE);
+            recordRipple.setAlpha(0.35f);
+            recordRipple.setScaleX(1.0f);
+            recordRipple.setScaleY(1.0f);
+            rippleAnimator = ValueAnimator.ofFloat(1.0f, 1.9f);
+            rippleAnimator.setDuration(1000);
+            rippleAnimator.setRepeatMode(ValueAnimator.RESTART);
+            rippleAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            rippleAnimator.addUpdateListener(animation -> {
+                float scale = (float) animation.getAnimatedValue();
+                float alpha = 0.35f * (1.0f - (scale - 1.0f) / 0.9f);
+                recordRipple.setScaleX(scale);
+                recordRipple.setScaleY(scale);
+                recordRipple.setAlpha(Math.max(0.0f, alpha));
+            });
+            rippleAnimator.start();
+        }
+
+        /** 停止录音动画，恢复初始状态 */
+        void stopRecordingAnimation() {
+            if (pulseAnimator != null) {
+                pulseAnimator.cancel();
+                pulseAnimator = null;
+            }
+            if (rippleAnimator != null) {
+                rippleAnimator.cancel();
+                rippleAnimator = null;
+            }
+            recordButton.setScaleX(1.0f);
+            recordButton.setScaleY(1.0f);
+            recordRipple.setVisibility(View.GONE);
+            recordRipple.setAlpha(0.0f);
+            recordRipple.setScaleX(1.0f);
+            recordRipple.setScaleY(1.0f);
+        }
+
+        void bind(WordPhraseItem item, boolean isExpanded, int position, Integer score) {
             wordText.setText(item.getWord());
             meaningText.setText(item.getMeaning());
+            wordIndex.setText(String.valueOf(position + 1));
             expandedSection.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
+
+            // 得分徽章 + 录音按钮状态
+            if (score != null && score >= 0) {
+                scoreBadge.setText(String.valueOf(score));
+                scoreBadge.setVisibility(View.VISIBLE);
+                recordIcon.setVisibility(View.GONE);
+                recordScore.setText(String.valueOf(score));
+                recordScore.setVisibility(View.VISIBLE);
+            } else if (score != null && score < 0) {
+                scoreBadge.setText("?");
+                scoreBadge.setVisibility(View.VISIBLE);
+                recordIcon.setVisibility(View.GONE);
+                recordScore.setText("?");
+                recordScore.setVisibility(View.VISIBLE);
+            } else {
+                scoreBadge.setVisibility(View.GONE);
+                recordIcon.setVisibility(View.VISIBLE);
+                recordIcon.setImageResource(R.drawable.ic_mic_24dp);
+                recordScore.setVisibility(View.GONE);
+            }
         }
     }
 }

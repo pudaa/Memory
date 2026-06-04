@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 每日一分钟页顶部波浪装饰 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="72dp"
+    android:viewportWidth="360"
+    android:viewportHeight="72">
+    <!-- 底层波浪 -->
+    <path
+        android:fillColor="@color/theme_primary"
+        android:fillAlpha="0.06"
+        android:pathData="M0,72 L0,34 Q60,10 120,30 Q180,50 240,28 Q300,6 360,32 L360,72 Z" />
+    <!-- 上层波浪 -->
+    <path
+        android:fillColor="@color/theme_stress"
+        android:fillAlpha="0.08"
+        android:pathData="M0,72 L0,48 Q72,28 144,44 Q216,60 288,40 Q324,30 360,46 L360,72 Z" />
+</vector>

@@ -4,78 +4,201 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardElevation="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardBackgroundColor="@color/card_background">
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="14dp"
+    app:cardBackgroundColor="@color/card_background"
+    app:strokeWidth="0dp">
 
+    <!-- 水平布局：左侧强调条 + 主体内容 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="?android:attr/selectableItemBackground">
+        android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/word_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="fondly"
-            android:layout_marginBottom="5dp"
-            android:textAlignment="center"
-            android:textSize="40sp"
-            android:textStyle="bold"
-            android:textColor="@color/theme_text_primary" />
+        <!-- 左侧强调色条 -->
+        <View
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_follow_card_accent" />
 
-        <TextView
-            android:id="@+id/meaning_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="深情的"
-            android:layout_marginBottom="18dp"
-            android:textAlignment="center"
-            android:textSize="20sp"
-            android:textColor="@color/theme_text_secondary" />
-
+        <!-- 主体内容 -->
         <LinearLayout
-            android:id="@+id/expanded_section"
-            android:layout_width="290dp"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:textAlignment="center"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp">
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:background="?android:attr/selectableItemBackground">
 
-            <com.deepsleep.memory.ui.components.CustomCircleButton
-                android:id="@+id/play_button"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_weight="1"
-                android:text="▶"
-                android:textStyle="bold"
-                android:textSize="20sp" />
+            <!-- 顶栏：序号徽章 + 得分徽章 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
 
-            <com.deepsleep.memory.ui.components.CustomCircleButton
-                android:id="@+id/record_button"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:text="●"
-                android:textStyle="bold"
-                android:textSize="25sp"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp" />
+                <TextView
+                    android:id="@+id/word_index"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="28dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_follow_word_index"
+                    android:text="1"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_primary"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp" />
 
-            <com.deepsleep.memory.ui.components.CustomCircleButton
-                android:id="@+id/replay_button"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_weight="1"
-                android:text="↺"
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/score_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="36dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_follow_score_badge"
+                    android:text="85"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 单词文本 -->
+            <TextView
+                android:id="@+id/word_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="fondly"
+                android:textAlignment="center"
+                android:textSize="36sp"
                 android:textStyle="bold"
-                android:textSize="40sp" />
+                android:textColor="@color/theme_text_primary"
+                android:layout_marginBottom="4dp" />
+
+            <!-- 释义文本 -->
+            <TextView
+                android:id="@+id/meaning_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="深情的"
+                android:textAlignment="center"
+                android:textSize="18sp"
+                android:textColor="@color/theme_text_secondary"
+                android:layout_marginBottom="10dp" />
+
+            <!-- 分隔线 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/light_gray"
+                android:alpha="0.4"
+                android:layout_marginBottom="14dp" />
+
+            <!-- 展开区域：三个操作按钮 -->
+            <LinearLayout
+                android:id="@+id/expanded_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <!-- 播放按钮 - 蓝色圆形 -->
+                <ImageButton
+                    android:id="@+id/play_button"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_follow_play"
+                    android:background="@drawable/bg_follow_btn_play"
+                    android:scaleType="centerInside"
+                    android:padding="12dp"
+                    android:contentDescription="播放示范发音" />
+
+                <!-- 录音按钮区域 - 含波纹动画叠加层 -->
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginEnd="18dp">
+
+                    <!-- 录音波纹扩散动画层 -->
+                    <View
+                        android:id="@+id/record_ripple"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_follow_btn_record"
+                        android:alpha="0.0"
+                        android:visibility="gone" />
+
+                    <!-- 录音按钮 - 含图标和得分叠加 -->
+                    <FrameLayout
+                        android:id="@+id/record_button"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_follow_btn_record"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:contentDescription="录音">
+
+                        <ImageView
+                            android:id="@+id/record_icon"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:src="@drawable/ic_mic_24dp"
+                            android:tint="@color/white"
+                            android:scaleType="centerInside"
+                            android:padding="16dp" />
+
+                        <TextView
+                            android:id="@+id/record_score"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="85"
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:visibility="gone" />
+                    </FrameLayout>
+                </FrameLayout>
+
+                <!-- 回放按钮 - 灰色圆形 -->
+                <ImageButton
+                    android:id="@+id/replay_button"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_follow_replay"
+                    android:background="@drawable/bg_follow_btn_replay"
+                    android:scaleType="centerInside"
+                    android:padding="12dp"
+                    android:alpha="0.4"
+                    android:enabled="false"
+                    android:contentDescription="回放录音" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
 </com.google.android.material.card.MaterialCardView>

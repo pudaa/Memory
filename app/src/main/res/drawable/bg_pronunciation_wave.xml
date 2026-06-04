@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发音练习页顶部波浪装饰 - 自动适配暗色主题 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="96dp"
+    android:viewportWidth="360"
+    android:viewportHeight="96">
+    <!-- 底层波浪 -->
+    <path
+        android:fillColor="@color/theme_primary"
+        android:fillAlpha="0.06"
+        android:pathData="M0,96 L0,52 Q45,32 90,48 Q135,64 180,44 Q225,24 270,44 Q315,64 360,48 L360,96 Z" />
+    <!-- 上层波浪 -->
+    <path
+        android:fillColor="@color/theme_stress"
+        android:fillAlpha="0.08"
+        android:pathData="M0,96 L0,66 Q60,46 120,60 Q180,74 240,56 Q300,38 360,58 L360,96 Z" />
+</vector>
