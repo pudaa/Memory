@@ -22,7 +22,7 @@ public class DailyStateManager {
     /** key 后缀模板：{userId} 在运行时替换 */
     private static final String SUFFIX_COMPLETED_IDS = "_completedWordIds";
     private static final String SUFFIX_LAST_DATE = "_completedLastDate";
-    /** 持久化完成的单词详情 JSON: [{"id":123,"correct":true}, ...] */
+    /** 持久化完成的单词详情 JSON: [{"id":123,"correct":true,"score":3,"feedback":"..."}, ...] */
     private static final String SUFFIX_COMPLETED_DETAILS = "_completedWordDetails";
 
     private final Set<Integer> completedWordIds = new HashSet<>();
@@ -105,6 +105,27 @@ public class DailyStateManager {
         }
         if (!alreadyRecorded) {
             completedWordDetails.add(new CompletedWordEntry(wordId, isCorrect));
+        }
+        saveToPrefs();
+    }
+
+    /**
+     * 标记单词已完成并记录完整的 AI 评判结果（输入模式使用）
+     */
+    public void markCompletedWithFullResult(int wordId, boolean isCorrect, int fsrsScore, String aiFeedback) {
+        completedWordIds.add(wordId);
+        boolean alreadyRecorded = false;
+        for (CompletedWordEntry entry : completedWordDetails) {
+            if (entry.wordId == wordId) {
+                entry.isCorrect = isCorrect;
+                entry.fsrsScore = fsrsScore;
+                entry.aiFeedback = aiFeedback;
+                alreadyRecorded = true;
+                break;
+            }
+        }
+        if (!alreadyRecorded) {
+            completedWordDetails.add(new CompletedWordEntry(wordId, isCorrect, fsrsScore, aiFeedback));
         }
         saveToPrefs();
     }
@@ -208,10 +229,21 @@ public class DailyStateManager {
             if (!first)
                 sb.append(",");
             first = false;
-            sb.append("{\"id\":").append(entry.wordId).append(",\"correct\":").append(entry.isCorrect).append("}");
+            sb.append("{\"id\":").append(entry.wordId)
+              .append(",\"correct\":").append(entry.isCorrect)
+              .append(",\"score\":").append(entry.fsrsScore);
+            if (entry.aiFeedback != null && !entry.aiFeedback.isEmpty()) {
+                sb.append(",\"feedback\":\"").append(jsonEscape(entry.aiFeedback)).append("\"");
+            }
+            sb.append("}");
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    /** 简易 JSON 字符串转义（仅处理必要字符） */
+    private static String jsonEscape(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 
     private void parseDetailsFromJson(String json) {
@@ -229,13 +261,56 @@ public class DailyStateManager {
                 int wordId = Integer.parseInt(json.substring(idStart, idEnd).trim());
 
                 int correctStart = json.indexOf("\"correct\":", idEnd) + 10;
-                int correctEnd = json.indexOf("}", correctStart);
+                int correctEnd = json.indexOf(",", correctStart);
+                if (correctEnd < 0) {
+                    // 旧格式：... "correct":true} 直接到 }
+                    correctEnd = json.indexOf("}", correctStart);
+                }
                 if (correctEnd < 0)
                     break;
-                boolean isCorrect = Boolean.parseBoolean(json.substring(correctStart, correctEnd).trim());
+                String correctStr = json.substring(correctStart, correctEnd).trim();
+                boolean isCorrect = Boolean.parseBoolean(correctStr);
 
-                completedWordDetails.add(new CompletedWordEntry(wordId, isCorrect));
-                pos = correctEnd + 1;
+                // 尝试解析扩展字段 score 和 feedback
+                int fsrsScore = 0;
+                String aiFeedback = "";
+                if (json.indexOf("\"score\":", correctEnd) >= 0
+                        && json.indexOf("\"score\":", correctEnd) < json.indexOf("}", correctEnd)) {
+                    int scoreStart = json.indexOf("\"score\":", correctEnd) + 8;
+                    int scoreEnd = json.indexOf(",", scoreStart);
+                    if (scoreEnd < 0 || scoreEnd > json.indexOf("}", scoreStart))
+                        scoreEnd = json.indexOf("}", scoreStart);
+                    if (scoreEnd > scoreStart) {
+                        try {
+                            fsrsScore = Integer.parseInt(json.substring(scoreStart, scoreEnd).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+
+                    // 尝试解析 feedback
+                    int fbKey = json.indexOf("\"feedback\":", scoreEnd);
+                    if (fbKey >= 0 && fbKey < json.indexOf("}", scoreEnd)) {
+                        int fbStart = json.indexOf("\"", fbKey + 10) + 1;
+                        if (fbStart > 0) {
+                            int fbEnd = json.indexOf("\"", fbStart);
+                            // 处理转义引号
+                            while (fbEnd > 0 && json.charAt(fbEnd - 1) == '\\') {
+                                fbEnd = json.indexOf("\"", fbEnd + 1);
+                            }
+                            if (fbEnd > fbStart) {
+                                aiFeedback = json.substring(fbStart, fbEnd)
+                                        .replace("\\\"", "\"").replace("\\n", "\n").replace("\\r", "\r").replace("\\\\", "\\");
+                            }
+                        }
+                    }
+                }
+
+                CompletedWordEntry entry = new CompletedWordEntry(wordId, isCorrect, fsrsScore, aiFeedback);
+                completedWordDetails.add(entry);
+
+                // 跳到下一个对象的起始位置
+                int nextBrace = json.indexOf("}", json.indexOf("}", correctEnd) + 1);
+                if (nextBrace < 0) break;
+                pos = nextBrace + 1;
             }
         } catch (Exception e) {
             Log.w("WordLearning", "[防重复] 解析单词详情 JSON 失败", e);
@@ -245,15 +320,26 @@ public class DailyStateManager {
     // ── 内部类 ──
 
     /**
-     * 持久化的已完成单词条目（轻量级，仅含 wordId + 是否答对）
+     * 持久化的已完成单词条目
      */
     public static class CompletedWordEntry {
         public final int wordId;
         public boolean isCorrect;
+        public int fsrsScore;          // AI 评分 1-4（输入模式），0 表示未评分（选择题模式）
+        public String aiFeedback;      // AI 反馈文字（输入模式）
 
         public CompletedWordEntry(int wordId, boolean isCorrect) {
             this.wordId = wordId;
             this.isCorrect = isCorrect;
+            this.fsrsScore = 0;
+            this.aiFeedback = "";
+        }
+
+        public CompletedWordEntry(int wordId, boolean isCorrect, int fsrsScore, String aiFeedback) {
+            this.wordId = wordId;
+            this.isCorrect = isCorrect;
+            this.fsrsScore = fsrsScore;
+            this.aiFeedback = aiFeedback != null ? aiFeedback : "";
         }
     }
 }

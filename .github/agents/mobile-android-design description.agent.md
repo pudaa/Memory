@@ -27,7 +27,7 @@ Master Material Design 3 (Material You) and Jetpack Compose to build modern, ada
 **Large Screens**: Responsive layouts for tablets and foldables
 
 **Material Components:**
-)))))))))))))))))))))))))))))))))))))))))))))))
+
 - Cards, Buttons, FABs, Chips
 - Navigation (rail, drawer, bottom nav)
 - Text fields, Dialogs, Sheets

@@ -154,15 +154,27 @@
                 android:id="@+id/et_user_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="100dp"
+                android:minHeight="120dp"
                 android:gravity="top|start"
                 android:hint="在此输入释义…"
                 android:textSize="16sp"
-                android:padding="12dp"
+                android:padding="10dp"
                 android:background="@drawable/edittext_input_background"
                 android:inputType="textMultiLine"
                 android:maxLines="4"
                 android:scrollbars="vertical" />
+
+            <TextView
+                android:id="@+id/tv_ai_feedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:gravity="center"
+                android:textColor="@color/theme_text_primary"
+                android:textStyle="bold"
+                android:padding="8dp"
+                android:visibility="gone"
+                android:layout_marginBottom="6dp" />
         </LinearLayout>
 
         <!-- 反馈区域（初始隐藏） -->
@@ -180,17 +192,17 @@
                 android:id="@+id/tv_feedback_result"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="✅ 回答正确！"
+                android:text="已提交"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="4dp" />
+                android:layout_marginBottom="6dp" />
 
             <TextView
                 android:id="@+id/tv_correct_meaning"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="标准释义：放弃；抛弃"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:gravity="center"
                 android:textColor="@color/theme_text_secondary" />
         </LinearLayout>

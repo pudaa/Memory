@@ -34,6 +34,18 @@ public class WordCard {
     /** 用户是否回答正确（客户端判断） */
     public boolean isCorrect;
 
+    // ========== 输入模式字段 ==========
+    /** 用户输入的释义（输入模式） */
+    public String userAnswer;
+    /** 参考释义（标准答案，输入模式） */
+    public String referenceDefinition;
+    /** 词性（如 "v", "n"，输入模式） */
+    public String pos;
+    /** AI 评分（1-4，输入模式，从 API 响应更新） */
+    public int fsrsScore;
+    /** AI 反馈文本（从 API 响应更新） */
+    public String aiFeedback;
+
     public static final int TYPE_NEW = 0;
     public static final int TYPE_REVIEW = 1;
 

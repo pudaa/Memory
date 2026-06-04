@@ -242,6 +242,7 @@ public class ExerciseCardFactory {
     private void setupInputCardView(View cardView, WordCard wordCard) {
         WordEntry entry = LexiconResourceMap.getWordByRank(lexiconId, wordCard.word_id);
         final String correctMeaning = entry != null ? entry.getChineseTranslation() : "";
+        final String pos = entry != null ? entry.getPos() : "";
 
         android.widget.EditText etInput = cardView.findViewById(R.id.et_user_input);
         View btnSubmit = cardView.findViewById(R.id.btn_submit);
@@ -249,6 +250,10 @@ public class ExerciseCardFactory {
         View btnNext = cardView.findViewById(R.id.btn_next);
         View feedbackContainer = cardView.findViewById(R.id.feedback_container);
         View btnContainer = cardView.findViewById(R.id.btn_container);
+        TextView tvAiFeedback = cardView.findViewById(R.id.tv_ai_feedback);
+
+        // 将 WordCard 绑定到 cardView，方便后续通过视图查找卡片数据
+        cardView.setTag(wordCard);
 
         if (btnSubmit != null) {
             btnSubmit.setOnClickListener(v -> {
@@ -257,8 +262,19 @@ public class ExerciseCardFactory {
                     return;
                 boolean isCorrect = checkInputCorrect(userInput, correctMeaning);
                 wordCard.isCorrect = isCorrect;
+                wordCard.userAnswer = userInput;
+                wordCard.referenceDefinition = correctMeaning;
+                wordCard.pos = pos;
+
                 long rt = System.currentTimeMillis() - wordCard.displayStartTime;
                 showInputFeedback(cardView, feedbackContainer, btnContainer, btnNext, isCorrect, correctMeaning);
+
+                // 显示 AI 评判中提示
+                if (tvAiFeedback != null) {
+                    tvAiFeedback.setText("AI 分析中…");
+                    tvAiFeedback.setVisibility(View.VISIBLE);
+                }
+
                 if (etInput != null)
                     etInput.setEnabled(false);
                 callback.onSubmitAnswer(wordCard, rt);
@@ -269,6 +285,12 @@ public class ExerciseCardFactory {
                 wordCard.isCorrect = false;
                 long rt = System.currentTimeMillis() - wordCard.displayStartTime;
                 showInputFeedback(cardView, feedbackContainer, btnContainer, btnNext, false, correctMeaning);
+
+                // 跳过的没有 AI 评判
+                if (tvAiFeedback != null) {
+                    tvAiFeedback.setVisibility(View.GONE);
+                }
+
                 if (etInput != null)
                     etInput.setEnabled(false);
                 callback.onSubmitAnswer(wordCard, rt > 0 ? rt : 5000);
@@ -294,9 +316,9 @@ public class ExerciseCardFactory {
             TextView tvResult = cardView.findViewById(R.id.tv_feedback_result);
             TextView tvMeaning = cardView.findViewById(R.id.tv_correct_meaning);
             if (tvResult != null) {
-                tvResult.setText(isCorrect ? "✅ 回答正确！" : "⊘ 已记录");
-                tvResult.setTextColor(isCorrect ? android.graphics.Color.parseColor("#4CAF50")
-                        : android.graphics.Color.parseColor("#FF9800"));
+                // 输入模式：不提前显示对错，只显示中性提交状态
+                tvResult.setText("已提交");
+                tvResult.setTextColor(android.graphics.Color.parseColor("#9E9E9E"));
             }
             if (tvMeaning != null)
                 tvMeaning.setText("标准释义：" + correctMeaning);
@@ -305,5 +327,48 @@ public class ExerciseCardFactory {
             btnContainer.setVisibility(View.GONE);
         if (btnNext != null)
             btnNext.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * 外部更新输入模式的评判结果（API 响应到达后调用）
+     *
+     * @param cardView   卡片视图
+     * @param fsrsScore  AI 评分 1-4
+     * @param isCorrect  服务端判定的对错
+     * @param aiFeedback AI 反馈文字
+     */
+    public static void updateInputFeedbackResult(View cardView, int fsrsScore, boolean isCorrect, String aiFeedback) {
+        if (cardView == null) return;
+
+        TextView tvResult = cardView.findViewById(R.id.tv_feedback_result);
+        if (tvResult != null) {
+            // 显示评分数字 + 等级描述
+            String level;
+            int color;
+            switch (fsrsScore) {
+                case 4:  level = "完全掌握";  color = 0xFF4CAF50; break;
+                case 3:  level = "基本掌握";  color = 0xFF2196F3; break;
+                case 2:  level = "部分理解";  color = 0xFFFF9800; break;
+                default: level = "不理解";    color = 0xFFF44336; break;
+            }
+            if (fsrsScore > 0) {
+                tvResult.setText(fsrsScore + "  " + level);
+            } else {
+                // 降级：服务端未评分，回退到二值
+                tvResult.setText(isCorrect ? "✅ 正确" : "❌ 错误");
+                color = isCorrect ? 0xFF4CAF50 : 0xFFF44336;
+            }
+            tvResult.setTextColor(color);
+        }
+
+        TextView tvAiFeedback = cardView.findViewById(R.id.tv_ai_feedback);
+        if (tvAiFeedback != null) {
+            if (aiFeedback != null && !aiFeedback.isEmpty()) {
+                tvAiFeedback.setText(aiFeedback);
+                tvAiFeedback.setVisibility(View.VISIBLE);
+            } else {
+                tvAiFeedback.setVisibility(View.GONE);
+            }
+        }
     }
 }

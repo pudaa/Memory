@@ -23,6 +23,9 @@ public class WordEntry {
     private List<String> chineseTranslations = new ArrayList<>();
     private List<String> englishDefinitions = new ArrayList<>();
 
+    // 词性（取第一个释义的词性，如 "v", "n"）
+    private String pos = "";
+
     private List<ExampleSentence> exampleSentences = new ArrayList<>();
 
     public WordEntry(JSONObject jsonObject) throws JSONException {
@@ -47,6 +50,10 @@ public class WordEntry {
             if (transObj.has("tranOther")) {
                 englishDefinitions.add(transObj.getString("tranOther"));
             }
+            // 取第一个 trans 的词性
+            if (pos.isEmpty() && transObj.has("pos")) {
+                pos = transObj.getString("pos");
+            }
         }
 
         // 提取例句
@@ -69,6 +76,11 @@ public class WordEntry {
     // 获取英文释义（合并多个）
     public String getEnglishDefinition() {
         return String.join("; ", englishDefinitions);
+    }
+
+    // 获取词性
+    public String getPos() {
+        return pos;
     }
 
     // 获取例句列表

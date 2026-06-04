@@ -406,16 +406,65 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         checkAllCompleted();
 
         GetDataByThread submit = new GetDataByThread("/learning/submitAnswer");
-        submit.submitAnswer(new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(@NonNull Message msg) {
-                if (msg.what != msg_success) {
-                    Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
-                    // 提交失败时回滚：但保留已完成标记，避免重复练习
+        if (WordCard.MODE_INPUT.equals(studyMode)) {
+            // 输入模式：发送扩展字段，服务端进行 AI 评判
+            submit.submitAnswerInput(new Handler(Looper.getMainLooper()) {
+                @Override
+                public void handleMessage(@NonNull Message msg) {
+                    if (!isAdded()) return;
+                    if (msg.what == msg_success) {
+                        try {
+                            JSONObject responseJson = new JSONObject((String) msg.obj);
+                            if ("200".equals(responseJson.getString("code"))) {
+                                String aiFeedback = responseJson.optString("aiFeedback", "");
+                                boolean serverIsCorrect = responseJson.optBoolean("isCorrect", wordCard.isCorrect);
+                                int fsrsScore = responseJson.optInt("fsrsScore", 0);
+                                // 用服务端判定覆盖客户端判定
+                                wordCard.isCorrect = serverIsCorrect;
+                                wordCard.fsrsScore = fsrsScore;
+                                wordCard.aiFeedback = aiFeedback;
+                                // 持久化完整的 AI 评判结果
+                                dailyState.markCompletedWithFullResult(wordCard.word_id, serverIsCorrect, fsrsScore, aiFeedback);
+                                // 找到对应的卡片视图并更新 AI 评判结果
+                                if (cardContainer != null) {
+                                    for (View cv : cardContainer.getAllCards()) {
+                                        WordCard wc = getWordCardFromView(cv);
+                                        if (wc != null && wc.word_id == wordCard.word_id) {
+                                            ExerciseCardFactory.updateInputFeedbackResult(cv, fsrsScore, serverIsCorrect, aiFeedback);
+                                            break;
+                                        }
+                                    }
+                                }
+                                // 如果所有单词已完成，重建总结卡片以反映服务端的修正
+                                if (operatedCount >= totalWords && totalWords > 0) {
+                                    addSummaryCard();
+                                }
+                            }
+                        } catch (JSONException e) {
+                            Log.e("submitAnswer", "解析响应失败", e);
+                        }
+                    } else {
+                        Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
-        }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
-                responseTimeMs, studyMode);
+            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word,
+                    wordCard.isCorrect, responseTimeMs,
+                    wordCard.userAnswer != null ? wordCard.userAnswer : "",
+                    wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "",
+                    wordCard.pos != null ? wordCard.pos : "");
+        } else {
+            // 选择题模式：保持原有行为
+            submit.submitAnswer(new Handler(Looper.getMainLooper()) {
+                @Override
+                public void handleMessage(@NonNull Message msg) {
+                    if (msg.what != msg_success) {
+                        Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
+                        // 提交失败时回滚：但保留已完成标记，避免重复练习
+                    }
+                }
+            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
+                    responseTimeMs, studyMode);
+        }
     }
 
     private void checkAllCompleted() {

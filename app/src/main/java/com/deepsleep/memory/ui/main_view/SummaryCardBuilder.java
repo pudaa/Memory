@@ -84,6 +84,8 @@ public class SummaryCardBuilder {
                 if (card != null) {
                     card.isOperated = true;
                     card.isCorrect = entry.isCorrect;
+                    card.fsrsScore = entry.fsrsScore;
+                    card.aiFeedback = entry.aiFeedback;
                     displayCards.add(card);
                     if (entry.isCorrect) correct++; else wrong++;
                 }
@@ -159,9 +161,27 @@ public class SummaryCardBuilder {
         row.setPadding(0, 8, 0, 2);
 
         if (showScore) {
+            boolean isInputMode = (wc.fsrsScore > 0);
             TextView tvIcon = new TextView(context);
-            tvIcon.setText(wc.isCorrect ? "✅" : "❌");
-            tvIcon.setTextSize(14);
+            if (isInputMode) {
+                // 输入模式：显示 AI 评分 1-4
+                tvIcon.setText(String.valueOf(wc.fsrsScore));
+                tvIcon.setTextSize(16);
+                tvIcon.setTypeface(null, android.graphics.Typeface.BOLD);
+                // 按分数着色
+                int scoreColor;
+                switch (wc.fsrsScore) {
+                    case 4: scoreColor = android.graphics.Color.parseColor("#4CAF50"); break; // 绿色-完全掌握
+                    case 3: scoreColor = android.graphics.Color.parseColor("#2196F3"); break; // 蓝色-基本掌握
+                    case 2: scoreColor = android.graphics.Color.parseColor("#FF9800"); break; // 橙色-部分理解
+                    default: scoreColor = android.graphics.Color.parseColor("#F44336"); break; // 红色-不理解
+                }
+                tvIcon.setTextColor(scoreColor);
+            } else {
+                // 选择题模式：保持 ✅/❌
+                tvIcon.setText(wc.isCorrect ? "✅" : "❌");
+                tvIcon.setTextSize(14);
+            }
             LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
             ip.setMarginEnd(8);
@@ -196,6 +216,16 @@ public class SummaryCardBuilder {
             tvMeaning.setTextColor(context.getResources().getColor(R.color.middle_gray));
             tvMeaning.setPadding(0, 2, 0, 4);
             container.addView(tvMeaning);
+        }
+
+        // AI 反馈行（仅输入模式）
+        if (wc.fsrsScore > 0 && wc.aiFeedback != null && !wc.aiFeedback.isEmpty()) {
+            TextView tvAi = new TextView(context);
+            tvAi.setText("AI: " + wc.aiFeedback);
+            tvAi.setTextSize(12);
+            tvAi.setTextColor(context.getResources().getColor(R.color.middle_gray));
+            tvAi.setPadding(0, 0, 0, 4);
+            container.addView(tvAi);
         }
 
         // 分隔线

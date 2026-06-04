@@ -83,6 +83,17 @@ public class GetDataByThread {
     public void submitAnswer(Handler h, int ok, int fail, int uid, int wid, String lexiconId, String headWord, boolean isCorrect, long rtMs, String mode) {
         try { JSONObject j=new JSONObject(); j.put("userId",uid); j.put("wordId",wid); j.put("lexiconId",lexiconId); j.put("headWord",headWord); j.put("isCorrect",isCorrect); j.put("responseTimeMs",rtMs); j.put("studyMode",mode); asyncPostJson(h,ok,fail,"SubmitAnswer",j); } catch(Exception e){h.sendEmptyMessage(fail);}
     }
+    public void submitAnswerInput(Handler h, int ok, int fail, int uid, int wid, String lexiconId, String headWord, boolean isCorrect, long rtMs, String userAnswer, String referenceDefinition, String pos) {
+        try {
+            JSONObject j=new JSONObject();
+            j.put("userId",uid); j.put("wordId",wid); j.put("lexiconId",lexiconId);
+            j.put("headWord",headWord); j.put("isCorrect",isCorrect);
+            j.put("responseTimeMs",rtMs); j.put("studyMode","input");
+            j.put("userAnswer",userAnswer); j.put("referenceDefinition",referenceDefinition);
+            j.put("word",headWord); j.put("pos",pos);
+            asyncPostJson(h,ok,fail,"SubmitAnswer",j);
+        } catch(Exception e){h.sendEmptyMessage(fail);}
+    }
     public void getSchedulePreview(Handler h, int ok, int fail, String uid) { asyncGet1H(h, ok, fail, "SchedulePreview", "userId", uid); }
     public void updatePreference(Handler h, int ok, int fail, int uid, Integer dailyNew, String modePref, Double retentionTarget) {
         try { JSONObject j=new JSONObject(); j.put("userId",uid); if(dailyNew!=null)j.put("dailyNewWords",dailyNew); if(modePref!=null)j.put("studyModePreference",modePref); if(retentionTarget!=null)j.put("fsrsRetentionTarget",retentionTarget); asyncCall(h,ok,fail,"UpdatePreference",url->HttpManager.doHttpPut(url,j)); } catch(Exception e){h.sendEmptyMessage(fail);}
