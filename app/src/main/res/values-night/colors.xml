@@ -41,4 +41,14 @@
     <color name="box_shadow_border">#FF2A2A3C</color>
     <color name="box_shadow_fill">#FF2A2A3C</color>
     <color name="shadow_border">#FF1A1A1A</color>
+
+    <!-- 每日一读 - 暗色主题阅读器色彩 -->
+    <color name="reader_bg">#FF1E1B18</color>
+    <color name="reader_text">#FFD4C8BC</color>
+    <color name="reader_text_secondary">#FF9E948A</color>
+    <color name="reader_divider">#FF3D3630</color>
+    <color name="reader_card_bg">#FF282420</color>
+    <color name="reader_card_stroke">#FF3D3630</color>
+    <color name="reader_accent_bar">#FF82B0DA</color>
+    <color name="reader_section_title">#FF8AB4D4</color>
 </resources>

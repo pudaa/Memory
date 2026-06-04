@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- 大 A 字母 + 加号 = 放大字号 -->
+    <path
+        android:fillColor="@color/reader_accent_bar"
+        android:pathData="M281.6,819.2a38.4,38.4 0,0 1,-5.2224 -76.4416L281.6,742.4h89.6V243.2h-179.2v40.5504a38.4,38.4 0,0 1,-33.1776 38.0416L153.6,322.1504a38.4,38.4 0,0 1,-38.0416 -33.2288l-0.3584,-5.1712V204.8a38.4,38.4 0,0 1,33.1776 -38.0416L153.6,166.4h512a38.4,38.4 0,0 1,38.0416 33.1776L704,204.8v78.9504a38.4,38.4 0,0 1,-76.4416 5.1712l-0.3584,-5.1712V243.2h-179.2v499.2h89.6a38.4,38.4 0,0 1,5.2224 76.4416L537.6,819.2h-256zM778.24,409.6v163.84H614.4v81.92h163.84v163.84h81.92V655.36H1024v-81.92H860.16V409.6z" />
+</vector>

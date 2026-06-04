@@ -16,6 +16,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -987,6 +988,21 @@ public class HttpManager {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		return null;
+	}
+
+	/** DELETE 请求，带一个 Header */
+	public static String doHttpDelete(String url, String headerKey, String headerValue) {
+		try {
+			HttpDelete request = new HttpDelete(url);
+			request.addHeader(headerKey, headerValue);
+			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			if (httpResponse.getStatusLine().getStatusCode() == 200) {
+				return EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
+			}
+		} catch (Exception e) {
+			Log.e("HttpManager", "doHttpDelete error", e);
 		}
 		return null;
 	}
