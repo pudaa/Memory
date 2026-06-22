@@ -1,1 +1,8 @@
+# 编译缓存
 /build
+
+# 测试脚本
+/scripts
+
+# AI
+reasonix.toml

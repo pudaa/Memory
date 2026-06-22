@@ -29,7 +29,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="我的单词本"
+            android:text="个人词书"
             android:textSize="23sp"
             android:textStyle="bold"
             android:gravity="center"
