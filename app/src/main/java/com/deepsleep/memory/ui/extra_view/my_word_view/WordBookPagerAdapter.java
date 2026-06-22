@@ -14,15 +14,16 @@ public class WordBookPagerAdapter extends FragmentStateAdapter {
     @NonNull
     @Override
     public Fragment createFragment(int position) {
-        if (position == 0) {
-            return new FavoriteWordsFragment(); // 收藏单词
-        } else {
-            return new WeakWordsFragment(); // 薄弱单词
+        switch (position) {
+            case 0: return new FavoriteWordsFragment();
+            case 1: return new WeakWordsFragment();
+            case 2: return new LexiconBrowseFragment();
+            default: return new FavoriteWordsFragment();
         }
     }
 
     @Override
     public int getItemCount() {
-        return 2;
+        return 3;
     }
 }

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="14dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <!-- 头部：单词 + 词性 + 序号 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_word"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="abruptly"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/theme_text_primary"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/tv_pos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="adv."
+            android:textSize="13sp"
+            android:textColor="@color/theme_primary"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tv_rank"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="#1"
+            android:textSize="11sp"
+            android:textColor="@color/middle_gray" />
+    </LinearLayout>
+
+    <!-- 发音行：美音 + 英音 -->
+    <LinearLayout
+        android:id="@+id/phonetic_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/btn_speaker_us"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_speaker"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="美式发音" />
+
+        <TextView
+            android:id="@+id/tv_phonetic_us"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="/əˈbrʌptli/"
+            android:textSize="14sp"
+            android:textColor="@color/theme_text_secondary"
+            android:layout_marginEnd="16dp" />
+
+        <ImageView
+            android:id="@+id/btn_speaker_uk"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_speaker"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="英式发音" />
+
+        <TextView
+            android:id="@+id/tv_phonetic_uk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="/əˈbrʌptli/"
+            android:textSize="14sp"
+            android:textColor="@color/theme_text_secondary" />
+    </LinearLayout>
+
+    <!-- 释义摘要（列表折叠时显示） -->
+    <TextView
+        android:id="@+id/tv_definition"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="突然地；唐突地"
+        android:textSize="14sp"
+        android:textColor="@color/theme_text_primary"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- 展开区：例句、真题例句 -->
+    <LinearLayout
+        android:id="@+id/expand_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="8dp">
+
+        <!-- 分隔线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/light_gray"
+            android:layout_marginBottom="8dp" />
+
+        <!-- 英英释义 -->
+        <TextView
+            android:id="@+id/tv_eng_def"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="suddenly; unexpectedly"
+            android:textSize="13sp"
+            android:textColor="@color/theme_text_secondary"
+            android:visibility="gone"
+            android:layout_marginBottom="6dp" />
+
+        <!-- 例句标题 -->
+        <TextView
+            android:id="@+id/tv_section_example"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="例句"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/middle_gray"
+            android:visibility="gone"
+            android:layout_marginBottom="4dp" />
+
+        <!-- 例句区域 -->
+        <LinearLayout
+            android:id="@+id/example_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <!-- 真题例句标题 -->
+        <TextView
+            android:id="@+id/tv_section_real"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="真题例句"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/middle_gray"
+            android:visibility="gone"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp" />
+
+        <!-- 真题例句区域 -->
+        <LinearLayout
+            android:id="@+id/real_exam_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <!-- 底部间距 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="8dp" />
+    </LinearLayout>
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="@color/light_gray"
+        android:layout_marginTop="12dp" />
+
+</LinearLayout>

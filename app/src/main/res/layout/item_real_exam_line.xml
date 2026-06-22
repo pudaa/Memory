@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="6dp"
+    android:paddingStart="8dp"
+    android:background="@drawable/bg_real_exam_tag">
+
+    <TextView
+        android:id="@+id/tv_real_source"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textColor="@color/theme_primary"
+        android:layout_marginBottom="2dp" />
+
+    <TextView
+        android:id="@+id/tv_real_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="@color/theme_text_primary"
+        android:lineSpacingExtra="2dp" />
+</LinearLayout>

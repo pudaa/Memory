@@ -12,6 +12,7 @@ import com.deepsleep.memory.R;
 
 public class MyWordBookActivity extends AppCompatActivity {
     ImageButton backBtn;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,12 +33,15 @@ public class MyWordBookActivity extends AppCompatActivity {
 
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             switch (position) {
-                case 0:
-                    tab.setText("收藏单词");
-                    break;
-                case 1:
-                    tab.setText("薄弱单词");
-                    break;
+            case 0:
+                tab.setText("收藏单词");
+                break;
+            case 1:
+                tab.setText("薄弱单词");
+                break;
+            case 2:
+                tab.setText("词书浏览");
+                break;
             }
         }).attach();
     }
