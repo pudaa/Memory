@@ -443,6 +443,7 @@ public class DictationExecutionActivity extends AppCompatActivity {
         Intent intent = new Intent(this, DictationResultActivity.class);
         intent.putExtra("taskId", taskId);
         intent.putExtra("resultJson", result);
+        intent.putExtra("lexiconId", currentTask != null ? currentTask.lexiconId : 0);
         startActivity(intent);
         finish();
     }

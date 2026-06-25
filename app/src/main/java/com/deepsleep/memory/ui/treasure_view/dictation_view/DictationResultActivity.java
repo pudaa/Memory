@@ -13,18 +13,19 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.Locale;
 
 /**
- * 听写练习 - 成绩结果页
- * 展示评分结果、错词列表，支持错词重练
+ * 听写练习 - 成绩结果页 展示评分结果、错词列表，支持错词重练
  */
 public class DictationResultActivity extends AppCompatActivity {
 
@@ -52,6 +53,7 @@ public class DictationResultActivity extends AppCompatActivity {
         userId = InnerSettingsManager.getInstance(this).getUserId();
         taskId = getIntent().getStringExtra("taskId");
         String resultJson = getIntent().getStringExtra("resultJson");
+        lexiconId = getIntent().getIntExtra("lexiconId", 2);
 
         initViews();
         initHandler();
@@ -60,7 +62,7 @@ public class DictationResultActivity extends AppCompatActivity {
 
     private void initViews() {
         btnBack = findViewById(R.id.btn_back);
-        btnBack.setOnClickListener(v -> finish());
+        btnBack.setOnClickListener(v -> showExitDialog());
 
         tvScore = findViewById(R.id.tv_score);
         tvCorrectCount = findViewById(R.id.tv_correct_count);
@@ -72,7 +74,7 @@ public class DictationResultActivity extends AppCompatActivity {
         scrollView = findViewById(R.id.scroll_result);
 
         btnRetryWrong.setOnClickListener(v -> retryWrongWords());
-        btnBackToList.setOnClickListener(v -> finish());
+        btnBackToList.setOnClickListener(v -> showExitDialog());
     }
 
     private void initHandler() {
@@ -98,15 +100,14 @@ public class DictationResultActivity extends AppCompatActivity {
                                 finish();
                             }
                         } else {
-                            Toast.makeText(DictationResultActivity.this,
-                                    json.optString("message", "重练失败"), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(DictationResultActivity.this, json.optString("message", "重练失败"),
+                                    Toast.LENGTH_SHORT).show();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 } else if (msg.what == MSG_RETRY_FAILED) {
-                    Toast.makeText(DictationResultActivity.this,
-                            "网络请求失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(DictationResultActivity.this, "网络请求失败", Toast.LENGTH_SHORT).show();
                 }
             }
         };
@@ -131,7 +132,8 @@ public class DictationResultActivity extends AppCompatActivity {
     }
 
     private void displayResult() {
-        if (submitResult == null) return;
+        if (submitResult == null)
+            return;
 
         int total = submitResult.totalWords;
         int correct = submitResult.correctCount;
@@ -210,18 +212,37 @@ public class DictationResultActivity extends AppCompatActivity {
 
     private String getScoreLabel(int score) {
         switch (score) {
-            case 4: return "完全掌握";
-            case 3: return "基本掌握";
-            case 2: return "模糊";
-            case 1: return "未掌握";
-            default: return String.valueOf(score);
+        case 4:
+            return "完全掌握";
+        case 3:
+            return "基本掌握";
+        case 2:
+            return "模糊";
+        case 1:
+            return "未掌握";
+        default:
+            return String.valueOf(score);
         }
+    }
+
+    private void showExitDialog() {
+        new MaterialAlertDialogBuilder(this).setTitle("离开成绩页").setMessage("确定要离开成绩查看吗？\n你可以通过「错题重练」按钮对错词进行针对性练习。")
+                .setPositiveButton("确定离开", (dialog, which) -> {
+                    Intent intent = new Intent(DictationResultActivity.this, DictationMenuActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(intent);
+                    finish();
+                }).setNegativeButton("继续查看", null).show();
+    }
+
+    @Override
+    public void onBackPressed() {
+        showExitDialog();
     }
 
     private void retryWrongWords() {
         btnRetryWrong.setEnabled(false);
         btnRetryWrong.setText("正在创建...");
-        DictationApiHelper.retryWrongWords(handler, MSG_RETRY_SUCCESS, MSG_RETRY_FAILED,
-                userId, taskId, lexiconId);
+        DictationApiHelper.retryWrongWords(handler, MSG_RETRY_SUCCESS, MSG_RETRY_FAILED, userId, taskId, lexiconId);
     }
 }

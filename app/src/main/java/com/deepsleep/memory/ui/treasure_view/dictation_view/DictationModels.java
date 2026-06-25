@@ -15,9 +15,10 @@ public class DictationModels {
      */
     public static class DictationTask {
         public String taskId;
-        public String status;       // PENDING / READY / SUBMITTED
+        public String status; // PENDING / READY / SUBMITTED
         public String cooldownUntil;
         public int totalWords;
+        public int lexiconId;
         public List<DictationItem> items;
 
         public static DictationTask fromJson(JSONObject json) {
@@ -27,6 +28,7 @@ public class DictationModels {
                 task.status = json.optString("status", "PENDING");
                 task.cooldownUntil = json.optString("cooldownUntil", "");
                 task.totalWords = json.optInt("totalWords", 0);
+                task.lexiconId = json.optInt("lexiconId", 0);
                 task.items = new ArrayList<>();
                 JSONArray itemsArr = json.optJSONArray("items");
                 if (itemsArr != null) {
@@ -48,15 +50,15 @@ public class DictationModels {
         public int index;
         public long wordId;
         public String headWord;
-        public int level;           // 1=单词, 2=短语, 3=句子
-        public String contextText;  // 语境文本 (L2/L3)
-        public String targetForm;   // 期望拼写
-        public String posHint;      // 词性提示 (服务端可能为null)
+        public int level; // 1=单词, 2=短语, 3=句子
+        public String contextText; // 语境文本 (L2/L3)
+        public String targetForm; // 期望拼写
+        public String posHint; // 词性提示 (服务端可能为null)
         public String audioUrl;
         public boolean audioReady;
 
         /** 本地补全字段 (由客户端从本地词书查询填充) */
-        public String localPos;     // 本地词性
+        public String localPos; // 本地词性
         public String localMeaning; // 本地释义
 
         public static DictationItem fromJson(JSONObject json) {
@@ -67,12 +69,15 @@ public class DictationModels {
                 item.headWord = json.optString("headWord", "");
                 item.level = json.optInt("level", 1);
                 item.contextText = json.optString("contextText", null);
-                if ("null".equals(item.contextText)) item.contextText = null;
+                if ("null".equals(item.contextText))
+                    item.contextText = null;
                 item.targetForm = json.optString("targetForm", "");
                 item.posHint = json.optString("posHint", null);
-                if ("null".equals(item.posHint)) item.posHint = null;
+                if ("null".equals(item.posHint))
+                    item.posHint = null;
                 item.audioUrl = json.optString("audioUrl", null);
-                if ("null".equals(item.audioUrl)) item.audioUrl = null;
+                if ("null".equals(item.audioUrl))
+                    item.audioUrl = null;
                 item.audioReady = json.optBoolean("audioReady", false);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -129,7 +134,7 @@ public class DictationModels {
         public String headWord;
         public String targetForm;
         public String userAnswer;
-        public int score;       // 1-4
+        public int score; // 1-4
         public boolean correct;
 
         public static DictationSummary fromJson(JSONObject json) {

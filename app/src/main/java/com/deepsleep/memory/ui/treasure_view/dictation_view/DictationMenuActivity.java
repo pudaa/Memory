@@ -87,20 +87,20 @@ public class DictationMenuActivity extends AppCompatActivity {
             handler = new android.os.Handler(getMainLooper()) {
                 @Override
                 public void handleMessage(android.os.Message msg) {
-                if (msg.what == MSG_HISTORY_SUCCESS) {
-                    String result = (String) msg.obj;
-                    parseHistoryResult(result);
-                } else if (msg.what == MSG_HISTORY_FAILED) {
-                    tvNoHistory.setText("加载历史记录失败");
-                    tvNoHistory.setVisibility(View.VISIBLE);
-                } else if (msg.what == MSG_DELETE_SUCCESS) {
-                    String result = (String) msg.obj;
-                    handleDeleteResult(result);
-                } else if (msg.what == MSG_DELETE_FAILED) {
-                    Toast.makeText(DictationMenuActivity.this, "删除失败，请重试", Toast.LENGTH_SHORT).show();
+                    if (msg.what == MSG_HISTORY_SUCCESS) {
+                        String result = (String) msg.obj;
+                        parseHistoryResult(result);
+                    } else if (msg.what == MSG_HISTORY_FAILED) {
+                        tvNoHistory.setText("加载历史记录失败");
+                        tvNoHistory.setVisibility(View.VISIBLE);
+                    } else if (msg.what == MSG_DELETE_SUCCESS) {
+                        String result = (String) msg.obj;
+                        handleDeleteResult(result);
+                    } else if (msg.what == MSG_DELETE_FAILED) {
+                        Toast.makeText(DictationMenuActivity.this, "删除失败，请重试", Toast.LENGTH_SHORT).show();
+                    }
                 }
-            }
-        };
+            };
 
         }
 
@@ -113,8 +113,8 @@ public class DictationMenuActivity extends AppCompatActivity {
             if (json.optString("code").equals("200")) {
                 JSONObject data = json.optJSONObject("data");
                 if (data != null) {
-                    DictationModels.DictationHistoryResult historyResult =
-                            DictationModels.DictationHistoryResult.fromJson(data);
+                    DictationModels.DictationHistoryResult historyResult = DictationModels.DictationHistoryResult
+                            .fromJson(data);
                     if (historyResult.list.isEmpty()) {
                         tvNoHistory.setText("暂无听写记录，开始第一次听写吧！");
                         tvNoHistory.setVisibility(View.VISIBLE);
@@ -198,11 +198,9 @@ public class DictationMenuActivity extends AppCompatActivity {
             // 点击历史项：PENDING/READY → 继续任务；SUBMITTED → 提示已完成
             holder.itemView.setOnClickListener(v -> {
                 if ("SUBMITTED".equals(item.status)) {
-                    Toast.makeText(DictationMenuActivity.this,
-                            "该听写已完成", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(DictationMenuActivity.this, "该听写已完成", Toast.LENGTH_SHORT).show();
                 } else {
-                    Intent intent = new Intent(DictationMenuActivity.this,
-                            DictationGenerateActivity.class);
+                    Intent intent = new Intent(DictationMenuActivity.this, DictationGenerateActivity.class);
                     intent.putExtra("taskId", item.taskId);
                     intent.putExtra("count", item.totalWords);
                     intent.putExtra("lexiconId", item.lexiconId);
@@ -210,23 +208,17 @@ public class DictationMenuActivity extends AppCompatActivity {
                 }
             });
 
-            // 删除按钮：仅未完成的任务显示
-            if ("SUBMITTED".equals(item.status)) {
-                holder.btnDelete.setVisibility(View.GONE);
-            } else {
-                holder.btnDelete.setVisibility(View.VISIBLE);
-                holder.btnDelete.setOnClickListener(v -> {
-                    new androidx.appcompat.app.AlertDialog.Builder(DictationMenuActivity.this)
-                            .setTitle("删除听写记录")
-                            .setMessage("确定要删除该听写记录吗？此操作不可撤销。")
-                            .setPositiveButton("删除", (dialog, which) -> {
-                                DictationApiHelper.deleteTask(handler, MSG_DELETE_SUCCESS, MSG_DELETE_FAILED,
-                                        userId, item.taskId);
-                            })
-                            .setNegativeButton("取消", null)
-                            .show();
-                });
-            }
+            // 删除按钮：所有任务均可删除
+            holder.btnDelete.setVisibility(View.VISIBLE);
+            holder.btnDelete.setOnClickListener(v -> {
+                String confirmMsg = "SUBMITTED".equals(item.status) ? "该听写已完成，确定要删除这条记录吗？此操作不可撤销。"
+                        : "确定要删除该听写记录吗？此操作不可撤销。";
+                new androidx.appcompat.app.AlertDialog.Builder(DictationMenuActivity.this).setTitle("删除听写记录")
+                        .setMessage(confirmMsg).setPositiveButton("删除", (dialog, which) -> {
+                            DictationApiHelper.deleteTask(handler, MSG_DELETE_SUCCESS, MSG_DELETE_FAILED, userId,
+                                    item.taskId);
+                        }).setNegativeButton("取消", null).show();
+            });
         }
 
         @Override
@@ -235,7 +227,8 @@ public class DictationMenuActivity extends AppCompatActivity {
         }
 
         private String formatDate(String dateStr) {
-            if (dateStr == null || dateStr.length() < 10) return dateStr;
+            if (dateStr == null || dateStr.length() < 10)
+                return dateStr;
             return dateStr.substring(0, 10);
         }
 
@@ -249,13 +242,18 @@ public class DictationMenuActivity extends AppCompatActivity {
                     if (created != null && System.currentTimeMillis() - created.getTime() > 20 * 60 * 1000) {
                         return "可开始";
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             switch (status) {
-                case "SUBMITTED": return "已完成";
-                case "READY": return "可开始";
-                case "PENDING": return "冷却中";
-                default: return status;
+            case "SUBMITTED":
+                return "已完成";
+            case "READY":
+                return "可开始";
+            case "PENDING":
+                return "冷却中";
+            default:
+                return status;
             }
         }
 

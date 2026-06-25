@@ -27,6 +27,10 @@ local.properties
 *.swo
 *~
 
+# vscode
+.vscode-test/
+.github/
+
 # OS files
 .DS_Store
 Thumbs.db

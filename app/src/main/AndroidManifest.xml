@@ -34,6 +34,10 @@
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationMinuteFollowActivity"
                 android:exported="false"/>        <!-- 学情分析模块 -->
         <activity
+                android:name=".ui.treasure_view.evaluation_view.EvaluationActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
                 android:name=".ui.treasure_view.evaluation_view.EvaluationDashboardActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>

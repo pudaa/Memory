@@ -15,7 +15,7 @@ import com.deepsleep.memory.ui.extra_view.word_search_view.SearchingActivity;
 import com.deepsleep.memory.ui.treasure_view.composition_view.CompositionMenuActivity;
 import com.deepsleep.memory.ui.treasure_view.dictation_view.DictationMenuActivity;
 import com.deepsleep.memory.ui.treasure_view.pronunciation_view.PronunciationMenuActivity;
-import com.deepsleep.memory.ui.treasure_view.evaluation_view.EvaluationDashboardActivity;
+import com.deepsleep.memory.ui.treasure_view.evaluation_view.EvaluationActivity;
 
 public class TreasureBoxFragment extends Fragment {
     ImageButton btnSearch;
@@ -58,7 +58,7 @@ public class TreasureBoxFragment extends Fragment {
     }
 
     private void openEvaluationDashboard() {
-        Intent intent = new Intent(requireContext(), EvaluationDashboardActivity.class);
+        Intent intent = new Intent(requireContext(), EvaluationActivity.class);
         startActivity(intent);
     }
 

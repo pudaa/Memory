@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深度分析 Tab 内容 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none"
+    android:background="@color/theme_surface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- ── FSRS 指标趋势 ── -->
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="8dp" android:layout_marginBottom="8dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="FSRS 指标趋势" android:textSize="17sp" android:textStyle="bold"
+                android:textColor="@color/theme_text_primary" />
+            <View android:layout_width="0dp" android:layout_height="1dp"
+                android:layout_weight="1" android:layout_marginStart="12dp" android:layout_marginEnd="4dp"
+                android:background="@drawable/section_divider_line" />
+        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="难度、提取率、稳定性的近期变化" android:textSize="12sp"
+            android:textColor="@color/middle_gray" android:layout_marginBottom="14dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="14dp">
+            <LinearLayout
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+                android:padding="12dp" android:background="@drawable/trend_bg_orange"
+                android:layout_marginEnd="4dp">
+                <TextView android:id="@+id/tv_d_trend"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textStyle="bold" android:textColor="@color/theme_stress" />
+                <TextView android:id="@+id/tv_d_slope"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="@color/theme_error" android:layout_marginTop="2dp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical" android:gravity="center"
+                android:padding="12dp" android:background="@drawable/trend_bg_blue"
+                android:layout_marginStart="4dp">
+                <TextView android:id="@+id/tv_r_trend"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="13sp" android:textStyle="bold" android:textColor="@color/theme_stress" />
+                <TextView android:id="@+id/tv_r_slope"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textSize="11sp" android:textColor="@color/theme_stress" android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp" app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/card_background"
+            android:layout_marginBottom="20dp">
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/fsrs_trend_chart"
+                android:layout_width="match_parent" android:layout_height="240dp"
+                android:layout_margin="8dp" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- ── 薄弱单词 ── -->
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="4dp" android:layout_marginBottom="8dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="薄弱单词" android:textSize="17sp" android:textStyle="bold"
+                android:textColor="@color/theme_text_primary" />
+            <View android:layout_width="0dp" android:layout_height="1dp"
+                android:layout_weight="1" android:layout_marginStart="12dp" android:layout_marginEnd="4dp"
+                android:background="@drawable/section_divider_line" />
+        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="提取率最低的单词，建议优先复习" android:textSize="12sp"
+            android:textColor="@color/middle_gray" android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:id="@+id/weak_words_container"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="20dp" />
+
+        <!-- ── 危急单词 ── -->
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="4dp" android:layout_marginBottom="8dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="危急单词" android:textSize="17sp" android:textStyle="bold"
+                android:textColor="@color/theme_text_primary" />
+            <View android:layout_width="0dp" android:layout_height="1dp"
+                android:layout_weight="1" android:layout_marginStart="12dp" android:layout_marginEnd="4dp"
+                android:background="@drawable/section_divider_line" />
+        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="难度极高且连续出错的单词，需要紧急干预" android:textSize="12sp"
+            android:textColor="@color/middle_gray" android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:id="@+id/critical_words_container"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="20dp" />
+
+    </LinearLayout>
+</ScrollView>
