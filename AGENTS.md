@@ -90,6 +90,28 @@ if (response.getString("code").equals("200")) {
 }
 ```
 
+### Dialog Pattern
+**Always use MaterialAlertDialogBuilder for all dialogs:**
+```java
+// WRONG - Don't use AlertDialog.Builder
+AlertDialog.Builder builder = new AlertDialog.Builder(context);
+// or
+new androidx.appcompat.app.AlertDialog.Builder(context)...
+
+// CORRECT - Use MaterialAlertDialogBuilder for consistent Material Design styling
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+new MaterialAlertDialogBuilder(context)
+        .setTitle("标题")
+        .setMessage("消息内容")
+        .setPositiveButton("确定", (dialog, which) -> { /* action */ })
+        .setNegativeButton("取消", null)
+        .show();
+```
+- Import: `com.google.android.material.dialog.MaterialAlertDialogBuilder`
+- Always use lambda syntax for button click listeners
+- This ensures consistent theming (light/dark mode, rounded corners, ripple effects) across all dialogs
+
 ### Permissions & Features
 **Required permissions for core features:**
 - `CAMERA` + `WRITE_EXTERNAL_STORAGE` for composition OCR
@@ -105,6 +127,7 @@ if (response.getString("code").equals("200")) {
 - `handle_utils/BitmapManager.java` - Image processing utilities
 
 ## Common Pitfalls
+- **No text emojis in UI strings** - Never use unicode emoji characters (📊📈📝🔍 etc.) in `setText()`, layout XML `android:text`, or any user-facing strings. They render inconsistently across Android versions and break visual consistency. Use proper `ImageView` with drawable icons or Material icon fonts instead.
 - **Don't update Apache HttpClient** - Despite deprecation warnings, maintain compatibility
 - **Environment hardcoded** - Remember to switch between TEST/PROD for API calls
 - **Threading model** - Use Handler/Message pattern, avoid AsyncTask (deprecated)

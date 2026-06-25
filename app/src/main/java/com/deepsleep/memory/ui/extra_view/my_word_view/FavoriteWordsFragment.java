@@ -1,8 +1,6 @@
 package com.deepsleep.memory.ui.extra_view.my_word_view;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,6 +19,7 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -35,12 +34,13 @@ public class FavoriteWordsFragment extends Fragment {
     private static final String KEY_USER_ID = "userId";
     int userId;
     // 线程处理
-    static final  int msg_success = 1;
-    static final  int msg_failed = -1;
+    static final int msg_success = 1;
+    static final int msg_failed = -1;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_word_list, container, false);
         recyclerView = view.findViewById(R.id.word_list_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -51,8 +51,9 @@ public class FavoriteWordsFragment extends Fragment {
         return view;
     }
 
-        GetDataByThread getDataByThread = new GetDataByThread("/learning/getFavoriteWords");
-    private void getSampleData() {//获取收藏单词
+    GetDataByThread getDataByThread = new GetDataByThread("/learning/getFavoriteWords");
+
+    private void getSampleData() {// 获取收藏单词
         getDataByThread.fetchFavoriteWords(new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
@@ -67,7 +68,7 @@ public class FavoriteWordsFragment extends Fragment {
                             try {
                                 JSONArray favoriteWordsArray = jsonObject.getJSONArray("favoriteWords");
                                 if (favoriteWordsArray.length() == 0) {
-                                    //  没有收藏单词
+                                    // 没有收藏单词
                                     return;
                                 }
 
@@ -85,40 +86,32 @@ public class FavoriteWordsFragment extends Fragment {
                             Log.i("weakWords", favWordsStr.toString());
                             adapter = new WordListAdapter(list);
                             adapter.setOnItemLongClickListener(word -> {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+                                MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
                                 builder.setTitle("取消收藏");
                                 builder.setMessage("是否取消收藏？");
 
-                                builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        unFavoriteWord(word.getHeadWord());
-                                    }
+                                builder.setPositiveButton("确定", (dialog, which) -> {
+                                    unFavoriteWord(word.getHeadWord());
                                 });
 
-                                builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        dialog.dismiss();
-                                    }
-                                });
+                                builder.setNegativeButton("取消", (dialog, which) -> dialog.dismiss());
 
-                                AlertDialog dialog = builder.create();
-                                dialog.show();
+                                builder.show();
                             });
                             recyclerView.setAdapter(adapter);
 
                         }
-                    }catch (Exception e){
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
 
-                }else {
+                } else {
                     Log.i("weakWords", "获取失败");
                 }
             }
-        },msg_success,msg_failed,String.valueOf(userId));
+        }, msg_success, msg_failed, String.valueOf(userId));
     }
+
     private void unFavoriteWord(String headWord) {
         WordEntry wordEntry = LexiconResourceMap.findWordInAllLexicons(headWord);
         if (wordEntry == null) {

@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
@@ -208,17 +209,19 @@ public class DictationMenuActivity extends AppCompatActivity {
                 }
             });
 
-            // 删除按钮：所有任务均可删除
-            holder.btnDelete.setVisibility(View.VISIBLE);
-            holder.btnDelete.setOnClickListener(v -> {
-                String confirmMsg = "SUBMITTED".equals(item.status) ? "该听写已完成，确定要删除这条记录吗？此操作不可撤销。"
-                        : "确定要删除该听写记录吗？此操作不可撤销。";
-                new androidx.appcompat.app.AlertDialog.Builder(DictationMenuActivity.this).setTitle("删除听写记录")
-                        .setMessage(confirmMsg).setPositiveButton("删除", (dialog, which) -> {
-                            DictationApiHelper.deleteTask(handler, MSG_DELETE_SUCCESS, MSG_DELETE_FAILED, userId,
-                                    item.taskId);
-                        }).setNegativeButton("取消", null).show();
-            });
+            // 删除按钮：已完成任务隐藏删除按钮，不可删除
+            if ("SUBMITTED".equals(item.status)) {
+                holder.btnDelete.setVisibility(View.GONE);
+            } else {
+                holder.btnDelete.setVisibility(View.VISIBLE);
+                holder.btnDelete.setOnClickListener(v -> {
+                    new MaterialAlertDialogBuilder(DictationMenuActivity.this).setTitle("删除听写记录")
+                            .setMessage("确定要删除该听写记录吗？此操作不可撤销。").setPositiveButton("删除", (dialog, which) -> {
+                                DictationApiHelper.deleteTask(handler, MSG_DELETE_SUCCESS, MSG_DELETE_FAILED, userId,
+                                        item.taskId);
+                            }).setNegativeButton("取消", null).show();
+                });
+            }
         }
 
         @Override

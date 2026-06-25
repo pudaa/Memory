@@ -68,6 +68,14 @@ public class WordPhraseListAdapter extends BaseAdapter {
         return -1;
     }
 
+    /** 从持久化成绩恢复评分显示（外部调用） */
+    public void restoreScore(String word, int score) {
+        int position = findPositionByWord(word);
+        if (position >= 0 && score > 0) {
+            scoreMap.put(position, score);
+        }
+    }
+
     public WordPhraseListAdapter(Context context, List<WordPhraseItem> wordPhraseList) {
         this.context = context;
         this.wordPhraseList = wordPhraseList;

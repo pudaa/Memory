@@ -1,7 +1,6 @@
 package com.deepsleep.memory.ui.treasure_view.composition_view;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -35,8 +35,8 @@ public class CompositionPreviewActivity extends AppCompatActivity {
     private int userId;
     private static final String PREF_NAME = "UserPrefs";
     private static final String KEY_USER_ID = "userId";
-    static final  int msg_success = 1;
-    static final  int msg_failed = -1;
+    static final int msg_success = 1;
+    static final int msg_failed = -1;
     private int correctTimes = 0;
 
     @Override
@@ -99,7 +99,8 @@ public class CompositionPreviewActivity extends AppCompatActivity {
             if (!savedComposition.isEmpty()) {
                 etCompositionText.setText(savedComposition);
                 long saveTime = sharedPreferences.getLong("save_time_" + userId, 0);
-                String timeStr = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", new java.util.Date(saveTime)).toString();
+                String timeStr = android.text.format.DateFormat
+                        .format("yyyy-MM-dd HH:mm:ss", new java.util.Date(saveTime)).toString();
                 Toast.makeText(this, "已恢复暂存作文", Toast.LENGTH_LONG).show();
             }
         }
@@ -159,6 +160,7 @@ public class CompositionPreviewActivity extends AppCompatActivity {
         btnSubmit.setEnabled(true);
         btnSaveTemp.setEnabled(true);
     }
+
     @SuppressLint("HandlerLeak")
     class CorrectHandler extends Handler {
         @Override
@@ -167,23 +169,23 @@ public class CompositionPreviewActivity extends AppCompatActivity {
             // 隐藏加载动画
             hideLoadingOverlay();
             switch (msg.what) {
-                case msg_success: // 批改成功
-                    correctTimes = 0;
-                    String resultJson = (String) msg.obj;
-                    Log.d("correct", "批改结果：" + resultJson);
-                    Intent intent = new Intent(CompositionPreviewActivity.this, CompositionResultActivity.class);
-                    intent.putExtra("result_json", resultJson);
-                    startActivity(intent);
-                    finish();
-                    break;
-                case msg_failed: // 批改失败
-                    correctTimes++;
-                    if (correctTimes >= 3) {
-                        Toast.makeText(CompositionPreviewActivity.this, "批改失败", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    submitCompositionForCorrection();
-                    break;
+            case msg_success: // 批改成功
+                correctTimes = 0;
+                String resultJson = (String) msg.obj;
+                Log.d("correct", "批改结果：" + resultJson);
+                Intent intent = new Intent(CompositionPreviewActivity.this, CompositionResultActivity.class);
+                intent.putExtra("result_json", resultJson);
+                startActivity(intent);
+                finish();
+                break;
+            case msg_failed: // 批改失败
+                correctTimes++;
+                if (correctTimes >= 3) {
+                    Toast.makeText(CompositionPreviewActivity.this, "批改失败", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                submitCompositionForCorrection();
+                break;
             }
         }
     }
@@ -193,14 +195,10 @@ public class CompositionPreviewActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (loadingOverlay != null && loadingOverlay.getVisibility() == View.VISIBLE) {
             // 显示确认对话框
-            new AlertDialog.Builder(this)
-                    .setTitle("正在批改作文")
-                    .setMessage("作文正在批改中，确定要离开吗？")
+            new MaterialAlertDialogBuilder(this).setTitle("正在批改作文").setMessage("作文正在批改中，确定要离开吗？")
                     .setPositiveButton("确定离开", (dialog, which) -> {
                         super.onBackPressed();
-                    })
-                    .setNegativeButton("继续等待", null)
-                    .show();
+                    }).setNegativeButton("继续等待", null).show();
         } else {
             super.onBackPressed();
         }

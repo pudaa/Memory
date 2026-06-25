@@ -103,7 +103,7 @@
             android:scrollbars="vertical" />
     </LinearLayout>
 
-    <!-- 评分 Bottom Sheet -->
+    <!-- 评分 Bottom Sheet（支持滚动 + 单词详情/成绩总结双模式） -->
     <LinearLayout
         android:id="@+id/bottom_sheet"
         android:layout_width="match_parent"
@@ -120,137 +120,237 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-        <!-- 得分圆形区域 -->
-        <FrameLayout
-            android:id="@+id/bs_score_circle"
-            android:layout_width="88dp"
-            android:layout_height="88dp"
-            android:layout_gravity="center"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bg_follow_score_circle">
-
-            <TextView
-                android:id="@+id/bs_score"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:text="--"
-                android:textSize="36sp"
-                android:textStyle="bold"
-                android:textColor="@color/white" />
-        </FrameLayout>
-
-        <TextView
-            android:id="@+id/bs_level"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="8dp"
-            android:text=""
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="@color/theme_primary"
-            android:visibility="gone" />
-
-        <!-- 文本对比卡片 -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/bs_text_compare"
+        <!-- 可滚动内容区 -->
+        <ScrollView
+            android:id="@+id/bs_scroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp"
-            android:layout_marginTop="18dp"
-            app:cardElevation="1dp"
-            app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="@color/card_background"
-            android:visibility="gone">
+            android:fillViewport="false">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="你说："
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/theme_text_secondary"
-                    android:layout_marginBottom="4dp" />
-
-                <TextView
-                    android:id="@+id/bs_asr_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="16sp"
-                    android:textColor="@color/theme_text_primary"
-                    android:textStyle="italic" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 音素详情 -->
-        <TextView
-            android:id="@+id/bs_phoneme"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp"
-            android:layout_marginTop="10dp"
-            android:text=""
-            android:textSize="13sp"
-            android:textColor="@color/theme_text_secondary"
-            android:visibility="gone" />
-
-        <!-- 逐词评分列表 -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/bs_word_scores_container"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp"
-            android:layout_marginTop="12dp"
-            app:cardElevation="1dp"
-            app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="@color/card_background"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="逐词评分"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/theme_text_secondary"
-                    android:layout_marginBottom="8dp" />
-
+                <!-- ====== 单词详情区（默认显示） ====== -->
                 <LinearLayout
-                    android:id="@+id/bs_word_scores"
+                    android:id="@+id/bs_word_detail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    android:orientation="vertical">
 
-        <!-- 反馈文本 -->
-        <TextView
-            android:id="@+id/bs_feedback"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginEnd="20dp"
-            android:layout_marginTop="12dp"
-            android:text=""
-            android:textSize="14sp"
-            android:textColor="@color/theme_text_primary"
-            android:visibility="gone" />
+                    <!-- 得分圆形区域 -->
+                    <FrameLayout
+                        android:id="@+id/bs_score_circle"
+                        android:layout_width="88dp"
+                        android:layout_height="88dp"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_follow_score_circle">
+
+                        <TextView
+                            android:id="@+id/bs_score"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="--"
+                            android:textSize="36sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/bs_level"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="8dp"
+                        android:text=""
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/theme_primary"
+                        android:visibility="gone" />
+
+                    <!-- 文本对比卡片 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/bs_text_compare"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="18dp"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="@color/card_background"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="你说："
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/theme_text_secondary"
+                                android:layout_marginBottom="4dp" />
+
+                            <TextView
+                                android:id="@+id/bs_asr_text"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="16sp"
+                                android:textColor="@color/theme_text_primary"
+                                android:textStyle="italic" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 音素详情 -->
+                    <TextView
+                        android:id="@+id/bs_phoneme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="10dp"
+                        android:text=""
+                        android:textSize="13sp"
+                        android:textColor="@color/theme_text_secondary"
+                        android:visibility="gone" />
+
+                    <!-- 逐词评分列表（含音素错误详情） -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/bs_word_scores_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="12dp"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="@color/card_background"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="逐词评分"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/theme_text_secondary"
+                                android:layout_marginBottom="8dp" />
+
+                            <LinearLayout
+                                android:id="@+id/bs_word_scores"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 反馈文本 -->
+                    <TextView
+                        android:id="@+id/bs_feedback"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="12dp"
+                        android:text=""
+                        android:textSize="14sp"
+                        android:textColor="@color/theme_text_primary"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <!-- ====== 成绩总结区（词书练完后显示） ====== -->
+                <LinearLayout
+                    android:id="@+id/bs_summary_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="今日练习总结"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/theme_text_primary"
+                        android:gravity="center"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- 总分卡片 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/bs_summary_overview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:id="@+id/bs_summary_stats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 单词详情卡片 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="12dp"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:id="@+id/bs_summary_words"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 错误分析卡片 -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginTop="12dp"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="@color/card_background">
+
+                        <LinearLayout
+                            android:id="@+id/bs_summary_errors"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp" />
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/bs_close_btn"
@@ -258,7 +358,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="20dp"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="12dp"
             android:text="关闭"
             style="@style/Widget.MaterialComponents.Button.TextButton" />
     </LinearLayout>

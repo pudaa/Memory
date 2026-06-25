@@ -21,7 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
@@ -459,7 +459,7 @@ public class DictationExecutionActivity extends AppCompatActivity {
         }
 
         if (hasAnswers) {
-            new AlertDialog.Builder(this).setTitle("确认退出").setMessage("已作答的答案将保留，下次可从中断处继续。确定退出吗？")
+            new MaterialAlertDialogBuilder(this).setTitle("确认退出").setMessage("已作答的答案将保留，下次可从中断处继续。确定退出吗？")
                     .setPositiveButton("退出", (dialog, which) -> {
                         releaseMediaPlayer();
                         if (delayedPlayRunnable != null) {
