@@ -58,3 +58,7 @@ fastlane/
 captures/
 gen-external-apk/
 *.hprof
+
+
+# AI
+reasonix.toml
