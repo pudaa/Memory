@@ -55,6 +55,42 @@
                 android:tint="@color/theme_text_primary" />
         </LinearLayout>
 
+        <!-- 模式标签栏（默认隐藏，场景/话题模式时显示） -->
+        <LinearLayout
+            android:id="@+id/layoutModeLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:background="@color/card_background"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvModeLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:textColor="@color/theme_primary"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvExitMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="退出"
+                android:textSize="13sp"
+                android:textColor="@color/theme_error"
+                android:paddingStart="12dp"
+                android:paddingEnd="4dp"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -128,6 +164,18 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_mic_24dp"
                 android:contentDescription="@string/switch_input_mode"
+                android:scaleType="fitCenter"
+                android:tint="@color/theme_primary" />
+
+            <!-- 场景/话题按钮 -->
+            <ImageButton
+                android:id="@+id/btnScenario"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_scenarios_24dp"
+                android:contentDescription="场景选择"
                 android:scaleType="fitCenter"
                 android:tint="@color/theme_primary" />
 

@@ -75,11 +75,20 @@ public class AiConversationActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private LinearLayout layoutInput;
     private ImageButton btnInputMode;
+    private ImageButton btnScenario;
     private FloatingActionButton btnSend;
     private TextInputEditText etMessage;
     private LinearLayout layoutVoiceRecord;
     private TextView tvVoiceHint;
     private DrawerLayout drawerLayout;
+
+    // 模式标签
+    private LinearLayout layoutModeLabel;
+    private TextView tvModeLabel;
+
+    // 对话状态
+    private String mCurrentMode = "FREE_CHAT";
+    private int mConversationTurnCount = 0;
 
     private AiConversationAdapter adapter;
     private List<AiMessage> messageList = new ArrayList<>();
@@ -182,10 +191,13 @@ public class AiConversationActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         layoutInput = findViewById(R.id.layoutInput);
         btnInputMode = findViewById(R.id.btnInputMode);
+        btnScenario = findViewById(R.id.btnScenario);
         btnSend = findViewById(R.id.btnSend);
         etMessage = findViewById(R.id.etMessage);
         layoutVoiceRecord = findViewById(R.id.layoutVoiceRecord);
         tvVoiceHint = findViewById(R.id.tvVoiceHint);
+        layoutModeLabel = findViewById(R.id.layoutModeLabel);
+        tvModeLabel = findViewById(R.id.tvModeLabel);
         rvSessionList = findViewById(R.id.rvSessionList);
         mAudioRecord = new MemAudioRecord();
 
@@ -203,6 +215,16 @@ public class AiConversationActivity extends AppCompatActivity {
             drawerLayout.closeDrawer(GravityCompat.END);
             startNewSession();
         });
+
+        // 场景按钮
+        btnScenario.setOnClickListener(v -> showScenarioPicker());
+
+        // 退出模式按钮
+        View tvExitMode = findViewById(R.id.tvExitMode);
+        if (tvExitMode != null) {
+            tvExitMode.setOnClickListener(v -> exitCurrentMode());
+        }
+
         // 侧边栏打开时刷新会话列表
         drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
             @Override
@@ -694,6 +716,173 @@ public class AiConversationActivity extends AppCompatActivity {
                 Toast.makeText(this, "需要录音权限才能使用语音输入", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    // ==================== 场景选择 & 模式管理 ====================
+
+    private void showScenarioPicker() {
+        if (mSessionId == null) {
+            Snackbar.make(coordinatorLayout, "会话未建立，请稍后重试", Snackbar.LENGTH_SHORT).show();
+            return;
+        }
+        ScenarioPickerSheet sheet = ScenarioPickerSheet.newInstance(String.valueOf(mUserId));
+        sheet.setOnScenarioSelectedListener(new ScenarioPickerSheet.OnScenarioSelectedListener() {
+            @Override
+            public void onScenarioSelected(String scenarioId, String title,
+                    String aiRole, String userRole, String openingLine) {
+                startScenarioMode(scenarioId, title, aiRole, userRole, openingLine);
+            }
+
+            @Override
+            public void onCustomScenarioRequested() {
+                // 自定义场景：引导用户输入场景描述
+                showCustomScenarioDialog();
+            }
+        });
+        sheet.show(getSupportFragmentManager(), "scenario_picker");
+    }
+
+    private void startScenarioMode(String scenarioId, String title,
+            String aiRole, String userRole, String openingLine) {
+        if (mSessionId == null) return;
+
+        progressBar.setVisibility(View.VISIBLE);
+        GetDataByThread api = new GetDataByThread("/conversation/start-scenario");
+        api.startScenario(new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                progressBar.setVisibility(View.GONE);
+                if (msg.what == 1) {
+                    try {
+                        JSONObject root = new JSONObject((String) msg.obj);
+                        if (root.optInt("code", -1) == 200) {
+                            mCurrentMode = "ROLE_PLAY";
+                            updateModeLabel(title + " — 你是" + userRole);
+
+                            // 显示 AI 角色的开场白
+                            AiMessage openingMsg = AiMessage.assistant(openingLine, null, -1);
+                            messageList.add(openingMsg);
+                            adapter.notifyItemInserted(messageList.size() - 1);
+                            rvConversation.scrollToPosition(messageList.size() - 1);
+
+                            // 请求开场白 TTS
+                            GetDataByThread tts = new GetDataByThread("/tts/synthesize");
+                            tts.synthesizeTts(mainHandler, MSG_TTS_SUCCESS, MSG_FAIL, openingLine, AiConversationActivity.this);
+                        } else {
+                            showError(root.optString("message", "启动场景失败"));
+                        }
+                    } catch (Exception e) {
+                        showError("启动场景失败");
+                    }
+                } else {
+                    showError("启动场景失败");
+                }
+            }
+        }, 1, -1, String.valueOf(mUserId), mSessionId, scenarioId);
+    }
+
+    private void showCustomScenarioDialog() {
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("自定义场景")
+            .setMessage("描述你想要的场景，AI 会根据你的描述进入角色。例如：\n\n" +
+                "\"我在机场，需要办理登机手续\"\n" +
+                "\"我想练习在餐厅点餐\"")
+            .setPositiveButton("确定", (dialog, which) -> {
+                // 这里可以打开一个输入框让用户输入自定义场景
+                // 暂时用一个简单的对话框
+                android.widget.EditText input = new android.widget.EditText(this);
+                input.setHint("描述场景...");
+                input.setPadding(48, 32, 48, 16);
+
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle("描述场景")
+                    .setView(input)
+                    .setPositiveButton("开始", (d, w) -> {
+                        String desc = input.getText().toString().trim();
+                        if (!desc.isEmpty()) {
+                            startCustomScenario(desc);
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
+    private void startCustomScenario(String description) {
+        if (mSessionId == null) return;
+        mCurrentMode = "ROLE_PLAY";
+        updateModeLabel("自定义场景");
+
+        // 发送场景描述作为第一条消息
+        String prompt = "[SYSTEM: 进入角色扮演模式。场景描述: " + description +
+            "。请用你的开场白开始这个场景，保持角色，用英语对话。]";
+        AiMessage userMsg = AiMessage.user("我想练习这个场景：" + description);
+        messageList.add(userMsg);
+        adapter.notifyItemInserted(messageList.size() - 1);
+        rvConversation.scrollToPosition(messageList.size() - 1);
+
+        // 发送到服务器
+        progressBar.setVisibility(View.VISIBLE);
+        GetDataByThread api = new GetDataByThread("/conversation/message");
+        api.sendConversationText(mainHandler, MSG_SUCCESS, MSG_FAIL,
+            String.valueOf(mUserId), mSessionId, prompt);
+    }
+
+    private void updateModeLabel(String text) {
+        if (layoutModeLabel != null && tvModeLabel != null) {
+            layoutModeLabel.setVisibility(View.VISIBLE);
+            tvModeLabel.setText(text);
+        }
+    }
+
+    private void exitCurrentMode() {
+        if (mSessionId == null) return;
+
+        progressBar.setVisibility(View.VISIBLE);
+        GetDataByThread api = new GetDataByThread("/conversation/" + mSessionId + "/mode");
+        api.switchMode(new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                progressBar.setVisibility(View.GONE);
+                mCurrentMode = "FREE_CHAT";
+                if (layoutModeLabel != null) {
+                    layoutModeLabel.setVisibility(View.GONE);
+                }
+                // 发送系统消息提示模式已切换
+                AiMessage sysMsg = AiMessage.assistant(
+                    "Back to free chat mode! Feel free to talk about anything. 😊", null, -1);
+                messageList.add(sysMsg);
+                adapter.notifyItemInserted(messageList.size() - 1);
+                rvConversation.scrollToPosition(messageList.size() - 1);
+            }
+        }, 1, -1, String.valueOf(mUserId), mSessionId, "FREE_CHAT");
+    }
+
+    // ==================== 对话总结 ====================
+
+    private void showConversationSummary() {
+        if (messageList.isEmpty()) return;
+
+        int turnCount = 0;
+        int userMsgCount = 0;
+        for (AiMessage msg : messageList) {
+            if (msg.getType() == AiMessage.TYPE_USER) userMsgCount++;
+        }
+        turnCount = userMsgCount;
+
+        if (turnCount < 2) return; // 至少2轮才显示总结
+
+        // 在列表末尾插入总结卡片
+        AiMessage summaryMsg = AiMessage.assistant("", null, -1);
+        summaryMsg.setSummary(true);
+        summaryMsg.setSummaryWordsUsed(0);
+        summaryMsg.setSummaryCorrections(0);
+        summaryMsg.setSummaryTurnCount(turnCount);
+        messageList.add(summaryMsg);
+        adapter.notifyItemInserted(messageList.size() - 1);
+        rvConversation.scrollToPosition(messageList.size() - 1);
     }
 
 }

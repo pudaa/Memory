@@ -178,4 +178,22 @@ public class AiMessage {
     public boolean isCorrect() {
         return score >= 85;
     }
+
+    // ==================== 对话总结相关 ====================
+
+    public static final int TYPE_SUMMARY = 2;
+
+    private boolean isSummary = false;
+    private int summaryWordsUsed = 0;
+    private int summaryCorrections = 0;
+    private int summaryTurnCount = 0;
+
+    public boolean isSummary() { return isSummary; }
+    public void setSummary(boolean summary) { isSummary = summary; }
+    public int getSummaryWordsUsed() { return summaryWordsUsed; }
+    public void setSummaryWordsUsed(int wordsUsed) { summaryWordsUsed = wordsUsed; }
+    public int getSummaryCorrections() { return summaryCorrections; }
+    public void setSummaryCorrections(int corrections) { summaryCorrections = corrections; }
+    public int getSummaryTurnCount() { return summaryTurnCount; }
+    public void setSummaryTurnCount(int turnCount) { summaryTurnCount = turnCount; }
 }

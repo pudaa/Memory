@@ -38,7 +38,6 @@ In plan mode the harness blocks writer tools: do read-only research, then write 
 concise plan as your reply and stop. The user is asked to approve before anything
 is changed; once approved, work through the steps, updating the task list as you go."""
 # system_prompt_file = "prompts/system.md"   # overrides system_prompt when set
-max_steps   = 0
 temperature = 0.0
 auto_plan   = "ask"   # off|ask|on; ask/on auto-enter plan mode for complex tasks
 # auto_plan_classifier = "deepseek-flash"   # optional; only used for borderline tasks

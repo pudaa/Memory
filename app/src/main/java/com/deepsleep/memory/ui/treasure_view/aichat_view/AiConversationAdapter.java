@@ -25,14 +25,28 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     private Context context;
     private MediaPlayer mediaPlayer;
 
+    private static final int VIEW_TYPE_MESSAGE = 0;
+    private static final int VIEW_TYPE_SUMMARY = 1;
+
     public AiConversationAdapter(List<AiMessage> messages) {
         this.messages = messages;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        AiMessage msg = messages.get(position);
+        if (msg.isSummary()) return VIEW_TYPE_SUMMARY;
+        return VIEW_TYPE_MESSAGE;
     }
 
     @NonNull
     @Override
     public MessageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         context = parent.getContext();
+        if (viewType == VIEW_TYPE_SUMMARY) {
+            View view = LayoutInflater.from(context).inflate(R.layout.item_conversation_summary, parent, false);
+            return new MessageViewHolder(view);
+        }
         View view = LayoutInflater.from(context).inflate(R.layout.item_ai_message, parent, false);
         return new MessageViewHolder(view);
     }
@@ -40,6 +54,14 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         AiMessage message = messages.get(position);
+
+        if (message.isSummary()) {
+            // 绑定总结卡片
+            holder.tvWordsUsed.setText(String.valueOf(message.getSummaryWordsUsed()));
+            holder.tvCorrections.setText(String.valueOf(message.getSummaryCorrections()));
+            holder.tvTurnCount.setText(String.valueOf(message.getSummaryTurnCount()));
+            return;
+        }
         if (message.getType() == AiMessage.TYPE_USER) {
             holder.layoutAiMessage.setVisibility(View.GONE);
             holder.layoutEvaluation.setVisibility(View.GONE);
@@ -187,6 +209,9 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
         ChipGroup chipGroupEval;
         TextView tvFeedback;
 
+        // 总结卡片视图
+        TextView tvWordsUsed, tvCorrections, tvTurnCount;
+
         MessageViewHolder(@NonNull View itemView) {
             super(itemView);
             layoutUserMessage = itemView.findViewById(R.id.layoutUserMessage);
@@ -200,6 +225,11 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
             layoutEvaluation = itemView.findViewById(R.id.layoutEvaluation);
             chipGroupEval = itemView.findViewById(R.id.chipGroupEval);
             tvFeedback = itemView.findViewById(R.id.tvFeedback);
+
+            // 总结卡片
+            tvWordsUsed = itemView.findViewById(R.id.tvWordsUsed);
+            tvCorrections = itemView.findViewById(R.id.tvCorrections);
+            tvTurnCount = itemView.findViewById(R.id.tvTurnCount);
         }
     }
 }

@@ -154,6 +154,29 @@ public class GetDataByThread {
     public void getConversationSessions(Handler h, int ok, int fail, String uid) { asyncGet1H(h, ok, fail, "ConvSessions", "userId", uid); }
     public void getLastConversation(Handler h, int ok, int fail, String uid) { asyncGet1H(h, ok, fail, "ConvLast", "userId", uid); }
 
+    // ── Conversation Enhanced (AI 对话智能化升级) ──
+    public void getScenarios(Handler h, int ok, int fail, String uid) { asyncGet1H(h, ok, fail, "Scenarios", "userId", uid); }
+    public void getRecommendedScenarios(Handler h, int ok, int fail, String uid) { asyncGet1H(h, ok, fail, "ScnRecom", "userId", uid); }
+    public void getRecommendedTopics(Handler h, int ok, int fail, String uid, int count) { asyncGet1HFull(h, ok, fail, "Topics", url_path + "?count=" + count, "userId", uid); }
+    public void startScenario(Handler h, int ok, int fail, String uid, String sid, String scenarioId) {
+        asyncCall(h, ok, fail, "StartScenario", url -> {
+            String fu = url + "?sessionId=" + sid + "&scenarioId=" + scenarioId;
+            return HttpManager.doHttpPostOneHeader(fu, "userId", uid);
+        });
+    }
+    public void startTopic(Handler h, int ok, int fail, String uid, String sid, String topicId) {
+        asyncCall(h, ok, fail, "StartTopic", url -> {
+            String fu = url + "?sessionId=" + sid + "&topicId=" + topicId;
+            return HttpManager.doHttpPostOneHeader(fu, "userId", uid);
+        });
+    }
+    public void switchMode(Handler h, int ok, int fail, String uid, String sid, String mode) {
+        asyncCall(h, ok, fail, "SwitchMode", url -> {
+            String fu = url + "/" + sid + "/mode?mode=" + mode;
+            return HttpManager.doHttpPostOneHeader(fu, "userId", uid);
+        });
+    }
+
     // ── TTS ──
     public void synthesizeTts(Handler h, int ok, int fail, String text, Context ctx) {
         new Thread(() -> {

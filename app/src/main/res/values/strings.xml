@@ -26,6 +26,19 @@
     <string name="hint_type_message">Type a message...</string>
     <string name="play_audio">Play audio</string>
     <string name="switch_input_mode">Switch input mode</string>
+    <string name="scenario_picker">Scenario Picker</string>
+    <string name="select_scenario">Select a scenario</string>
+    <string name="custom_scenario">Custom Scenario</string>
+    <string name="exit_mode">Exit</string>
+    <string name="free_chat">Free Chat</string>
+    <string name="role_play">Role Play</string>
+    <string name="topic_discussion">Topic Discussion</string>
+    <string name="conversation_summary">Conversation Summary</string>
+    <string name="words_used">Words Used</string>
+    <string name="corrections">Corrections</string>
+    <string name="turn_count">Turns</string>
+    <string name="review_words">Review Words</string>
+    <string name="practice_pronunciation">Practice Pronunciation</string>
     <string name="send">Send</string>
     <!-- FSRS 学习模式 -->
     <string name="study_mode_choice">选择题模式</string>
