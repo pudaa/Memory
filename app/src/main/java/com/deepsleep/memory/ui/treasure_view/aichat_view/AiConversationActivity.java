@@ -234,8 +234,6 @@ public class AiConversationActivity extends AppCompatActivity {
         });
     }
 
-
-
     // ==================== 入口流程：先查最近会话 ====================
 
     private void checkLastSession() {
@@ -638,7 +636,7 @@ public class AiConversationActivity extends AppCompatActivity {
 
     // ==================== 音频轮询 ====================
 
-    private static final int MAX_POLL_ATTEMPTS = 80;  // 2 分钟（80 × 1.5s = 120s）
+    private static final int MAX_POLL_ATTEMPTS = 80; // 2 分钟（80 × 1.5s = 120s）
     private static final int POLL_INTERVAL_MS = 1500;
 
     /**
@@ -728,8 +726,8 @@ public class AiConversationActivity extends AppCompatActivity {
         ScenarioPickerSheet sheet = ScenarioPickerSheet.newInstance(String.valueOf(mUserId));
         sheet.setOnScenarioSelectedListener(new ScenarioPickerSheet.OnScenarioSelectedListener() {
             @Override
-            public void onScenarioSelected(String scenarioId, String title,
-                    String aiRole, String userRole, String openingLine) {
+            public void onScenarioSelected(String scenarioId, String title, String aiRole, String userRole,
+                    String openingLine) {
                 startScenarioMode(scenarioId, title, aiRole, userRole, openingLine);
             }
 
@@ -742,9 +740,10 @@ public class AiConversationActivity extends AppCompatActivity {
         sheet.show(getSupportFragmentManager(), "scenario_picker");
     }
 
-    private void startScenarioMode(String scenarioId, String title,
-            String aiRole, String userRole, String openingLine) {
-        if (mSessionId == null) return;
+    private void startScenarioMode(String scenarioId, String title, String aiRole, String userRole,
+            String openingLine) {
+        if (mSessionId == null)
+            return;
 
         progressBar.setVisibility(View.VISIBLE);
         GetDataByThread api = new GetDataByThread("/conversation/start-scenario");
@@ -767,7 +766,8 @@ public class AiConversationActivity extends AppCompatActivity {
 
                             // 请求开场白 TTS
                             GetDataByThread tts = new GetDataByThread("/tts/synthesize");
-                            tts.synthesizeTts(mainHandler, MSG_TTS_SUCCESS, MSG_FAIL, openingLine, AiConversationActivity.this);
+                            tts.synthesizeTts(mainHandler, MSG_TTS_SUCCESS, MSG_FAIL, openingLine,
+                                    AiConversationActivity.this);
                         } else {
                             showError(root.optString("message", "启动场景失败"));
                         }
@@ -782,42 +782,33 @@ public class AiConversationActivity extends AppCompatActivity {
     }
 
     private void showCustomScenarioDialog() {
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("自定义场景")
-            .setMessage("描述你想要的场景，AI 会根据你的描述进入角色。例如：\n\n" +
-                "\"我在机场，需要办理登机手续\"\n" +
-                "\"我想练习在餐厅点餐\"")
-            .setPositiveButton("确定", (dialog, which) -> {
-                // 这里可以打开一个输入框让用户输入自定义场景
-                // 暂时用一个简单的对话框
-                android.widget.EditText input = new android.widget.EditText(this);
-                input.setHint("描述场景...");
-                input.setPadding(48, 32, 48, 16);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("自定义场景")
+                .setMessage("描述你想要的场景，AI 会根据你的描述进入角色。例如：\n\n" + "\"我在机场，需要办理登机手续\"\n" + "\"我想练习在餐厅点餐\"")
+                .setPositiveButton("确定", (dialog, which) -> {
+                    // 这里可以打开一个输入框让用户输入自定义场景
+                    // 暂时用一个简单的对话框
+                    android.widget.EditText input = new android.widget.EditText(this);
+                    input.setHint("描述场景...");
+                    input.setPadding(48, 32, 48, 16);
 
-                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                    .setTitle("描述场景")
-                    .setView(input)
-                    .setPositiveButton("开始", (d, w) -> {
-                        String desc = input.getText().toString().trim();
-                        if (!desc.isEmpty()) {
-                            startCustomScenario(desc);
-                        }
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
-            })
-            .setNegativeButton("取消", null)
-            .show();
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("描述场景")
+                            .setView(input).setPositiveButton("开始", (d, w) -> {
+                                String desc = input.getText().toString().trim();
+                                if (!desc.isEmpty()) {
+                                    startCustomScenario(desc);
+                                }
+                            }).setNegativeButton("取消", null).show();
+                }).setNegativeButton("取消", null).show();
     }
 
     private void startCustomScenario(String description) {
-        if (mSessionId == null) return;
+        if (mSessionId == null)
+            return;
         mCurrentMode = "ROLE_PLAY";
         updateModeLabel("自定义场景");
 
         // 发送场景描述作为第一条消息
-        String prompt = "[SYSTEM: 进入角色扮演模式。场景描述: " + description +
-            "。请用你的开场白开始这个场景，保持角色，用英语对话。]";
+        String prompt = "[SYSTEM: 进入角色扮演模式。场景描述: " + description + "。请用你的开场白开始这个场景，保持角色，用英语对话。]";
         AiMessage userMsg = AiMessage.user("我想练习这个场景：" + description);
         messageList.add(userMsg);
         adapter.notifyItemInserted(messageList.size() - 1);
@@ -826,8 +817,7 @@ public class AiConversationActivity extends AppCompatActivity {
         // 发送到服务器
         progressBar.setVisibility(View.VISIBLE);
         GetDataByThread api = new GetDataByThread("/conversation/message");
-        api.sendConversationText(mainHandler, MSG_SUCCESS, MSG_FAIL,
-            String.valueOf(mUserId), mSessionId, prompt);
+        api.sendConversationText(mainHandler, MSG_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId, prompt);
     }
 
     private void updateModeLabel(String text) {
@@ -838,7 +828,8 @@ public class AiConversationActivity extends AppCompatActivity {
     }
 
     private void exitCurrentMode() {
-        if (mSessionId == null) return;
+        if (mSessionId == null)
+            return;
 
         progressBar.setVisibility(View.VISIBLE);
         GetDataByThread api = new GetDataByThread("/conversation/" + mSessionId + "/mode");
@@ -851,8 +842,8 @@ public class AiConversationActivity extends AppCompatActivity {
                     layoutModeLabel.setVisibility(View.GONE);
                 }
                 // 发送系统消息提示模式已切换
-                AiMessage sysMsg = AiMessage.assistant(
-                    "Back to free chat mode! Feel free to talk about anything. 😊", null, -1);
+                AiMessage sysMsg = AiMessage.assistant("Back to free chat mode! Feel free to talk about anything. 😊",
+                        null, -1);
                 messageList.add(sysMsg);
                 adapter.notifyItemInserted(messageList.size() - 1);
                 rvConversation.scrollToPosition(messageList.size() - 1);
@@ -863,16 +854,19 @@ public class AiConversationActivity extends AppCompatActivity {
     // ==================== 对话总结 ====================
 
     private void showConversationSummary() {
-        if (messageList.isEmpty()) return;
+        if (messageList.isEmpty())
+            return;
 
         int turnCount = 0;
         int userMsgCount = 0;
         for (AiMessage msg : messageList) {
-            if (msg.getType() == AiMessage.TYPE_USER) userMsgCount++;
+            if (msg.getType() == AiMessage.TYPE_USER)
+                userMsgCount++;
         }
         turnCount = userMsgCount;
 
-        if (turnCount < 2) return; // 至少2轮才显示总结
+        if (turnCount < 2)
+            return; // 至少2轮才显示总结
 
         // 在列表末尾插入总结卡片
         AiMessage summaryMsg = AiMessage.assistant("", null, -1);

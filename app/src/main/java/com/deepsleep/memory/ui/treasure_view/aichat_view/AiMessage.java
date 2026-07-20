@@ -188,12 +188,35 @@ public class AiMessage {
     private int summaryCorrections = 0;
     private int summaryTurnCount = 0;
 
-    public boolean isSummary() { return isSummary; }
-    public void setSummary(boolean summary) { isSummary = summary; }
-    public int getSummaryWordsUsed() { return summaryWordsUsed; }
-    public void setSummaryWordsUsed(int wordsUsed) { summaryWordsUsed = wordsUsed; }
-    public int getSummaryCorrections() { return summaryCorrections; }
-    public void setSummaryCorrections(int corrections) { summaryCorrections = corrections; }
-    public int getSummaryTurnCount() { return summaryTurnCount; }
-    public void setSummaryTurnCount(int turnCount) { summaryTurnCount = turnCount; }
+    public boolean isSummary() {
+        return isSummary;
+    }
+
+    public void setSummary(boolean summary) {
+        isSummary = summary;
+    }
+
+    public int getSummaryWordsUsed() {
+        return summaryWordsUsed;
+    }
+
+    public void setSummaryWordsUsed(int wordsUsed) {
+        summaryWordsUsed = wordsUsed;
+    }
+
+    public int getSummaryCorrections() {
+        return summaryCorrections;
+    }
+
+    public void setSummaryCorrections(int corrections) {
+        summaryCorrections = corrections;
+    }
+
+    public int getSummaryTurnCount() {
+        return summaryTurnCount;
+    }
+
+    public void setSummaryTurnCount(int turnCount) {
+        summaryTurnCount = turnCount;
+    }
 }

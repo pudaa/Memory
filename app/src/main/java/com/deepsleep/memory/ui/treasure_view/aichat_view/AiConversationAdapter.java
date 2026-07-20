@@ -35,7 +35,8 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     @Override
     public int getItemViewType(int position) {
         AiMessage msg = messages.get(position);
-        if (msg.isSummary()) return VIEW_TYPE_SUMMARY;
+        if (msg.isSummary())
+            return VIEW_TYPE_SUMMARY;
         return VIEW_TYPE_MESSAGE;
     }
 
@@ -97,28 +98,28 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
             }
 
             // if (message.hasScore()) { // TODO: 暂时去掉chip评分，用户不需要看到关于评分的细节
-            //     holder.chipScore.setVisibility(View.VISIBLE);
-            //     holder.chipScore.setText(String.valueOf(message.getScore()));
+            // holder.chipScore.setVisibility(View.VISIBLE);
+            // holder.chipScore.setText(String.valueOf(message.getScore()));
             // } else {
-            //     holder.chipScore.setVisibility(View.GONE);
+            // holder.chipScore.setVisibility(View.GONE);
             // }
 
             // if (message.hasEvaluation()) {
-            //     holder.layoutEvaluation.setVisibility(View.VISIBLE);
-            //     holder.chipGroupEval.removeAllViews();
-            //     addEvalChip(holder, "发音", message.getPronunciationScore());
-            //     addEvalChip(holder, "流利", message.getFluencyScore());
-            //     addEvalChip(holder, "语法", message.getGrammarScore());
-            //     addEvalChip(holder, "词汇", message.getVocabularyScore());
-            //     if (message.getFeedback() != null && !message.getFeedback().isEmpty()) {
-            //         holder.tvFeedback.setVisibility(View.VISIBLE);
-            //         holder.tvFeedback.setText(message.getFeedback());
-            //     } else {
-            //         holder.tvFeedback.setVisibility(View.GONE);
-            //     }
+            // holder.layoutEvaluation.setVisibility(View.VISIBLE);
+            // holder.chipGroupEval.removeAllViews();
+            // addEvalChip(holder, "发音", message.getPronunciationScore());
+            // addEvalChip(holder, "流利", message.getFluencyScore());
+            // addEvalChip(holder, "语法", message.getGrammarScore());
+            // addEvalChip(holder, "词汇", message.getVocabularyScore());
+            // if (message.getFeedback() != null && !message.getFeedback().isEmpty()) {
+            // holder.tvFeedback.setVisibility(View.VISIBLE);
+            // holder.tvFeedback.setText(message.getFeedback());
             // } else {
-            //     holder.layoutEvaluation.setVisibility(View.GONE);
-            //     holder.tvFeedback.setVisibility(View.GONE);
+            // holder.tvFeedback.setVisibility(View.GONE);
+            // }
+            // } else {
+            // holder.layoutEvaluation.setVisibility(View.GONE);
+            // holder.tvFeedback.setVisibility(View.GONE);
             // }
         }
     }

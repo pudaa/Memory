@@ -29,13 +29,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 场景选择器 BottomSheet。
- * 展示可用的角色扮演场景，支持分类筛选。
+ * 场景选择器 BottomSheet。 展示可用的角色扮演场景，支持分类筛选。
  */
 public class ScenarioPickerSheet extends BottomSheetDialogFragment {
 
     public interface OnScenarioSelectedListener {
         void onScenarioSelected(String scenarioId, String title, String aiRole, String userRole, String openingLine);
+
         void onCustomScenarioRequested();
     }
 
@@ -65,7 +65,7 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.sheet_scenario_picker, container, false);
     }
 
@@ -80,7 +80,8 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
 
         // 自定义场景
         view.findViewById(R.id.layoutCustomScenario).setOnClickListener(v -> {
-            if (listener != null) listener.onCustomScenarioRequested();
+            if (listener != null)
+                listener.onCustomScenarioRequested();
             dismiss();
         });
 
@@ -105,28 +106,24 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
                             allScenarios.clear();
                             for (int i = 0; i < arr.length(); i++) {
                                 JSONObject s = arr.getJSONObject(i);
-                                allScenarios.add(new ScenarioItem(
-                                    s.getString("id"),
-                                    s.getString("title"),
-                                    s.optString("description", ""),
-                                    s.optString("aiRole", ""),
-                                    s.optString("userRole", ""),
-                                    s.optString("difficultyLevel", "all"),
-                                    s.optString("icon", ""),
-                                    s.optString("openingLine", "")
-                                ));
+                                allScenarios.add(new ScenarioItem(s.getString("id"), s.getString("title"),
+                                        s.optString("description", ""), s.optString("aiRole", ""),
+                                        s.optString("userRole", ""), s.optString("difficultyLevel", "all"),
+                                        s.optString("icon", ""), s.optString("openingLine", "")));
                             }
                             setupCategoryChips();
                             filterScenarios("all");
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }, 1, -1, userId);
     }
 
     private void setupCategoryChips() {
-        if (getView() == null) return;
+        if (getView() == null)
+            return;
         ChipGroup chipGroup = getView().findViewById(R.id.chipGroupCategory);
         chipGroup.removeAllViews();
 
@@ -136,20 +133,30 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
         // 按难度分类
         boolean hasBeginner = false, hasIntermediate = false, hasAdvanced = false;
         for (ScenarioItem s : allScenarios) {
-            if ("beginner".equals(s.difficultyLevel) || "elementary".equals(s.difficultyLevel)) hasBeginner = true;
-            if ("intermediate".equals(s.difficultyLevel)) hasIntermediate = true;
-            if ("advanced".equals(s.difficultyLevel)) hasAdvanced = true;
+            if ("beginner".equals(s.difficultyLevel) || "elementary".equals(s.difficultyLevel))
+                hasBeginner = true;
+            if ("intermediate".equals(s.difficultyLevel))
+                hasIntermediate = true;
+            if ("advanced".equals(s.difficultyLevel))
+                hasAdvanced = true;
         }
-        if (hasBeginner) addCategoryChip(chipGroup, "初级", "beginner");
-        if (hasIntermediate) addCategoryChip(chipGroup, "中级", "intermediate");
-        if (hasAdvanced) addCategoryChip(chipGroup, "高级", "advanced");
+        if (hasBeginner)
+            addCategoryChip(chipGroup, "初级", "beginner");
+        if (hasIntermediate)
+            addCategoryChip(chipGroup, "中级", "intermediate");
+        if (hasAdvanced)
+            addCategoryChip(chipGroup, "高级", "advanced");
 
         // 全等级
         boolean hasAll = false;
         for (ScenarioItem s : allScenarios) {
-            if ("all".equals(s.difficultyLevel)) { hasAll = true; break; }
+            if ("all".equals(s.difficultyLevel)) {
+                hasAll = true;
+                break;
+            }
         }
-        if (hasAll) addCategoryChip(chipGroup, "全等级", "all_level");
+        if (hasAll)
+            addCategoryChip(chipGroup, "全等级", "all_level");
     }
 
     private void addCategoryChip(ChipGroup group, String label, String filter) {
@@ -159,10 +166,8 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
         chip.setChecked("all".equals(filter) && "all".equals(currentFilter));
 
         // 使用主题色样式：未选中时为浅灰填充，选中时为 theme_primary 填充
-        chip.setChipBackgroundColorResource(
-            chip.isChecked() ? R.color.theme_primary : R.color.theme_surface);
-        chip.setTextColor(getResources().getColor(
-            chip.isChecked() ? R.color.white : R.color.theme_text_primary, null));
+        chip.setChipBackgroundColorResource(chip.isChecked() ? R.color.theme_primary : R.color.theme_surface);
+        chip.setTextColor(getResources().getColor(chip.isChecked() ? R.color.white : R.color.theme_text_primary, null));
         chip.setChipStrokeWidth(0f);
         chip.setChipCornerRadius(20f);
         chip.setTextSize(13f);
@@ -175,10 +180,9 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
                 if (child instanceof Chip) {
                     Chip c = (Chip) child;
                     boolean isSelected = c == chip;
-                    c.setChipBackgroundColorResource(
-                        isSelected ? R.color.theme_primary : R.color.theme_surface);
-                    c.setTextColor(getResources().getColor(
-                        isSelected ? R.color.white : R.color.theme_text_primary, null));
+                    c.setChipBackgroundColorResource(isSelected ? R.color.theme_primary : R.color.theme_surface);
+                    c.setTextColor(
+                            getResources().getColor(isSelected ? R.color.white : R.color.theme_text_primary, null));
                 }
             }
             filterScenarios(filter);
@@ -195,11 +199,14 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
                 if ("beginner".equals(s.difficultyLevel) || "elementary".equals(s.difficultyLevel))
                     filteredScenarios.add(s);
             } else if ("intermediate".equals(filter)) {
-                if ("intermediate".equals(s.difficultyLevel)) filteredScenarios.add(s);
+                if ("intermediate".equals(s.difficultyLevel))
+                    filteredScenarios.add(s);
             } else if ("advanced".equals(filter)) {
-                if ("advanced".equals(s.difficultyLevel)) filteredScenarios.add(s);
+                if ("advanced".equals(s.difficultyLevel))
+                    filteredScenarios.add(s);
             } else if ("all_level".equals(filter)) {
-                if ("all".equals(s.difficultyLevel)) filteredScenarios.add(s);
+                if ("all".equals(s.difficultyLevel))
+                    filteredScenarios.add(s);
             }
         }
         adapter.notifyDataSetChanged();
@@ -210,8 +217,8 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
     static class ScenarioItem {
         String id, title, description, aiRole, userRole, difficultyLevel, icon, openingLine;
 
-        ScenarioItem(String id, String title, String description, String aiRole,
-                     String userRole, String difficultyLevel, String icon, String openingLine) {
+        ScenarioItem(String id, String title, String description, String aiRole, String userRole,
+                String difficultyLevel, String icon, String openingLine) {
             this.id = id;
             this.title = title;
             this.description = description;
@@ -229,8 +236,7 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
         @NonNull
         @Override
         public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_scenario_card, parent, false);
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_scenario_card, parent, false);
             return new VH(v);
         }
 
@@ -246,32 +252,30 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
             String diffText;
             int diffColor;
             switch (item.difficultyLevel) {
-                case "beginner":
-                case "elementary":
-                    diffText = "初级";
-                    diffColor = R.color.teal_200;
-                    break;
-                case "intermediate":
-                    diffText = "中级";
-                    diffColor = R.color.theme_stress;
-                    break;
-                case "advanced":
-                    diffText = "高级";
-                    diffColor = R.color.theme_error;
-                    break;
-                default:
-                    diffText = "全等级";
-                    diffColor = R.color.theme_primary;
-                    break;
+            case "beginner":
+            case "elementary":
+                diffText = "初级";
+                diffColor = R.color.teal_200;
+                break;
+            case "intermediate":
+                diffText = "中级";
+                diffColor = R.color.theme_stress;
+                break;
+            case "advanced":
+                diffText = "高级";
+                diffColor = R.color.theme_error;
+                break;
+            default:
+                diffText = "全等级";
+                diffColor = R.color.theme_primary;
+                break;
             }
             h.tvDifficulty.setText(diffText);
-            h.tvDifficulty.getBackground().setTint(
-                getResources().getColor(diffColor, null));
+            h.tvDifficulty.getBackground().setTint(getResources().getColor(diffColor, null));
 
             h.itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onScenarioSelected(item.id, item.title,
-                        item.aiRole, item.userRole, item.openingLine);
+                    listener.onScenarioSelected(item.id, item.title, item.aiRole, item.userRole, item.openingLine);
                 }
                 dismiss();
             });
