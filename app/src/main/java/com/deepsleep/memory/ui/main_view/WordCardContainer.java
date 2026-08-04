@@ -31,6 +31,9 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
     private static final float SWIPE_THRESHOLD = 0.3f; // 滑动阈值
     private static final long ANIMATION_DURATION = 400; // 动画持续时间
     private static final long LONG_PRESS_TIMEOUT = 1000; // 长按超时时间
+    private static final int FLING_MIN_VELOCITY = 800; // 快速甩动判定速度 (px/s)，用于短距离快速滑动
+    private static final float FLING_MIN_DISTANCE = 30f; // 时长兜底判定：极快甩动所需的最小位移 (px)
+    private static final long FLING_MAX_DURATION_MS = 250; // 时长兜底判定：极快甩动的最大手势时长 (ms)
 
     private List<View> cardList = new ArrayList<>();
     private int currentCardIndex = 0;
@@ -44,6 +47,8 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
     private int slideFlag = 1;
     /** 交互模式：true 时卡片内子视图（按钮/输入框）可交互，不再拦截触摸事件 */
     private boolean interactiveMode = false;
+    /** 速度追踪器：用于识别短距离快速甩动 */
+    private VelocityTracker velocityTracker;
 
     /** 设置交互模式 */
     public void setInteractiveMode(boolean interactive) {
@@ -118,6 +123,13 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                 isMoving = false;
                 currentCard.animate().setDuration(0).translationX(0);
                 getParent().requestDisallowInterceptTouchEvent(true);
+                // 初始化速度追踪（用于快速甩动识别）
+                if (velocityTracker == null) {
+                    velocityTracker = VelocityTracker.obtain();
+                } else {
+                    velocityTracker.clear();
+                }
+                velocityTracker.addMovement(event);
                 // 设置长按检测
                 setupLongPressDetection();
                 return true;
@@ -128,6 +140,9 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                 float deltaX = currentX - lastX;
                 float deltaY = currentY - startY;
                 float dist = currentX - startX;
+                if (velocityTracker != null) {
+                    velocityTracker.addMovement(event);
+                }
                 // 判断是否为移动操作（避免轻微抖动误判）
                 if (!isMoving && (Math.abs(dist) > 20 || Math.abs(deltaY) > 20)) {
                     isMoving = true;
@@ -159,12 +174,33 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                 float endX = event.getX();
                 float distanceX = endX - startX;
 
+                // 计算甩动速度：快速滑动时手指位移可能很小，仅靠距离阈值会漏判
+                int flingDirection = 0;
+                if (velocityTracker != null) {
+                    velocityTracker.addMovement(event);
+                    velocityTracker.computeCurrentVelocity(1000);
+                    float vx = velocityTracker.getXVelocity();
+                    velocityTracker.recycle();
+                    velocityTracker = null;
+                    if (Math.abs(vx) > FLING_MIN_VELOCITY) {
+                        flingDirection = vx > 0 ? 1 : -1;
+                    }
+                }
+                // 兜底：极快甩动时手指在抬起前会减速，瞬时速度可能读不到（约等于 0），
+                // 改用“手势总时长 + 位移”判定，避免漏判导致预览卡闪烁却不翻卡
+                if (flingDirection == 0 && Math.abs(distanceX) >= FLING_MIN_DISTANCE
+                        && (event.getEventTime() - event.getDownTime()) < FLING_MAX_DURATION_MS) {
+                    flingDirection = distanceX > 0 ? 1 : -1;
+                }
+
                 // 判断是否是点击事件（滑动距离小）
                 boolean isClick = Math.abs(distanceX) < 10 && Math.abs(event.getY() - startY) < 10;
 
                 if (isClick) {
                     // 是点击事件，调用 performClick()
                     currentCard.performClick();
+                    // 若手势期间预览过相邻卡片（极快微甩动），点击时收起，避免残留“闪烁”的鬼影卡片
+                    hideOtherCardsExcept(currentCard, null);
                     LinearLayout definitionContainer = currentCard.findViewById(R.id.definition_container);
                     if (definitionContainer != null && definitionContainer.getVisibility() != View.VISIBLE) {
                         // int visibility = definitionContainer.getVisibility() == View.VISIBLE ?
@@ -185,14 +221,17 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                     return true;
                 }
 
-                // 处理滑动事件
-                if (Math.abs(distanceX) > getWidth() * SWIPE_THRESHOLD
-                        && ((slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0)
-                                || distanceX > 0)
-                        && ((slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)
-                                || distanceX < 0)) {
-                    // 如果滑动超过阈值，移除卡片并显示下一个
-                    animateCardOut(distanceX > 0 ? 1 : -1);
+                // 处理滑动事件：距离超过阈值 或 快速甩动（fling）都触发翻卡
+                boolean crossedThreshold = Math.abs(distanceX) > getWidth() * SWIPE_THRESHOLD;
+                boolean isFling = flingDirection != 0;
+                int direction = isFling ? flingDirection : (distanceX > 0 ? 1 : -1);
+                boolean canMove = direction > 0
+                        ? (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)
+                        : (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0);
+
+                if ((crossedThreshold || isFling) && canMove) {
+                    // 滑动有效，移除当前卡片并显示相邻卡片
+                    animateCardOut(direction);
                 } else {
                     // 否则将卡片返回原位
                     animateCardBack();
