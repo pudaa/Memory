@@ -7,6 +7,8 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
@@ -32,15 +34,14 @@ public class SummaryCardBuilder {
     /**
      * 构建今日学习总结卡片
      * 
-     * @param wordCards         今日所有卡片（含已操作标记，当前加载时有效）
-     * @param filteredSnapshot  被过滤的快照（服务端仍返回已完成单词时有效）
-     * @param completedCount    已完成单词总数
-     * @param persistedDetails  持久化的已完成单词详情（wordId + isCorrect，跨页面重建用）
-     * @param lexiconId         词书ID（用于从本地词书查询 headWord）
+     * @param wordCards        今日所有卡片（含已操作标记，当前加载时有效）
+     * @param filteredSnapshot 被过滤的快照（服务端仍返回已完成单词时有效）
+     * @param completedCount   已完成单词总数
+     * @param persistedDetails 持久化的已完成单词详情（wordId + isCorrect，跨页面重建用）
+     * @param lexiconId        词书ID（用于从本地词书查询 headWord）
      */
-    public View buildTodaySummary(List<WordCard> wordCards, List<WordCard> filteredSnapshot,
-            int completedCount, List<DailyStateManager.CompletedWordEntry> persistedDetails,
-            String lexiconId) {
+    public View buildTodaySummary(List<WordCard> wordCards, List<WordCard> filteredSnapshot, int completedCount,
+            List<DailyStateManager.CompletedWordEntry> persistedDetails, String lexiconId) {
         View view = inflater.inflate(R.layout.card_summary_layout, null);
         LinearLayout wordContainer = view.findViewById(R.id.summary_word_container);
         TextView tvCorrect = view.findViewById(R.id.tv_summary_correct);
@@ -57,7 +58,8 @@ public class SummaryCardBuilder {
             // 用 wordId 建立当前会话中的数据索引（用于获取富文本：definition 等）
             java.util.Map<Integer, WordCard> currentCardMap = new java.util.HashMap<>();
             for (WordCard wc : wordCards) {
-                if (wc.isOperated) currentCardMap.put(wc.word_id, wc);
+                if (wc.isOperated)
+                    currentCardMap.put(wc.word_id, wc);
             }
             if (filteredSnapshot != null) {
                 for (WordCard wc : filteredSnapshot) {
@@ -87,7 +89,10 @@ public class SummaryCardBuilder {
                     card.fsrsScore = entry.fsrsScore;
                     card.aiFeedback = entry.aiFeedback;
                     displayCards.add(card);
-                    if (entry.isCorrect) correct++; else wrong++;
+                    if (entry.isCorrect)
+                        correct++;
+                    else
+                        wrong++;
                 }
             }
         }
@@ -96,7 +101,10 @@ public class SummaryCardBuilder {
             for (WordCard wc : wordCards) {
                 if (wc.isOperated) {
                     displayCards.add(wc);
-                    if (wc.isCorrect) correct++; else wrong++;
+                    if (wc.isCorrect)
+                        correct++;
+                    else
+                        wrong++;
                 }
             }
             if (displayCards.isEmpty() && filteredSnapshot != null && !filteredSnapshot.isEmpty()) {
@@ -125,7 +133,7 @@ public class SummaryCardBuilder {
             TextView tv = new TextView(context);
             tv.setText("今日已完成 " + completedCount + " 个单词");
             tv.setTextSize(15);
-            tv.setTextColor(context.getResources().getColor(R.color.theme_text_primary));
+            tv.setTextColor(ContextCompat.getColor(context, R.color.theme_text_primary));
             tv.setGravity(Gravity.CENTER);
             wordContainer.addView(tv);
         }
@@ -137,15 +145,17 @@ public class SummaryCardBuilder {
      * 根据 wordId 从本地词书重建轻量 WordCard（用于离开页面后的总结卡片重建）
      */
     private WordCard rebuildCardFromId(int wordId, boolean isCorrect, String lexiconId) {
-        if (lexiconId == null || lexiconId.isEmpty()) return null;
+        if (lexiconId == null || lexiconId.isEmpty())
+            return null;
         WordEntry entry = LexiconResourceMap.getWordByRank(lexiconId, wordId);
-        if (entry == null) return null;
+        if (entry == null)
+            return null;
 
         String headWord = entry.getHeadWord();
-        if (headWord == null || headWord.isEmpty()) return null;
+        if (headWord == null || headWord.isEmpty())
+            return null;
 
-        String definition = "中文释义:\n" + entry.getChineseTranslation()
-                + "\n\n英文释义:\n" + entry.getEnglishDefinition();
+        String definition = "中文释义:\n" + entry.getChineseTranslation() + "\n\n英文释义:\n" + entry.getEnglishDefinition();
         String phonetic = "美音:" + entry.getUsPhone() + " | 英音:" + entry.getUkPhone();
         WordCard card = new WordCard(wordId, headWord, phonetic, definition, "");
         card.isCorrect = isCorrect;
@@ -171,10 +181,18 @@ public class SummaryCardBuilder {
                 // 按分数着色
                 int scoreColor;
                 switch (wc.fsrsScore) {
-                    case 4: scoreColor = android.graphics.Color.parseColor("#4CAF50"); break; // 绿色-完全掌握
-                    case 3: scoreColor = android.graphics.Color.parseColor("#2196F3"); break; // 蓝色-基本掌握
-                    case 2: scoreColor = android.graphics.Color.parseColor("#FF9800"); break; // 橙色-部分理解
-                    default: scoreColor = android.graphics.Color.parseColor("#F44336"); break; // 红色-不理解
+                case 4:
+                    scoreColor = android.graphics.Color.parseColor("#4CAF50");
+                    break; // 绿色-完全掌握
+                case 3:
+                    scoreColor = android.graphics.Color.parseColor("#2196F3");
+                    break; // 蓝色-基本掌握
+                case 2:
+                    scoreColor = android.graphics.Color.parseColor("#FF9800");
+                    break; // 橙色-部分理解
+                default:
+                    scoreColor = android.graphics.Color.parseColor("#F44336");
+                    break; // 红色-不理解
                 }
                 tvIcon.setTextColor(scoreColor);
             } else {
@@ -193,7 +211,7 @@ public class SummaryCardBuilder {
         tvWord.setText(wc.word);
         tvWord.setTextSize(16);
         tvWord.setTypeface(null, android.graphics.Typeface.BOLD);
-        tvWord.setTextColor(context.getResources().getColor(R.color.theme_text_primary));
+        tvWord.setTextColor(ContextCompat.getColor(context, R.color.theme_text_primary));
         tvWord.setOnClickListener(v -> AudioPlayer.playAudio(context, wc.word, true));
         LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         tvWord.setLayoutParams(wp);
@@ -202,7 +220,7 @@ public class SummaryCardBuilder {
         TextView tvStats = new TextView(context);
         tvStats.setText(String.format(Locale.getDefault(), "D%.1f  S%.1fd", wc.difficulty, wc.stability));
         tvStats.setTextSize(12);
-        tvStats.setTextColor(context.getResources().getColor(R.color.middle_gray));
+        tvStats.setTextColor(ContextCompat.getColor(context, R.color.middle_gray));
         row.addView(tvStats);
 
         container.addView(row);
@@ -213,7 +231,7 @@ public class SummaryCardBuilder {
             TextView tvMeaning = new TextView(context);
             tvMeaning.setText(meaning);
             tvMeaning.setTextSize(12);
-            tvMeaning.setTextColor(context.getResources().getColor(R.color.middle_gray));
+            tvMeaning.setTextColor(ContextCompat.getColor(context, R.color.middle_gray));
             tvMeaning.setPadding(0, 2, 0, 4);
             container.addView(tvMeaning);
         }
@@ -223,7 +241,7 @@ public class SummaryCardBuilder {
             TextView tvAi = new TextView(context);
             tvAi.setText("AI: " + wc.aiFeedback);
             tvAi.setTextSize(12);
-            tvAi.setTextColor(context.getResources().getColor(R.color.middle_gray));
+            tvAi.setTextColor(ContextCompat.getColor(context, R.color.middle_gray));
             tvAi.setPadding(0, 0, 0, 4);
             container.addView(tvAi);
         }
@@ -231,7 +249,7 @@ public class SummaryCardBuilder {
         // 分隔线
         View divider = new View(context);
         divider.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1));
-        divider.setBackgroundColor(context.getResources().getColor(R.color.light_gray));
+        divider.setBackgroundColor(ContextCompat.getColor(context, R.color.light_gray));
         container.addView(divider);
     }
 

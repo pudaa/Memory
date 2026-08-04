@@ -9,6 +9,7 @@ import android.widget.BaseAdapter;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
 import org.json.JSONObject;
 
@@ -24,11 +25,13 @@ public class PlanListAdapter extends BaseAdapter {
     private final Context context;
     private final int onPlanId;
     private int planId;
+
     public PlanListAdapter(Context context, List<JSONObject> filteredBooks, int onPlanId) {
         this.context = context;
         this.filteredPlans = filteredBooks;
         this.onPlanId = onPlanId;
     }
+
     @Override
     public int getCount() {
         return filteredPlans.size();
@@ -60,7 +63,7 @@ public class PlanListAdapter extends BaseAdapter {
         int totalWords = plan.optInt("totalWords");
         planId = plan.optInt("planId");
 
-        lexiconText.setText(getLexiconName(lexiconId,allBooks));
+        lexiconText.setText(getLexiconName(lexiconId, allBooks));
         planProgressText.setText(String.format(Locale.getDefault(), "%d/%d", learnedWords, totalWords));
         if (totalWords > 0) {
             int progress = (learnedWords * 100) / totalWords;
@@ -70,9 +73,9 @@ public class PlanListAdapter extends BaseAdapter {
         }
         Logger.getLogger("PlanListAdapter").info("planId: " + planId + " onePlanId: " + onPlanId);
         if (planId == onPlanId) {
-            planItem.setCardBackgroundColor(context.getResources().getColor(R.color.card_background_stress));
+            planItem.setCardBackgroundColor(ContextCompat.getColor(context, R.color.card_background_stress));
         } else {
-            planItem.setCardBackgroundColor(context.getResources().getColor(R.color.card_background));
+            planItem.setCardBackgroundColor(ContextCompat.getColor(context, R.color.card_background));
         }
         return view;
     }

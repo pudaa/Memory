@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
+import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
 
 public class CustomCircleButton extends androidx.appcompat.widget.AppCompatButton {
@@ -35,7 +36,7 @@ public class CustomCircleButton extends androidx.appcompat.widget.AppCompatButto
         textPaint.setTextAlign(Paint.Align.CENTER);
 
         // 设置默认颜色
-        buttonColor = getResources().getColor(R.color.theme_color );
+        buttonColor = ContextCompat.getColor(getContext(), R.color.theme_color);
         textColor = Color.WHITE;
         backgroundPaint.setColor(buttonColor);
         textPaint.setColor(textColor);
@@ -55,7 +56,6 @@ public class CustomCircleButton extends androidx.appcompat.widget.AppCompatButto
         // 绘制圆形背景
         canvas.drawCircle(centerX, centerY, radius, backgroundPaint);
 
-
         // 绘制文字或图标
         String text = getText().toString();
         if (!text.isEmpty()) {
@@ -69,15 +69,15 @@ public class CustomCircleButton extends androidx.appcompat.widget.AppCompatButto
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                backgroundPaint.setColor(darkenColor(buttonColor)); // 按下时加深颜色
-                invalidate();
-                break;
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                backgroundPaint.setColor(buttonColor); // 恢复原色
-                invalidate();
-                break;
+        case MotionEvent.ACTION_DOWN:
+            backgroundPaint.setColor(darkenColor(buttonColor)); // 按下时加深颜色
+            invalidate();
+            break;
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+            backgroundPaint.setColor(buttonColor); // 恢复原色
+            invalidate();
+            break;
         }
         return super.onTouchEvent(event);
     }

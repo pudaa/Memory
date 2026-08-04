@@ -18,6 +18,7 @@ import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.bumptech.glide.Glide;
 import com.deepsleep.memory.R;
@@ -134,7 +135,7 @@ public class UserHomeFragment extends Fragment {
         input.setText(nickName);
 
         input.setTextSize(20);
-        input.setBackground(getResources().getDrawable(R.drawable.custom_textinput_background));
+        input.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.custom_textinput_background));
         input.setPadding(30, 20, 30, 20);
 
         FrameLayout container = new FrameLayout(requireContext());
@@ -251,6 +252,10 @@ public class UserHomeFragment extends Fragment {
 
     @SuppressLint("HandlerLeak")
     class MyHandler extends Handler {
+        MyHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);

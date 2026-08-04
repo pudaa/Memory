@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.View;
@@ -163,6 +164,10 @@ public class CompositionPreviewActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     class CorrectHandler extends Handler {
+        CorrectHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);

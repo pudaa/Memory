@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.View;
@@ -41,7 +42,8 @@ public class RegisterActivity extends AppCompatActivity {
         tilRegisterConfirmPassword = findViewById(R.id.til_register_confirm_password);
         etRegisterPhone = tilRegisterPhone.findViewById(R.id.text_input_edit_register_phone);
         etRegisterPassword = tilRegisterPassword.findViewById(R.id.text_input_edit_register_password);
-        etRegisterConfirmPassword = tilRegisterConfirmPassword.findViewById(R.id.text_input_edit_register_confirm_password);
+        etRegisterConfirmPassword = tilRegisterConfirmPassword
+                .findViewById(R.id.text_input_edit_register_confirm_password);
         btnRegister = findViewById(R.id.btn_register);
         toLogin = findViewById(R.id.tv_login);
 
@@ -108,33 +110,37 @@ public class RegisterActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     class MyHandler extends Handler {
+        MyHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
-                case msg_success:
-                    String result = (String) msg.obj;
-                    try {
-                        JSONObject responseJson = new JSONObject(result);
-                        String code = responseJson.getString("code");
-                        if ("200".equals(code)) {
-                            Toast.makeText(RegisterActivity.this, "注册成功", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                            startActivity(intent);
-                            finish();
-                        } else if ("409".equals(code)) {
-                            Toast.makeText(RegisterActivity.this, "该手机号已被注册", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(RegisterActivity.this, "注册失败", Toast.LENGTH_SHORT).show();
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        Toast.makeText(RegisterActivity.this, "注册结果解析失败", Toast.LENGTH_SHORT).show();
+            case msg_success:
+                String result = (String) msg.obj;
+                try {
+                    JSONObject responseJson = new JSONObject(result);
+                    String code = responseJson.getString("code");
+                    if ("200".equals(code)) {
+                        Toast.makeText(RegisterActivity.this, "注册成功", Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                        startActivity(intent);
+                        finish();
+                    } else if ("409".equals(code)) {
+                        Toast.makeText(RegisterActivity.this, "该手机号已被注册", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(RegisterActivity.this, "注册失败", Toast.LENGTH_SHORT).show();
                     }
-                    break;
-                case msg_failed:
-                    Toast.makeText(RegisterActivity.this, "获取失败", Toast.LENGTH_LONG).show();
-                    break;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Toast.makeText(RegisterActivity.this, "注册结果解析失败", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case msg_failed:
+                Toast.makeText(RegisterActivity.this, "获取失败", Toast.LENGTH_LONG).show();
+                break;
             }
         }
     }

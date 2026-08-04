@@ -35,8 +35,9 @@ public class PlanListActivity extends AppCompatActivity {
     private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
     private static final String KEY_USER_ID = "userId";
     int userId;
-    static final  int msg_success = 1;
-    static final  int msg_failed = -1;
+    static final int msg_success = 1;
+    static final int msg_failed = -1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -52,6 +53,7 @@ public class PlanListActivity extends AppCompatActivity {
         GetDataByThread getDataByThread = new GetDataByThread("/learning/getUserAllLearningPlans");
         getDataByThread.getPlanDetails(new PlanHandler(), msg_success, msg_failed, userId);
     }
+
     private void initView() {
         SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         userId = sharedPreferences.getInt(KEY_USER_ID, 0);
@@ -65,7 +67,7 @@ public class PlanListActivity extends AppCompatActivity {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt(KEY_IS_LOGGED_IN, 2);
         editor.apply();
-        //  跳转到主页
+        // 跳转到主页
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
@@ -75,46 +77,50 @@ public class PlanListActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     private class PlanHandler extends Handler {
+        PlanHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case msg_success:
-                    try {
-                        String result = (String) msg.obj;
-                        JSONArray responseJson = new JSONObject(result).getJSONArray("plans");
-                        int onPlanId = new JSONObject(result).optInt("onPlanId");
-                        filteredBooks.clear();
-                        for (int i = 0; i < responseJson.length(); i++) {
-                            JSONObject plan = responseJson.getJSONObject(i);
-                            filteredBooks.add(plan);
-                        }
-                        planListAdapter = new PlanListAdapter(PlanListActivity.this, filteredBooks, onPlanId);
-                        planListView.setAdapter(planListAdapter);
-                        planListView.setOnItemClickListener((parent, view, position, id) -> {
-                            JSONObject plan = filteredBooks.get(position);
-                            int planId = plan.optInt("planId");
-                            if(planId != onPlanId){
-                                GetDataByThread getDataByThread = new GetDataByThread("/auth/setPlan");
-                                getDataByThread.updateCurrentPlan(new Handler(Looper.getMainLooper()){
-                                    @Override
-                                    public void handleMessage(Message msg) {
-                                        super.handleMessage(msg);
-                                        if(msg.what == msg_success){
-                                            startMainActivity();
-                                        }else if(msg.what == msg_failed){
-                                            Toast.makeText(PlanListActivity.this, "更新失败", Toast.LENGTH_SHORT).show();
-                                        }
-                                        planListAdapter.notifyDataSetChanged();
-                                    }
-                                }, msg_success, msg_failed, userId, planId);
-                            }
-                        });
-                    } catch (JSONException e) {
-                        Log.e("PlanListActivity", "JSON parsing error", e);
+            case msg_success:
+                try {
+                    String result = (String) msg.obj;
+                    JSONArray responseJson = new JSONObject(result).getJSONArray("plans");
+                    int onPlanId = new JSONObject(result).optInt("onPlanId");
+                    filteredBooks.clear();
+                    for (int i = 0; i < responseJson.length(); i++) {
+                        JSONObject plan = responseJson.getJSONObject(i);
+                        filteredBooks.add(plan);
                     }
-                    break;
-                case msg_failed:
-                    break;
+                    planListAdapter = new PlanListAdapter(PlanListActivity.this, filteredBooks, onPlanId);
+                    planListView.setAdapter(planListAdapter);
+                    planListView.setOnItemClickListener((parent, view, position, id) -> {
+                        JSONObject plan = filteredBooks.get(position);
+                        int planId = plan.optInt("planId");
+                        if (planId != onPlanId) {
+                            GetDataByThread getDataByThread = new GetDataByThread("/auth/setPlan");
+                            getDataByThread.updateCurrentPlan(new Handler(Looper.getMainLooper()) {
+                                @Override
+                                public void handleMessage(Message msg) {
+                                    super.handleMessage(msg);
+                                    if (msg.what == msg_success) {
+                                        startMainActivity();
+                                    } else if (msg.what == msg_failed) {
+                                        Toast.makeText(PlanListActivity.this, "更新失败", Toast.LENGTH_SHORT).show();
+                                    }
+                                    planListAdapter.notifyDataSetChanged();
+                                }
+                            }, msg_success, msg_failed, userId, planId);
+                        }
+                    });
+                } catch (JSONException e) {
+                    Log.e("PlanListActivity", "JSON parsing error", e);
+                }
+                break;
+            case msg_failed:
+                break;
             }
         }
     }

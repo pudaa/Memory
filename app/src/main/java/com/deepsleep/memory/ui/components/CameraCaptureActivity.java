@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -195,9 +196,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
 
     private void returnResult(File photoFile) {
         // 扫描媒体库（可选，方便图库看到）
-        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        mediaScanIntent.setData(Uri.fromFile(photoFile));
-        sendBroadcast(mediaScanIntent);
+        MediaScannerConnection.scanFile(this, new String[] { photoFile.getAbsolutePath() }, null, null);
 
         Intent result = new Intent();
         result.putExtra(EXTRA_PHOTO_PATH, photoFile.getAbsolutePath());

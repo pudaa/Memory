@@ -23,6 +23,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
@@ -84,6 +85,7 @@ public class DailyReadingFragment extends Fragment {
     private boolean isDrawerOpen = false;
     private List<Long> favoriteIds = new ArrayList<>();
     private List<String> favoriteTitles = new ArrayList<>();
+
     private static final String PREF_NAME = "UserPrefs";
     private static final String KEY_USER_ID = "userId";
     private static final String PREF_READER = "ReaderPrefs";
@@ -100,6 +102,14 @@ public class DailyReadingFragment extends Fragment {
     static final int msg_success = 1;
     static final int msg_failed = -1;
     private Map<TextView, ObjectAnimator> animatorMap = new HashMap<>();
+
+    // 重试机制
+    private boolean isRetrying = false;
+    private Handler retryHandler = new Handler(Looper.getMainLooper());
+    private Runnable retryRunnable;
+    private static final int MAX_RETRY_COUNT = 5;
+    private static final long RETRY_DELAY_MS = 3000;
+    private int retryCount = 0;
 
     @Nullable
     @Override
@@ -188,35 +198,41 @@ public class DailyReadingFragment extends Fragment {
     }
 
     public void onArticleGenerate(String mode) {
-        markdownTitleView.setText("请等待，文章生成中");
-        markdownContentView.setText("正在梳理薄弱单词……");
-        sentenceAnalysisContainer.removeAllViews();
-        highFrequencyWordsContainer.removeAllViews();
+        onArticleGenerate(mode, false);
+    }
 
-        TextView loadingSentence = new TextView(requireContext());
-        loadingSentence.setText("正在生成长难句分析……");
-        loadingSentence.setTextSize(17);
-        loadingSentence.setTextColor(getResources().getColor(R.color.reader_text_secondary));
-        loadingSentence.setPadding(0, 8, 0, 8);
-        sentenceAnalysisContainer.addView(loadingSentence);
+    public void onArticleGenerate(String mode, boolean isRetry) {
+        if (!isRetry) {
+            markdownTitleView.setText("请等待，文章生成中");
+            markdownContentView.setText("正在梳理薄弱单词……");
+            sentenceAnalysisContainer.removeAllViews();
+            highFrequencyWordsContainer.removeAllViews();
 
-        TextView loadingWords = new TextView(requireContext());
-        loadingWords.setText("正在生成高频易错单词……");
-        loadingWords.setTextSize(17);
-        loadingWords.setTextColor(getResources().getColor(R.color.reader_text_secondary));
-        loadingWords.setPadding(0, 8, 0, 8);
+            TextView loadingSentence = new TextView(requireContext());
+            loadingSentence.setText("正在生成长难句分析……");
+            loadingSentence.setTextSize(17);
+            loadingSentence.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
+            loadingSentence.setPadding(0, 8, 0, 8);
+            sentenceAnalysisContainer.addView(loadingSentence);
 
-        if (loadingProgressBar != null) {
-            loadingProgressBar.setVisibility(View.GONE);
-            startWaveAnimation(markdownContentView);
-            startWaveAnimation(loadingSentence);
-            startWaveAnimation(loadingWords);
+            TextView loadingWords = new TextView(requireContext());
+            loadingWords.setText("正在生成高频易错单词……");
+            loadingWords.setTextSize(17);
+            loadingWords.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
+            loadingWords.setPadding(0, 8, 0, 8);
+
+            if (loadingProgressBar != null) {
+                loadingProgressBar.setVisibility(View.GONE);
+                startWaveAnimation(markdownContentView);
+                startWaveAnimation(loadingSentence);
+                startWaveAnimation(loadingWords);
+            }
         }
 
         GetDataByThread getDataByThread;
-        if ("dailyReading".equals(mode)) {
+        if ("dailyReading".equals(mode)) { // 每日一读模式
             getDataByThread = new GetDataByThread("/composition/dailyReading");
-        } else {
+        } else { // 生成文章模式
             getDataByThread = new GetDataByThread("/composition/generateArticle");
         }
         getDataByThread.getDailyReading(new Handler(Looper.getMainLooper()) {
@@ -230,94 +246,52 @@ public class DailyReadingFragment extends Fragment {
                     }
 
                     String article = (String) msg.obj;
-                    Log.i("article", "文章生成成功");
-                    // 对字符串处理，去掉首尾空格以保证解析正确
+                    Log.i("article", "文章获取成功");
                     article = article.trim();
                     try {
-                        // 解析JSON格式的文章内容
                         JSONObject articleJson = new JSONObject(article);
 
                         String title = articleJson.getString("title");
                         String content = articleJson.getString("content");
 
-                        markdownTitleView.setText(title);
-                        currentArticleTitle = title;
-                        currentArticleContent = content;
+                        // 解析并显示文章
+                        JSONArray sentenceAnalysisArray = articleJson.getJSONArray("sentenceAnalysis");
+                        JSONArray highFrequencyWordsArray = articleJson.getJSONArray("highFrequencyWords");
 
-                        Markwon markwon = Markwon.builder(requireContext()).build();
-                        markwon.setMarkdown(markdownContentView, content);
-
-                        applyFontSizeToContent();
-                        updateReadingTime(content);
+                        displayArticle(title, content, sentenceAnalysisArray, highFrequencyWordsArray);
 
                         // 恢复今日文章收藏状态
-                        restoreDailyFavoriteState(title);
-
-                        // 解析长难句分析部分并动态添加TextView
-                        sentenceAnalysisContainer.removeAllViews();
-                        JSONArray sentenceAnalysisArray = articleJson.getJSONArray("sentenceAnalysis");
-                        currentSentenceAnalysis = sentenceAnalysisArray;
-                        for (int i = 0; i < sentenceAnalysisArray.length(); i++) {
-                            JSONObject sentenceObj = sentenceAnalysisArray.getJSONObject(i);
-                            String sentence = sentenceObj.getString("sentence");
-                            String translation = sentenceObj.getString("translation");
-
-                            // 添加原句
-                            TextView sentenceView = new TextView(requireContext());
-                            markwon.setMarkdown(sentenceView, sentence);
-                            sentenceView.setTextSize(17);
-                            sentenceView.setTextColor(getResources().getColor(R.color.reader_text));
-                            sentenceView.setLineSpacing(0, 1.5f);
-                            sentenceView.setPadding(0, 0, 0, 6);
-                            sentenceAnalysisContainer.addView(sentenceView);
-
-                            // 添加翻译
-                            TextView translationView = new TextView(requireContext());
-                            markwon.setMarkdown(translationView, translation);
-                            translationView.setTextSize(16);
-                            translationView.setTextColor(getResources().getColor(R.color.reader_text_secondary));
-                            translationView.setLineSpacing(0, 1.4f);
-                            translationView.setPadding(0, 0, 0, 16);
-                            sentenceAnalysisContainer.addView(translationView);
+                        if (!isRetrying) {
+                            restoreDailyFavoriteState(title);
                         }
 
-                        // 解析高频易错单词部分并动态添加TextView
-                        highFrequencyWordsContainer.removeAllViews();
-                        JSONArray highFrequencyWordsArray = articleJson.getJSONArray("highFrequencyWords");
-                        currentHighFrequencyWords = highFrequencyWordsArray;
-                        for (int i = 0; i < highFrequencyWordsArray.length(); i++) {
-                            JSONObject wordObj = highFrequencyWordsArray.getJSONObject(i);
-                            String word = wordObj.getString("word");
-                            String explanation = wordObj.getString("explanation");
-
-                            // 添加单词和解释 - 带卡片样式的单词条目
-                            TextView wordView = new TextView(requireContext());
-                            markwon.setMarkdown(wordView, "**" + word + "**" + ": " + explanation);
-                            wordView.setTextSize(17);
-                            wordView.setTextColor(getResources().getColor(R.color.reader_text));
-                            wordView.setLineSpacing(0, 1.4f);
-                            wordView.setPadding(0, 10, 0, 10);
-
-                            // 为单词添加点击事件（用于播放音频）
-                            final String wordText = word;
-                            wordView.setOnClickListener(v -> {
-                                boolean playType = AudioPlayer.getPlayType(wordText);
-                                AudioPlayer.playAudio(v.getContext(), wordText, playType);
-                            });
-
-                            wordView.setClickable(true);
-                            wordView.setFocusable(true);
-
-                            highFrequencyWordsContainer.addView(wordView);
+                        // 检查是否为降级文章
+                        boolean isFallback = articleJson.optBoolean("isFallback", false);
+                        if (isFallback) {
+                            Log.i("article", "检测到通用文章，启动轮询");
+                            if (!isRetrying) {
+                                scheduleRetry();
+                            }
+                        } else {
+                            Log.i("article", "已获取个性化文章，取消轮询");
+                            cancelRetry();
+                            retryCount = 0;
                         }
 
                     } catch (JSONException e) {
-                        // 如果解析JSON失败，重新发送请求
-                        onArticleGenerate("generateArticle");
+                        Log.e("article", "JSON解析失败", e);
+                        isRetrying = false;
+                        if (retryCount < MAX_RETRY_COUNT) {
+                            scheduleRetry();
+                        }
                     }
 
                 } else if (msg.what == msg_failed) {
-                    Log.i("article", "文章生成失败");
+                    Log.i("article", "文章获取失败");
+                    isRetrying = false;
+                    if (retryCount < MAX_RETRY_COUNT) {
+                        scheduleRetry();
+                    }
                 }
             }
         }, msg_success, msg_failed, String.valueOf(userId));
@@ -507,7 +481,7 @@ public class DailyReadingFragment extends Fragment {
                             TextView text = view.findViewById(android.R.id.text1);
                             text.setText(favoriteTitles.get(pos));
                             text.setTextSize(15);
-                            text.setTextColor(getResources().getColor(R.color.reader_text));
+                            text.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
                             text.setPadding(24, 16, 24, 16);
                             return view;
                         }
@@ -711,7 +685,7 @@ public class DailyReadingFragment extends Fragment {
                 TextView sentenceView = new TextView(requireContext());
                 markwon.setMarkdown(sentenceView, sentence);
                 sentenceView.setTextSize(17);
-                sentenceView.setTextColor(getResources().getColor(R.color.reader_text));
+                sentenceView.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
                 sentenceView.setLineSpacing(0, 1.5f);
                 sentenceView.setPadding(0, 0, 0, 6);
                 sentenceAnalysisContainer.addView(sentenceView);
@@ -719,7 +693,7 @@ public class DailyReadingFragment extends Fragment {
                 TextView translationView = new TextView(requireContext());
                 markwon.setMarkdown(translationView, translation);
                 translationView.setTextSize(16);
-                translationView.setTextColor(getResources().getColor(R.color.reader_text_secondary));
+                translationView.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
                 translationView.setLineSpacing(0, 1.4f);
                 translationView.setPadding(0, 0, 0, 16);
                 sentenceAnalysisContainer.addView(translationView);
@@ -739,7 +713,7 @@ public class DailyReadingFragment extends Fragment {
                 TextView wordView = new TextView(requireContext());
                 markwon.setMarkdown(wordView, "**" + word + "**" + ": " + explanation);
                 wordView.setTextSize(17);
-                wordView.setTextColor(getResources().getColor(R.color.reader_text));
+                wordView.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
                 wordView.setLineSpacing(0, 1.4f);
                 wordView.setPadding(0, 10, 0, 10);
 
@@ -757,4 +731,36 @@ public class DailyReadingFragment extends Fragment {
         }
     }
 
+    // ==================== 重试逻辑 ====================
+    private void scheduleRetry() {
+        if (!isAdded())
+            return;
+        if (retryCount >= MAX_RETRY_COUNT) {
+            Log.i("article", "已达最大重试次数，停止轮询");
+            return;
+        }
+
+        retryRunnable = () -> {
+            if (isAdded() && !isRetrying) {
+                isRetrying = true;
+                retryCount++;
+                Log.i("article", "通用文章已显示，正在尝试获取个性化文章... (第 " + retryCount + " 次)");
+                onArticleGenerate("dailyReading", true); // 使用重载方法
+            }
+        };
+        retryHandler.postDelayed(retryRunnable, RETRY_DELAY_MS);
+    }
+
+    private void cancelRetry() {
+        if (retryHandler != null && retryRunnable != null) {
+            retryHandler.removeCallbacks(retryRunnable);
+        }
+        isRetrying = false;
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        cancelRetry();
+    }
 }

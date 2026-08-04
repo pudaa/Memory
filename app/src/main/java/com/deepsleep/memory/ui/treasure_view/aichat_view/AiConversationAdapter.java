@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
@@ -80,6 +81,22 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
             holder.layoutUserMessage.setVisibility(View.GONE);
             holder.layoutUserVoice.setVisibility(View.GONE);
             holder.layoutAiMessage.setVisibility(View.VISIBLE);
+
+            // 流式状态：显示打字光标
+            if (message.isStreaming()) {
+                String displayText = message.getContent();
+                if (displayText == null || displayText.isEmpty()) {
+                    holder.tvAiContent.setText("typing...");
+                    holder.tvAiContent.setAlpha(0.5f);
+                } else {
+                    holder.tvAiContent.setText(displayText + " |");
+                    holder.tvAiContent.setAlpha(1.0f);
+                }
+                holder.btnPlayAudio.setVisibility(View.GONE);
+                return;
+            }
+
+            holder.tvAiContent.setAlpha(1.0f);
             holder.tvAiContent.setText(message.getContent());
 
             // 音频按钮状态：加载中 / 可播放 / 隐藏
@@ -155,8 +172,8 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
         chip.setTextAppearanceResource(R.style.ChipTextStyle);
         int chipColor = score >= 85 ? R.color.teal_200 : score >= 70 ? R.color.theme_stress : R.color.theme_error;
         chip.setChipBackgroundColorResource(chipColor);
-        chip.setTextColor(context.getResources().getColor(R.color.white));
-        chip.setChipCornerRadius(10f);
+        chip.setTextColor(ContextCompat.getColor(context, R.color.white));
+        chip.setShapeAppearanceModel(chip.getShapeAppearanceModel().toBuilder().setAllCornerSizes(10f).build());
         chip.setPadding(0, 0, 0, 0);
         holder.chipGroupEval.addView(chip);
     }

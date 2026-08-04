@@ -6,12 +6,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.view.View;
 import android.widget.*;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
@@ -264,8 +266,8 @@ public class PlanDevelopmentActivity extends AppCompatActivity {
         // 选中：深色背景 + 白色文字；未选中：边框背景 + 深色文字
         int selectedBg = R.drawable.custom_tag_background_selected;
         int defaultBg = R.drawable.custom_tag_background;
-        int white = getResources().getColor(R.color.white);
-        int darkGray = getResources().getColor(R.color.dark_gray);
+        int white = ContextCompat.getColor(this, R.color.white);
+        int darkGray = ContextCompat.getColor(this, R.color.dark_gray);
 
         preset80.setBackgroundResource(percent == 80 ? selectedBg : defaultBg);
         preset80.setTextColor(percent == 80 ? white : darkGray);
@@ -338,6 +340,10 @@ public class PlanDevelopmentActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     class MyHandler extends Handler {
+        MyHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);

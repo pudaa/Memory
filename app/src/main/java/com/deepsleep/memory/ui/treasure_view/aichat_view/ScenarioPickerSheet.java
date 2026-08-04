@@ -169,7 +169,7 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
         chip.setChipBackgroundColorResource(chip.isChecked() ? R.color.theme_primary : R.color.theme_surface);
         chip.setTextColor(getResources().getColor(chip.isChecked() ? R.color.white : R.color.theme_text_primary, null));
         chip.setChipStrokeWidth(0f);
-        chip.setChipCornerRadius(20f);
+        chip.setShapeAppearanceModel(chip.getShapeAppearanceModel().toBuilder().setAllCornerSizes(20f).build());
         chip.setTextSize(13f);
 
         chip.setOnClickListener(v -> {

@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -101,7 +102,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
         int userId = sharedPreferences.getInt("userId", 0);
 
         GetDataByThread getRecords = new GetDataByThread("/composition/records");
-        getRecords.fetchHistoryRecords(new Handler() {
+        getRecords.fetchHistoryRecords(new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 super.handleMessage(msg);
@@ -255,6 +256,10 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     class OCRHandler extends Handler {
+        OCRHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);

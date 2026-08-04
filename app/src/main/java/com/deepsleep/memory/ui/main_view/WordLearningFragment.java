@@ -411,7 +411,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             submit.submitAnswerInput(new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
-                    if (!isAdded()) return;
+                    if (!isAdded())
+                        return;
                     if (msg.what == msg_success) {
                         try {
                             JSONObject responseJson = new JSONObject((String) msg.obj);
@@ -424,13 +425,15 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                                 wordCard.fsrsScore = fsrsScore;
                                 wordCard.aiFeedback = aiFeedback;
                                 // 持久化完整的 AI 评判结果
-                                dailyState.markCompletedWithFullResult(wordCard.word_id, serverIsCorrect, fsrsScore, aiFeedback);
+                                dailyState.markCompletedWithFullResult(wordCard.word_id, serverIsCorrect, fsrsScore,
+                                        aiFeedback);
                                 // 找到对应的卡片视图并更新 AI 评判结果
                                 if (cardContainer != null) {
                                     for (View cv : cardContainer.getAllCards()) {
                                         WordCard wc = getWordCardFromView(cv);
                                         if (wc != null && wc.word_id == wordCard.word_id) {
-                                            ExerciseCardFactory.updateInputFeedbackResult(cv, fsrsScore, serverIsCorrect, aiFeedback);
+                                            ExerciseCardFactory.updateInputFeedbackResult(cv, fsrsScore,
+                                                    serverIsCorrect, aiFeedback);
                                             break;
                                         }
                                     }
@@ -447,9 +450,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                         Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
                     }
                 }
-            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word,
-                    wordCard.isCorrect, responseTimeMs,
-                    wordCard.userAnswer != null ? wordCard.userAnswer : "",
+            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
+                    responseTimeMs, wordCard.userAnswer != null ? wordCard.userAnswer : "",
                     wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "",
                     wordCard.pos != null ? wordCard.pos : "");
         } else {
@@ -534,6 +536,10 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     @SuppressLint("HandlerLeak")
     class MyHandler extends Handler {
+        MyHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
@@ -566,6 +572,10 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     @SuppressLint("HandlerLeak")
     class UpdateHandler extends Handler {
+        UpdateHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);

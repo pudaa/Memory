@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.*;
@@ -38,7 +39,7 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
     private OnCardSwipedListener onCardSwipedListener;
     private boolean isMoving = false;
     private Runnable longPressRunnable;
-    private final Handler longPressHandler = new Handler();
+    private final Handler longPressHandler = new Handler(Looper.getMainLooper());
     private UserSettingsManager userSettingsManager;
     private int slideFlag = 1;
     /** 交互模式：true 时卡片内子视图（按钮/输入框）可交互，不再拦截触摸事件 */

@@ -3,23 +3,15 @@
 # Secrets come from the environment via api_key_env; never put keys here.
 
 default_model = "deepseek-flash"
-language      = "zh"   # ui/model language; empty = auto-detect from $LANG / $REASONIX_LANG
+language = "zh"
 
 [ui]
 theme = "auto"   # auto|dark|light; CLI colors only; REASONIX_THEME can override per run
 # theme_style = "graphite"   # graphite|ember|aurora|midnight|sandstone|porcelain|linen|glacier
 
 [network]
-proxy_mode = "auto"   # auto|env|custom|off; auto currently uses env proxy
-# proxy_url  = "socks5://127.0.0.1:7890"   # optional custom override
-# no_proxy   = "localhost,127.0.0.1,.local"   # honored for proxy_mode = "custom"
-
 [network.proxy]
-type = "socks5"   # http|https|socks5|socks5h
-# server = "127.0.0.1"
-# port = 7890
-# username = ""
-# password = "${REASONIX_PROXY_PASSWORD}"   # optional; supports ${VAR} expansion
+type = "socks5"
 
 [agent]
 system_prompt = """
@@ -37,14 +29,6 @@ the list as you go, not just at the end.
 In plan mode the harness blocks writer tools: do read-only research, then write a
 concise plan as your reply and stop. The user is asked to approve before anything
 is changed; once approved, work through the steps, updating the task list as you go."""
-# system_prompt_file = "prompts/system.md"   # overrides system_prompt when set
-temperature = 0.0
-auto_plan   = "ask"   # off|ask|on; ask/on auto-enter plan mode for complex tasks
-# auto_plan_classifier = "deepseek-flash"   # optional; only used for borderline tasks
-# planner_model = "mimo"   # optional: enable two-model collaboration
-# subagent_model = "deepseek-pro"   # optional default for runAs=subagent skills
-# subagent_models = { review = "deepseek-pro", security_review = "deepseek-pro" }   # per-skill overrides
-# output_style = "explanatory"   # explanatory | learning | concise | custom; empty = default
 
 [[providers]]
 name        = "deepseek-flash"
@@ -53,10 +37,9 @@ base_url    = "https://api.deepseek.com"
 models      = ["deepseek-v4-flash"]
 default     = "deepseek-v4-flash"
 api_key_env = "DEEPSEEK_API_KEY"
-balance_url = "https://api.deepseek.com/user/balance"   # optional; wallet-balance endpoint shown in the status bar
-context_window = 1000000   # tokens; compaction triggers near this limit
-price       = { cache_hit = 0.02, input = 1, output = 2, currency = "¥" }   # per 1M tokens
-
+balance_url = "https://api.deepseek.com/user/balance"
+context_window = 1000000
+price       = { cache_hit = 0.02, input = 1, output = 2, currency = "¥" }
 [tools]
 enabled = []   # empty = all built-in tools
 
@@ -79,7 +62,6 @@ mode  = "ask"
 # graceful fallback elsewhere); "off" disables it. network allows egress.
 # workspace_root = ""            # default: current working directory
 # allow_write = ["/tmp"]          # extra dirs writers may also modify
-bash    = "enforce"
 network = true
 
 [statusline]

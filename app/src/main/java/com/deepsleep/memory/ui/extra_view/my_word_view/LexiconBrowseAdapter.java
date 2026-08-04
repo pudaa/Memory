@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
@@ -155,7 +156,7 @@ public class LexiconBrowseAdapter extends RecyclerView.Adapter<LexiconBrowseAdap
         TextView tvCn = view.findViewById(R.id.tv_sentence_cn);
         tvEn.setText(en);
         tvCn.setText(cn);
-        tvCn.setTextColor(container.getContext().getResources().getColor(cnColor));
+        tvCn.setTextColor(ContextCompat.getColor(container.getContext(), cnColor));
         container.addView(view);
     }
 

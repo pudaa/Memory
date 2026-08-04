@@ -33,16 +33,17 @@ public class LoginActivity extends AppCompatActivity {
     private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
     private static final String KEY_USER_ID = "userId";
 
-     private static final String KEY_NICK_NAME = "nickName";
+    private static final String KEY_NICK_NAME = "nickName";
     private static final String KEY_USER_NAME = "userName";
     private static final String KEY_AVATAR_URL = "avatarUrl";
     private TextInputLayout tilPhone, tilPassword;
     private EditText etPhone, etPassword;
     private Button btnLogin;
     private TextView tvRegister, tvForgotPassword;
-    static final  int msg_success = 1;
-    static final  int msg_failed = -1;
+    static final int msg_success = 1;
+    static final int msg_failed = -1;
     private final MyHandler myHandler = new MyHandler();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,9 +58,9 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btn_login);
         tvRegister = findViewById(R.id.tv_register);
         tvForgotPassword = findViewById(R.id.tv_forgot_password);
-//        try {// 删除SharedPreferences文件
-//            this.deleteSharedPreferences(PREF_NAME);
-//        } catch (Exception ignored) {}
+        // try {// 删除SharedPreferences文件
+        // this.deleteSharedPreferences(PREF_NAME);
+        // } catch (Exception ignored) {}
         // 检查登录状态
         if (innerSettingsManager.isLoggedIn() == 1 || innerSettingsManager.isLoggedIn() == 2) {
             int userId = innerSettingsManager.getUserId();
@@ -72,7 +73,6 @@ public class LoginActivity extends AppCompatActivity {
 
         tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
     }
-
 
     private void performLogin() {
         String phone = etPhone.getText().toString().trim();
@@ -97,7 +97,7 @@ public class LoginActivity extends AppCompatActivity {
         getDataByThread.login(myHandler, msg_success, msg_failed, phone, password);
     }
 
-     private void saveLoginStatus(int isLoggedIn, int userId, String nickName, String userName, String avatarUrl) {
+    private void saveLoginStatus(int isLoggedIn, int userId, String nickName, String userName, String avatarUrl) {
         SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt(KEY_IS_LOGGED_IN, isLoggedIn);
@@ -109,13 +109,14 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void startMainActivity(int userId) {// 我勒个屎山啊，这个地方逻辑咋变得这么复杂的
-         // Toast.makeText(this,  String.valueOf(innerSettingsManager.isLoggedIn()), Toast.LENGTH_SHORT).show();
+        // Toast.makeText(this, String.valueOf(innerSettingsManager.isLoggedIn()),
+        // Toast.LENGTH_SHORT).show();
         if (innerSettingsManager.isLoggedIn() == 2) {// 为了减少请求带来的延迟设置的，正常流程走完后，每次进入软件都应该直接进入主界面
             Log.i("LoginActivity", "startMainActivity: " + userId);
             Intent intent1 = new Intent(LoginActivity.this, MainActivity.class);
             startActivity(intent1);
             finish();
-        }else {
+        } else {
             // 有退出登录过后的话，会对用户信息进行一次检查
             GetDataByThread getDataByThread = new GetDataByThread("/auth/getCurrentPlan");
             getDataByThread.getPlan(new Handler(Looper.getMainLooper()) {
@@ -123,40 +124,41 @@ public class LoginActivity extends AppCompatActivity {
                 public void handleMessage(@NonNull Message msg) {
                     super.handleMessage(msg);
                     switch (msg.what) {
-                        case msg_success://如果是数据获取成功的消息
-                            String result = (String) msg.obj;
-                            JSONObject responseJson = null;
-                            try {
-                                responseJson = new JSONObject(result);
-                                String code = responseJson.getString("code");
-                                Log.i("LoginActivity", "handleMessage: " + code);
-                                switch (code) {
-                                    case "200":// 有找到学习计划说明直接进入主界面
-                                        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-                                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                                        innerSettingsManager.setLoggedIn(2);
-                                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                                        startActivity(intent);
-                                        finish();
-                                        break;
-                                    case "404":// 没有找到用户的学习计划
-                                        if (innerSettingsManager.isLoggedIn() == 2) {
-                                            Intent intent1 = new Intent(LoginActivity.this, MainActivity.class);
-                                            startActivity(intent1);
-                                            finish();
-                                        } else if (innerSettingsManager.isLoggedIn() == 1) {
-                                            Intent intent2 = new Intent(LoginActivity.this, BookSelectActivity.class);
-                                            startActivity(intent2);
-                                            finish();
-                                        }
-                                        break;
+                    case msg_success:// 如果是数据获取成功的消息
+                        String result = (String) msg.obj;
+                        JSONObject responseJson = null;
+                        try {
+                            responseJson = new JSONObject(result);
+                            String code = responseJson.getString("code");
+                            Log.i("LoginActivity", "handleMessage: " + code);
+                            switch (code) {
+                            case "200":// 有找到学习计划说明直接进入主界面
+                                SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME,
+                                        Context.MODE_PRIVATE);
+                                SharedPreferences.Editor editor = sharedPreferences.edit();
+                                innerSettingsManager.setLoggedIn(2);
+                                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                startActivity(intent);
+                                finish();
+                                break;
+                            case "404":// 没有找到用户的学习计划
+                                if (innerSettingsManager.isLoggedIn() == 2) {
+                                    Intent intent1 = new Intent(LoginActivity.this, MainActivity.class);
+                                    startActivity(intent1);
+                                    finish();
+                                } else if (innerSettingsManager.isLoggedIn() == 1) {
+                                    Intent intent2 = new Intent(LoginActivity.this, BookSelectActivity.class);
+                                    startActivity(intent2);
+                                    finish();
                                 }
-                            } catch (JSONException e) {
-                                throw new RuntimeException(e);
+                                break;
                             }
-                            break;
-                        case msg_failed:
-                            break;
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    case msg_failed:
+                        break;
                     }
                 }
             }, msg_success, msg_failed, String.valueOf(userId));
@@ -174,42 +176,46 @@ public class LoginActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     class MyHandler extends Handler {
+        MyHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
-            switch (msg.what){
-                case msg_success:
-                    String result = (String) msg.obj;
-                    JSONObject responseJson = null;
-                    try {
-                        responseJson = new JSONObject(result);
-                        String code = responseJson.getString("code");
-                        switch (code) {
-                            case "200":
-                                int userId = responseJson.getInt("user_id");
-                                String nickName = responseJson.getString("nickname");
-                                String userName = responseJson.getString("username");
-                                String avatarUrl = responseJson.getString("avatar_url");
-                                saveLoginStatus(1, userId, nickName, userName, avatarUrl); // 保存登录状态和用户信息
+            switch (msg.what) {
+            case msg_success:
+                String result = (String) msg.obj;
+                JSONObject responseJson = null;
+                try {
+                    responseJson = new JSONObject(result);
+                    String code = responseJson.getString("code");
+                    switch (code) {
+                    case "200":
+                        int userId = responseJson.getInt("user_id");
+                        String nickName = responseJson.getString("nickname");
+                        String userName = responseJson.getString("username");
+                        String avatarUrl = responseJson.getString("avatar_url");
+                        saveLoginStatus(1, userId, nickName, userName, avatarUrl); // 保存登录状态和用户信息
 
-                                startMainActivity(userId);
-                                Toast.makeText(LoginActivity.this, "登录成功", Toast.LENGTH_SHORT).show();
+                        startMainActivity(userId);
+                        Toast.makeText(LoginActivity.this, "登录成功", Toast.LENGTH_SHORT).show();
 
-                                break;
-                            case "404":
-                                Toast.makeText(LoginActivity.this, "用户名不存在", Toast.LENGTH_SHORT).show();
-                                break;
-                            case "500":
-                                Toast.makeText(LoginActivity.this, "密码错误", Toast.LENGTH_SHORT).show();
-                                break;
-                        }
-                    } catch (JSONException e) {
-                        throw new RuntimeException(e);
+                        break;
+                    case "404":
+                        Toast.makeText(LoginActivity.this, "用户名不存在", Toast.LENGTH_SHORT).show();
+                        break;
+                    case "500":
+                        Toast.makeText(LoginActivity.this, "密码错误", Toast.LENGTH_SHORT).show();
+                        break;
                     }
-                    break;
-                case msg_failed:
-                    Toast.makeText(LoginActivity.this,"获取失败",Toast.LENGTH_LONG).show();
-                    break;
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            case msg_failed:
+                Toast.makeText(LoginActivity.this, "获取失败", Toast.LENGTH_LONG).show();
+                break;
 
             }
         }

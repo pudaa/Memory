@@ -46,6 +46,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -375,7 +380,7 @@ public class AiConversationActivity extends AppCompatActivity {
             return;
         }
 
-        // 添加到消息列表
+        // 添加用户消息到列表
         AiMessage userMsg = AiMessage.user(content);
         messageList.add(userMsg);
         adapter.notifyItemInserted(messageList.size() - 1);
@@ -383,10 +388,150 @@ public class AiConversationActivity extends AppCompatActivity {
         etMessage.setText("");
         hideKeyboard();
 
-        // 发送文字消息
-        progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/message");
-        api.sendConversationText(mainHandler, MSG_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId, content);
+        // 添加流式 AI 消息占位符
+        AiMessage aiMsg = AiMessage.streaming();
+        messageList.add(aiMsg);
+        adapter.notifyItemInserted(messageList.size() - 1);
+        rvConversation.scrollToPosition(messageList.size() - 1);
+
+        // 启动 SSE 流式连接
+        sendStreamingMessage(content, aiMsg);
+    }
+
+    /**
+     * 通过 SSE 流式发送消息并接收 AI 回复。
+     * SSE 事件类型：chunk（文本块）、eval（评估）、done（完成）、error（错误）
+     */
+    private void sendStreamingMessage(String content, AiMessage aiMsg) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                String urlStr = ApiConstants.getBaseUrl() + "/conversation/stream";
+                URL url = new URL(urlStr);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("userId", String.valueOf(mUserId));
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(120000);
+                conn.setDoOutput(true);
+
+                String params = "sessionId=" + URLEncoder.encode(mSessionId, "UTF-8")
+                        + "&text=" + URLEncoder.encode(content, "UTF-8");
+                conn.getOutputStream().write(params.getBytes("UTF-8"));
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode != 200) {
+                    runOnUiThread(() -> {
+                        aiMsg.setStreaming(false);
+                        aiMsg.setContent("服务器错误: " + responseCode);
+                        int pos = messageList.indexOf(aiMsg);
+                        if (pos >= 0) adapter.notifyItemChanged(pos);
+                    });
+                    return;
+                }
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                String line;
+                String eventType = "";
+                StringBuilder data = new StringBuilder();
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("event:")) {
+                        eventType = line.substring(6).trim();
+                    } else if (line.startsWith("data:")) {
+                        data.append(line.substring(5).trim());
+                    } else if (line.isEmpty() && !eventType.isEmpty()) {
+                        String finalEventType = eventType;
+                        String finalData = data.toString();
+                        runOnUiThread(() -> handleSseEvent(finalEventType, finalData, aiMsg));
+                        eventType = "";
+                        data.setLength(0);
+                    }
+                }
+                reader.close();
+            } catch (Exception e) {
+                Log.e(TAG, "SSE 流式连接失败", e);
+                runOnUiThread(() -> {
+                    aiMsg.setStreaming(false);
+                    if (aiMsg.getContent() == null || aiMsg.getContent().isEmpty()) {
+                        aiMsg.setContent("连接失败，请检查网络后重试");
+                    }
+                    int pos = messageList.indexOf(aiMsg);
+                    if (pos >= 0) adapter.notifyItemChanged(pos);
+                });
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
+    /**
+     * 处理 SSE 事件
+     */
+    private void handleSseEvent(String eventType, String data, AiMessage aiMsg) {
+        try {
+            switch (eventType) {
+                case "chunk": {
+                    JSONObject chunkData = new JSONObject(data);
+                    String text = chunkData.optString("text", "");
+                    aiMsg.setContent(text);
+                    int pos = messageList.indexOf(aiMsg);
+                    if (pos >= 0) {
+                        adapter.notifyItemChanged(pos);
+                    }
+                    rvConversation.scrollToPosition(messageList.size() - 1);
+                    break;
+                }
+                case "eval": {
+                    JSONObject eval = new JSONObject(data);
+                    if (eval.has("pronunciation"))
+                        aiMsg.setPronunciationScore(eval.optDouble("pronunciation", -1));
+                    if (eval.has("fluency"))
+                        aiMsg.setFluencyScore(eval.optDouble("fluency", -1));
+                    if (eval.has("grammar"))
+                        aiMsg.setGrammarScore(eval.optDouble("grammar", -1));
+                    if (eval.has("vocabulary"))
+                        aiMsg.setVocabularyScore(eval.optDouble("vocabulary", -1));
+                    if (eval.has("feedback"))
+                        aiMsg.setFeedback(eval.optString("feedback", ""));
+                    break;
+                }
+                case "done": {
+                    JSONObject doneData = new JSONObject(data);
+                    aiMsg.setStreaming(false);
+                    long messageId = doneData.optLong("messageId", -1);
+                    aiMsg.setMessageId(messageId);
+                    aiMsg.setAudioPending(doneData.optBoolean("audioPending", false));
+
+                    int pos = messageList.indexOf(aiMsg);
+                    if (pos >= 0) {
+                        adapter.notifyItemChanged(pos);
+                    }
+
+                    // 启动音频轮询
+                    if (doneData.optBoolean("audioPending", false) && messageId > 0) {
+                        startAudioPolling(messageId, messageList.indexOf(aiMsg));
+                    }
+                    break;
+                }
+                case "error": {
+                    JSONObject errData = new JSONObject(data);
+                    aiMsg.setStreaming(false);
+                    String errorMsg = errData.optString("message", "未知错误");
+                    if (aiMsg.getContent() == null || aiMsg.getContent().isEmpty()) {
+                        aiMsg.setContent("Error: " + errorMsg);
+                    }
+                    int pos = messageList.indexOf(aiMsg);
+                    if (pos >= 0) adapter.notifyItemChanged(pos);
+                    Snackbar.make(coordinatorLayout, errorMsg, Snackbar.LENGTH_SHORT).show();
+                    break;
+                }
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "SSE 事件解析失败: " + eventType, e);
+        }
     }
 
     // ==================== 语音录制 ====================
@@ -508,7 +653,23 @@ public class AiConversationActivity extends AppCompatActivity {
             aiMsg.setMessageId(messageId);
             aiMsg.setAudioPending(audioPending);
 
-            // v3.0：evaluation 已移除，不再解析
+            // 解析五维评估结果
+            if (!data.isNull("evaluation") && data.has("evaluation")) {
+                try {
+                    String evalStr = data.getString("evaluation");
+                    JSONObject eval = new JSONObject(evalStr);
+                    if (eval.has("pronunciation"))
+                        aiMsg.setPronunciationScore(eval.optDouble("pronunciation", -1));
+                    if (eval.has("fluency"))
+                        aiMsg.setFluencyScore(eval.optDouble("fluency", -1));
+                    if (eval.has("grammar"))
+                        aiMsg.setGrammarScore(eval.optDouble("grammar", -1));
+                    if (eval.has("vocabulary"))
+                        aiMsg.setVocabularyScore(eval.optDouble("vocabulary", -1));
+                    if (eval.has("feedback"))
+                        aiMsg.setFeedback(eval.optString("feedback", ""));
+                } catch (JSONException ignored) {}
+            }
 
             messageList.add(aiMsg);
             adapter.notifyItemInserted(messageList.size() - 1);
@@ -552,7 +713,23 @@ public class AiConversationActivity extends AppCompatActivity {
                 }
                 msg.setMessageId(messageId);
 
-                // v3.0：evaluation 已移除，不再解析
+                // 解析评估结果
+                if (!item.isNull("evaluation") && item.has("evaluation")) {
+                    try {
+                        String evalStr = item.getString("evaluation");
+                        JSONObject eval = new JSONObject(evalStr);
+                        if (eval.has("pronunciation"))
+                            msg.setPronunciationScore(eval.optDouble("pronunciation", -1));
+                        if (eval.has("fluency"))
+                            msg.setFluencyScore(eval.optDouble("fluency", -1));
+                        if (eval.has("grammar"))
+                            msg.setGrammarScore(eval.optDouble("grammar", -1));
+                        if (eval.has("vocabulary"))
+                            msg.setVocabularyScore(eval.optDouble("vocabulary", -1));
+                        if (eval.has("feedback"))
+                            msg.setFeedback(eval.optString("feedback", ""));
+                    } catch (JSONException ignored) {}
+                }
 
                 messageList.add(msg);
             }

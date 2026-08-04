@@ -9,6 +9,9 @@ public class AiMessage {
     private String audioUrl;
     private int score = -1; // -1 表示无评分
 
+    // 流式状态
+    private boolean isStreaming = false;
+
     // 🆕 v2.0 新增字段
     private String feedback; // AI 反馈文案
     private String asrTranscript; // 语音识别文本（用户语音消息时）
@@ -45,6 +48,13 @@ public class AiMessage {
 
     public static AiMessage assistant(String content, String audioUrl, int score) {
         return new AiMessage(TYPE_ASSISTANT, content, audioUrl, score);
+    }
+
+    /** 创建流式 AI 消息（初始内容为空，逐步填充） */
+    public static AiMessage streaming() {
+        AiMessage msg = new AiMessage(TYPE_ASSISTANT, "", null, -1);
+        msg.isStreaming = true;
+        return msg;
     }
 
     // ========== Getters & Setters ==========
@@ -173,6 +183,14 @@ public class AiMessage {
 
     public boolean hasEvaluation() {
         return pronunciationScore >= 0 || fluencyScore >= 0 || grammarScore >= 0 || vocabularyScore >= 0;
+    }
+
+    public boolean isStreaming() {
+        return isStreaming;
+    }
+
+    public void setStreaming(boolean streaming) {
+        isStreaming = streaming;
     }
 
     public boolean isCorrect() {

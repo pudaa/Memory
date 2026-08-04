@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
 import org.json.JSONArray;
@@ -168,7 +169,7 @@ public class PlanCheckActivity extends AppCompatActivity {
             TextView emptyView = new TextView(this);
             emptyView.setText("暂无预测数据，完成今日学习后可见");
             emptyView.setTextSize(14);
-            emptyView.setTextColor(getResources().getColor(R.color.middle_gray));
+            emptyView.setTextColor(ContextCompat.getColor(this, R.color.middle_gray));
             emptyView.setGravity(Gravity.CENTER);
             emptyView.setPadding(0, 40, 0, 40);
             onPlanShow.addView(emptyView);
@@ -191,8 +192,8 @@ public class PlanCheckActivity extends AppCompatActivity {
                 card.setRadius(12);
                 card.setCardElevation(1);
                 card.setContentPadding(50, 30, 16, 30);
-                card.setCardBackgroundColor(i == 0 ? getResources().getColor(R.color.item_background_stress)
-                        : getResources().getColor(R.color.card_background));
+                card.setCardBackgroundColor(i == 0 ? ContextCompat.getColor(this, R.color.item_background_stress)
+                        : ContextCompat.getColor(this, R.color.card_background));
 
                 LinearLayout inner = new LinearLayout(this);
                 inner.setOrientation(LinearLayout.VERTICAL);
@@ -206,12 +207,12 @@ public class PlanCheckActivity extends AppCompatActivity {
                 tvDate.setText(formatDate(date));
                 tvDate.setTextSize(16);
                 tvDate.setTypeface(null, Typeface.BOLD);
-                tvDate.setTextColor(getResources().getColor(R.color.theme_text_primary));
+                tvDate.setTextColor(ContextCompat.getColor(this, R.color.theme_text_primary));
 
                 TextView tvCount = new TextView(this);
                 tvCount.setText(String.format(Locale.getDefault(), "预计 %d 词", estimatedCount));
                 tvCount.setTextSize(14);
-                tvCount.setTextColor(getResources().getColor(R.color.theme_stress));
+                tvCount.setTextColor(ContextCompat.getColor(this, R.color.theme_stress));
                 LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
                 countParams.setMarginStart(16);
@@ -234,7 +235,7 @@ public class PlanCheckActivity extends AppCompatActivity {
                         tvWord.setText(String.format(Locale.getDefault(), "%s  ·  难度%.1f  ·  稳定%.1fd", headWord,
                                 difficulty, stability));
                         tvWord.setTextSize(14);
-                        tvWord.setTextColor(getResources().getColor(R.color.dark_gray));
+                        tvWord.setTextColor(ContextCompat.getColor(this, R.color.dark_gray));
                         tvWord.setPadding(0, 6, 0, 4);
                         inner.addView(tvWord);
                     }
@@ -243,7 +244,7 @@ public class PlanCheckActivity extends AppCompatActivity {
                         tvMore.setText(
                                 String.format(Locale.getDefault(), "... 还有 %d 词", previewWords.length() - showCount));
                         tvMore.setTextSize(12);
-                        tvMore.setTextColor(getResources().getColor(R.color.middle_gray));
+                        tvMore.setTextColor(ContextCompat.getColor(this, R.color.middle_gray));
                         inner.addView(tvMore);
                     }
                 }
@@ -274,6 +275,10 @@ public class PlanCheckActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     private class StatsHandler extends Handler {
+        StatsHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             if (msg.what == MSG_SUCCESS) {
@@ -293,6 +298,10 @@ public class PlanCheckActivity extends AppCompatActivity {
 
     @SuppressLint("HandlerLeak")
     private class PreviewHandler extends Handler {
+        PreviewHandler() {
+            super(Looper.getMainLooper());
+        }
+
         @Override
         public void handleMessage(@NonNull Message msg) {
             if (msg.what == MSG_SUCCESS) {
