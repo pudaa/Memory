@@ -45,6 +45,11 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private int dailyNewWordCount = 0;
     private int studyDay = 0;
 
+    /** 今日已完成复习数（方案B：服务端按"今日累计"封顶，用于标题栏展示进度） */
+    private int reviewsDoneToday = 0;
+    /** 每日复习上限（fsrsMaxReviewWords），0 表示服务端未返回 */
+    private int reviewLimit = 0;
+
     private int totalWords = 0;
     private int operatedCount = 0;
     private int currentCardIndex = 0;
@@ -227,7 +232,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private void updateTitleBar() {
         if (tvDayCount != null) {
             if (studyDay > 0) {
-                tvDayCount.setText("Day " + studyDay);
+                if (reviewLimit > 0) {
+                    // 方案B：展示每日复习进度（今日已完成/上限），直观体现"每日累计封顶"
+                    tvDayCount.setText("Day " + studyDay + " · 复习 " + reviewsDoneToday + "/" + reviewLimit);
+                } else {
+                    tvDayCount.setText("Day " + studyDay);
+                }
             } else {
                 tvDayCount.setText("水滴记忆");
             }
@@ -259,8 +269,14 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private void parseAndCreateCards(JSONObject responseJson) throws JSONException {
         isLoadingTask = false;
         lexiconId = responseJson.getString("lexiconId");
-        dailyNewWordCount = responseJson.optInt("dailyNewWordCount", 10);
-        studyDay = responseJson.optInt("studyDay", 0); // 服务端待新增，0=未返回时回退
+        // 兼容旧字段 dailyNewWordCount，优先读取服务端 newWordCount（修复固定为 10 的问题）
+        dailyNewWordCount = responseJson.has("newWordCount")
+                ? responseJson.optInt("newWordCount", 10)
+                : responseJson.optInt("dailyNewWordCount", 10);
+        studyDay = responseJson.optInt("studyDay", 0); // 0=未返回时回退
+        // 今日复习预算信息（方案B：服务端按"今日累计已复习"封顶）
+        reviewsDoneToday = responseJson.optInt("reviewsDoneToday", 0);
+        reviewLimit = responseJson.optInt("reviewLimit", 0);
         updateTitleBar();
 
         // 同步服务端每日新词数到本地设置（保持设置页一致）
