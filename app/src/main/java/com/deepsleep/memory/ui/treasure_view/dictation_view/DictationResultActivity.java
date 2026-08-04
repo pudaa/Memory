@@ -13,6 +13,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
@@ -57,6 +58,14 @@ public class DictationResultActivity extends AppCompatActivity {
         initViews();
         initHandler();
         parseResult(resultJson);
+
+        // 返回键 → 弹出退出确认对话框（OnBackPressedCallback）
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                showExitDialog();
+            }
+        });
     }
 
     private void initViews() {
@@ -232,11 +241,6 @@ public class DictationResultActivity extends AppCompatActivity {
                     startActivity(intent);
                     finish();
                 }).setNegativeButton("继续查看", null).show();
-    }
-
-    @Override
-    public void onBackPressed() {
-        showExitDialog();
     }
 
     private void retryWrongWords() {

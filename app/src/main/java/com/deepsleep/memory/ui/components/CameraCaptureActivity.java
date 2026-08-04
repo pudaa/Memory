@@ -19,13 +19,16 @@ import android.animation.AnimatorSet;
 import android.animation.PropertyValuesHolder;
 import android.view.animation.AccelerateDecelerateInterpolator;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.AspectRatio;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.Preview;
+import androidx.camera.core.resolutionselector.AspectRatioStrategy;
+import androidx.camera.core.resolutionselector.ResolutionSelector;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
@@ -59,7 +62,6 @@ import java.util.concurrent.ExecutionException;
 public class CameraCaptureActivity extends AppCompatActivity {
 
     private static final String TAG = "CameraCapture";
-    private static final int REQUEST_GALLERY = 1001;
 
     /** 输入：指定照片保存路径（可选，不传则自动生成） */
     public static final String EXTRA_OUTPUT_PATH = "output_path";
@@ -77,6 +79,21 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private boolean flashEnabled = false;
     private String outputPath;
     private boolean isCapturing = false;
+
+    /** 统一使用 4:3 宽高比（常见标准），确保预览与拍照一致 */
+    private static final ResolutionSelector RESOLUTION_SELECTOR_4_3 = new ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY).build();
+
+    /** 相册选择回调（Activity Result API） */
+    private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri selectedUri = result.getData().getData();
+                    if (selectedUri != null) {
+                        copyGalleryImage(selectedUri);
+                    }
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,13 +145,13 @@ public class CameraCaptureActivity extends AppCompatActivity {
         // 使用 4:3 宽高比（常见标准），确保预览与拍照一致
 
         // 预览
-        Preview preview = new Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).build();
+        Preview preview = new Preview.Builder().setResolutionSelector(RESOLUTION_SELECTOR_4_3).build();
         preview.setSurfaceProvider(viewFinder.getSurfaceProvider());
 
         // 拍照用例 - 应用相同的宽高比，确保一致性
         imageCapture = new ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .setFlashMode(flashEnabled ? ImageCapture.FLASH_MODE_ON : ImageCapture.FLASH_MODE_OFF)
-                .setTargetAspectRatio(AspectRatio.RATIO_4_3).build();
+                .setResolutionSelector(RESOLUTION_SELECTOR_4_3).build();
 
         // 镜头选择
         CameraSelector cameraSelector = new CameraSelector.Builder().requireLensFacing(lensFacing).build();
@@ -220,18 +237,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
-        startActivityForResult(intent, REQUEST_GALLERY);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_GALLERY && resultCode == RESULT_OK && data != null) {
-            Uri selectedUri = data.getData();
-            if (selectedUri != null) {
-                copyGalleryImage(selectedUri);
-            }
-        }
+        galleryLauncher.launch(intent);
     }
 
     private void copyGalleryImage(Uri sourceUri) {

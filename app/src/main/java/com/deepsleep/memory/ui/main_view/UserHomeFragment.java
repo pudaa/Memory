@@ -15,6 +15,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -41,7 +43,6 @@ public class UserHomeFragment extends Fragment {
     private static final String PREF_NAME = "UserPrefs";
     private static final String KEY_USER_ID = "userId";
     private InnerSettingsManager innerSettingsManager;
-    private static final int PICK_IMAGE_REQUEST = 1;
 
     private Button reLoginBtn;
     private ImageButton toMyWordBookBtn;
@@ -57,6 +58,55 @@ public class UserHomeFragment extends Fragment {
     static final int msg_success = 1;
     static final int msg_failed = -1;
     private final MyHandler myHandler = new MyHandler();
+
+    /** 头像选择回调（Activity Result API） */
+    private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null
+                        && result.getData().getData() != null) { // 获取图片的uri
+                    Uri imageUri = result.getData().getData();
+                    Uri copiedImageUri = copyImageToInternalStorage(imageUri);
+
+                    if (copiedImageUri != null) {
+                        // 显示选中的新图片作为预览
+                        Glide.with(this).load(copiedImageUri).placeholder(R.drawable.default_avatar)
+                                .error(R.drawable.default_avatar).circleCrop().into(userAvatar);
+                    } else {
+                        Glide.with(this).load(imageUri).placeholder(R.drawable.default_avatar)
+                                .error(R.drawable.default_avatar).circleCrop().into(userAvatar);
+                    }
+
+                    // 优先使用复制到内部的URI，确保文件可读；复制失败则使用原始URI
+                    Uri uploadUri = (copiedImageUri != null) ? copiedImageUri : imageUri;
+
+                    GetDataByThread getDataByThread = new GetDataByThread("/auth/uploadUserAvatar");
+                    getDataByThread.uploadUserAvatar(new Handler(Looper.getMainLooper()) {
+                        @Override
+                        public void handleMessage(@NonNull Message msg) {
+                            if (msg.what == msg_success) {
+                                String avatarPath = "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId));
+                                GetDataByThread avatarLoader = new GetDataByThread(avatarPath);
+                                String avatarUrl = avatarLoader.getUrl_path();
+                                Glide.get(requireContext()).clearMemory();
+                                new Thread(() -> {
+                                    Glide.get(requireContext()).clearDiskCache();
+                                    // 在主线程中重新加载头像
+                                    requireActivity().runOnUiThread(() -> {
+                                        Glide.with(UserHomeFragment.this).load(avatarUrl)
+                                                .placeholder(R.drawable.default_avatar).error(R.drawable.default_avatar)
+                                                .circleCrop().into(userAvatar);
+
+                                        Toast.makeText(requireContext(), "头像已更新", Toast.LENGTH_SHORT).show();
+                                    });
+                                }).start();
+                            } else {
+                                Toast.makeText(requireContext(), "头像更新失败", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }, msg_success, msg_failed, userId, uploadUri, requireContext());
+
+                }
+            });
 
     @SuppressLint("MissingInflatedId")
     @Nullable
@@ -124,7 +174,7 @@ public class UserHomeFragment extends Fragment {
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "选择头像"), PICK_IMAGE_REQUEST);
+        pickImageLauncher.launch(Intent.createChooser(intent, "选择头像"));
     }
 
     private void showNicknameInputDialog() {
@@ -193,54 +243,6 @@ public class UserHomeFragment extends Fragment {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
-        }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK && data != null
-                && data.getData() != null) { // 获取图片的uri
-            Uri imageUri = data.getData();
-            Uri copiedImageUri = copyImageToInternalStorage(imageUri);
-
-            if (copiedImageUri != null) {
-                // 显示选中的新图片作为预览
-                Glide.with(this).load(copiedImageUri).placeholder(R.drawable.default_avatar)
-                        .error(R.drawable.default_avatar).circleCrop().into(userAvatar);
-            } else {
-                Glide.with(this).load(imageUri).placeholder(R.drawable.default_avatar).error(R.drawable.default_avatar)
-                        .circleCrop().into(userAvatar);
-            }
-
-            // 优先使用复制到内部的URI，确保文件可读；复制失败则使用原始URI
-            Uri uploadUri = (copiedImageUri != null) ? copiedImageUri : imageUri;
-
-            GetDataByThread getDataByThread = new GetDataByThread("/auth/uploadUserAvatar");
-            getDataByThread.uploadUserAvatar(new Handler(Looper.getMainLooper()) {
-                @Override
-                public void handleMessage(@NonNull Message msg) {
-                    if (msg.what == msg_success) {
-                        String avatarPath = "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId));
-                        GetDataByThread avatarLoader = new GetDataByThread(avatarPath);
-                        String avatarUrl = avatarLoader.getUrl_path();
-                        Glide.get(requireContext()).clearMemory();
-                        new Thread(() -> {
-                            Glide.get(requireContext()).clearDiskCache();
-                            // 在主线程中重新加载头像
-                            requireActivity().runOnUiThread(() -> {
-                                Glide.with(UserHomeFragment.this).load(avatarUrl).placeholder(R.drawable.default_avatar)
-                                        .error(R.drawable.default_avatar).circleCrop().into(userAvatar);
-
-                                Toast.makeText(requireContext(), "头像已更新", Toast.LENGTH_SHORT).show();
-                            });
-                        }).start();
-                    } else {
-                        Toast.makeText(requireContext(), "头像更新失败", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }, msg_success, msg_failed, userId, uploadUri, requireContext());
-
         }
     }
 

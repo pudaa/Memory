@@ -15,6 +15,7 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -48,6 +49,24 @@ public class CompositionPreviewActivity extends AppCompatActivity {
         initViews();
         handleIntentData();
         setListeners();
+
+        // 处理返回键事件，防止在加载过程中意外退出
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (loadingOverlay != null && loadingOverlay.getVisibility() == View.VISIBLE) {
+                    // 显示确认对话框
+                    new MaterialAlertDialogBuilder(CompositionPreviewActivity.this).setTitle("正在批改作文")
+                            .setMessage("作文正在批改中，确定要离开吗？").setPositiveButton("确定离开", (dialog, which) -> {
+                                setEnabled(false);
+                                getOnBackPressedDispatcher().onBackPressed();
+                            }).setNegativeButton("继续等待", null).show();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
     private void initViews() {
@@ -192,20 +211,6 @@ public class CompositionPreviewActivity extends AppCompatActivity {
                 submitCompositionForCorrection();
                 break;
             }
-        }
-    }
-
-    // 处理返回键事件，防止在加载过程中意外退出
-    @Override
-    public void onBackPressed() {
-        if (loadingOverlay != null && loadingOverlay.getVisibility() == View.VISIBLE) {
-            // 显示确认对话框
-            new MaterialAlertDialogBuilder(this).setTitle("正在批改作文").setMessage("作文正在批改中，确定要离开吗？")
-                    .setPositiveButton("确定离开", (dialog, which) -> {
-                        super.onBackPressed();
-                    }).setNegativeButton("继续等待", null).show();
-        } else {
-            super.onBackPressed();
         }
     }
 

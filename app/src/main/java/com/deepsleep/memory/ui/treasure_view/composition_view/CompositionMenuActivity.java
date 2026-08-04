@@ -16,6 +16,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.*;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -42,9 +44,7 @@ import java.util.List;
 
 public class CompositionMenuActivity extends AppCompatActivity {
 
-    private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_CAMERA_PERMISSION = 100;
-    private static final int REQUEST_IMAGE_CROP = 2;
     private String currentPhotoPath;
 
     private ImageButton btnTakePhoto;
@@ -59,9 +59,35 @@ public class CompositionMenuActivity extends AppCompatActivity {
     static final int msg_failed = -1;
     static final int msg_records_success = 2;
     static final int msg_records_failed = -2;
-    private static final int REQUEST_IMAGE_EDIT = 2; // 添加编辑请求码
-    private boolean isImageEdited = false;
     private Uri croppedImageUri;
+
+    /** 拍照回调（自定义相机，拍照后返回照片路径） */
+    private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    // 从自定义相机返回的照片路径
+                    String photoPath = result.getData().getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
+                    if (photoPath != null) {
+                        currentPhotoPath = photoPath;
+                    }
+                    startUCropActivity();
+                }
+            });
+
+    /** 裁剪回调（uCrop 完成后进入 OCR） */
+    private final ActivityResultLauncher<Intent> cropLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    // uCrop编辑完成，进行OCR识别
+                    croppedImageUri = UCrop.getOutput(result.getData());
+                    if (croppedImageUri != null) {
+                        uploadImageForOCR();
+                    }
+                } else {
+                    // 用户在裁剪界面点击取消 → 返回相机重新拍摄
+                    dispatchTakePictureIntent();
+                }
+            });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -154,7 +180,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
         // 使用自定义相机（无确认界面，拍照后直接返回）
         Intent intent = new Intent(this, CameraCaptureActivity.class);
         intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
-        startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
+        cameraLauncher.launch(intent);
     }
 
     private File createImageFile() throws IOException {
@@ -166,32 +192,6 @@ public class CompositionMenuActivity extends AppCompatActivity {
         // 保存文件路径
         currentPhotoPath = image.getAbsolutePath();
         return image;
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            // 从自定义相机返回的照片路径
-            if (data != null) {
-                String photoPath = data.getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
-                if (photoPath != null) {
-                    currentPhotoPath = photoPath;
-                }
-            }
-            startUCropActivity();
-        } else if (requestCode == REQUEST_IMAGE_CROP && resultCode == RESULT_OK) {
-            // uCrop编辑完成，进行OCR识别
-            if (data != null) {
-                croppedImageUri = UCrop.getOutput(data);
-                if (croppedImageUri != null) {
-                    uploadImageForOCR();
-                }
-            }
-        } else if (requestCode == REQUEST_IMAGE_CROP) {
-            // 用户在裁剪界面点击取消 → 返回相机重新拍摄
-            dispatchTakePictureIntent();
-        }
     }
 
     private void startUCropActivity() {
@@ -214,7 +214,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
         // 启动uCrop
         UCrop uCrop = UCrop.of(sourceUri, destinationUri).withMaxResultSize(2048, 2048).withOptions(options);
 
-        uCrop.start(this, REQUEST_IMAGE_CROP);
+        cropLauncher.launch(uCrop.getIntent(this));
     }
 
     private void uploadImageForOCR() {

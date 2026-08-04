@@ -22,6 +22,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
@@ -60,12 +62,47 @@ public class DictationExecutionActivity extends AppCompatActivity {
     private static final int MSG_SUBMIT_FAILED = 4;
     private static final int MSG_OCR_SUCCESS = 5;
     private static final int MSG_OCR_FAILED = 6;
-    private static final int REQUEST_CAMERA = 200;
-    private static final int REQUEST_CROP = 201;
 
     private static final int MAX_AUTO_PLAY = 2;
     private static final int MAX_MANUAL_REPLAY = 1;
     private static final int REPLAY_INTERVAL_MS = 3000;
+
+    /** 拍照回调（自定义相机，拍照后返回照片路径） */
+    private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    // 从自定义相机返回的照片路径
+                    String photoPath = result.getData().getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
+                    if (photoPath != null) {
+                        currentPhotoPath = photoPath;
+                        cameraImageUri = Uri.fromFile(new File(photoPath));
+                    }
+                    startUCropActivity();
+                }
+            });
+
+    /** 裁剪回调（uCrop 完成后进入 OCR） */
+    private final ActivityResultLauncher<Intent> cropLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                Intent data = result.getData();
+                if (result.getResultCode() == RESULT_OK && data != null) {
+                    // 裁剪完成 → 获取裁剪后的图片进行 OCR
+                    Uri croppedUri = UCrop.getOutput(data);
+                    if (croppedUri != null) {
+                        uploadForOcr(croppedUri);
+                    } else {
+                        Toast.makeText(this, "裁剪结果获取失败", Toast.LENGTH_SHORT).show();
+                    }
+                } else if (result.getResultCode() == UCrop.RESULT_ERROR) {
+                    Throwable error = UCrop.getError(data);
+                    if (error != null)
+                        error.printStackTrace();
+                    Toast.makeText(this, "裁剪失败", Toast.LENGTH_SHORT).show();
+                } else {
+                    // 用户在裁剪界面点击取消 → 返回相机重新拍摄
+                    openCamera();
+                }
+            });
 
     private ImageButton btnBack;
     private TextView tvProgress, tvContext, tvLevel;
@@ -498,7 +535,7 @@ public class DictationExecutionActivity extends AppCompatActivity {
             // 使用自定义相机（无确认界面，拍照后直接返回）
             Intent intent = new Intent(this, CameraCaptureActivity.class);
             intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
-            startActivityForResult(intent, REQUEST_CAMERA);
+            cameraLauncher.launch(intent);
         } catch (IOException e) {
             Toast.makeText(this, "无法创建照片文件", Toast.LENGTH_SHORT).show();
         }
@@ -508,39 +545,6 @@ public class DictationExecutionActivity extends AppCompatActivity {
         String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         return File.createTempFile("dict_" + ts, ".jpg", dir);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CAMERA && resultCode == RESULT_OK) {
-            // 从自定义相机返回的照片路径
-            if (data != null) {
-                String photoPath = data.getStringExtra(CameraCaptureActivity.EXTRA_PHOTO_PATH);
-                if (photoPath != null) {
-                    currentPhotoPath = photoPath;
-                    cameraImageUri = Uri.fromFile(new File(photoPath));
-                }
-            }
-            // 进入裁剪
-            startUCropActivity();
-        } else if (requestCode == REQUEST_CROP && resultCode == RESULT_OK) {
-            // 裁剪完成 → 获取裁剪后的图片进行 OCR
-            Uri croppedUri = UCrop.getOutput(data);
-            if (croppedUri != null) {
-                uploadForOcr(croppedUri);
-            } else {
-                Toast.makeText(this, "裁剪结果获取失败", Toast.LENGTH_SHORT).show();
-            }
-        } else if (requestCode == REQUEST_CROP && resultCode == UCrop.RESULT_ERROR) {
-            Throwable error = UCrop.getError(data);
-            if (error != null)
-                error.printStackTrace();
-            Toast.makeText(this, "裁剪失败", Toast.LENGTH_SHORT).show();
-        } else if (requestCode == REQUEST_CROP) {
-            // 用户在裁剪界面点击取消 → 返回相机重新拍摄
-            openCamera();
-        }
     }
 
     private void startUCropActivity() {
@@ -555,7 +559,8 @@ public class DictationExecutionActivity extends AppCompatActivity {
         // 使用应用主题的 UCrop 配置
         UCrop.Options options = UcropHelper.createThemedOptions(this);
 
-        UCrop.of(sourceUri, destUri).withMaxResultSize(2048, 2048).withOptions(options).start(this, REQUEST_CROP);
+        cropLauncher.launch(
+                UCrop.of(sourceUri, destUri).withMaxResultSize(2048, 2048).withOptions(options).getIntent(this));
     }
 
     private void uploadForOcr(Uri imageUri) {
