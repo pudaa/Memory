@@ -91,6 +91,10 @@ public class DailyReadingFragment extends Fragment {
     private static final int FONT_SIZE_MIN = 15;
     private static final int FONT_SIZE_MAX = 25;
     private static final int FONT_SIZE_STEP = 2;
+
+    /** 字号同步防抖（跨设备） */
+    private final Handler fontSyncHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingFontSync;
     // 线程处理
     static final int msg_success = 1;
     static final int msg_failed = -1;
@@ -317,6 +321,36 @@ public class DailyReadingFragment extends Fragment {
 
     private void saveFontSize() {
         UserSettingsManager.getInstance(requireContext()).setReaderFontSize(currentFontSize);
+        syncFontSizeToServer();
+    }
+
+    /** 防抖推送字号到服务端用户设置（跨设备同步） */
+    private void syncFontSizeToServer() {
+        if (pendingFontSync != null) {
+            fontSyncHandler.removeCallbacks(pendingFontSync);
+        }
+        pendingFontSync = () -> {
+            if (userId <= 0) {
+                pendingFontSync = null;
+                return;
+            }
+            JSONObject settings = new JSONObject();
+            try {
+                settings.put("readerFontSize", currentFontSize);
+            } catch (JSONException ignored) {
+            }
+            GetDataByThread api = new GetDataByThread("/auth/updateUserSettings");
+            api.updateUserSettings(new Handler(Looper.getMainLooper()) {
+                @Override
+                public void handleMessage(@NonNull Message msg) {
+                    if (msg.what != msg_success && isAdded()) {
+                        Toast.makeText(getContext(), "字号同步失败", Toast.LENGTH_SHORT).show();
+                    }
+                    pendingFontSync = null;
+                }
+            }, msg_success, msg_failed, userId, settings);
+        };
+        fontSyncHandler.postDelayed(pendingFontSync, 800);
     }
 
     private void updateReadingProgress() {

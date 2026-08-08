@@ -73,6 +73,9 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     /** 学习模式切换时若正在加载任务，标记待重载（当前加载完成后补执行） */
     private boolean reloadPendingForMode = false;
 
+    /** 服务端回写学习模式时置位，避免触发重复重载（防循环） */
+    private boolean isApplyingStudyModeFromServer = false;
+
     /** 当前总结卡片视图引用（用于避免重复创建，更新时移除旧卡片再添加新卡片） */
     private View summaryCardView = null;
 
@@ -114,12 +117,14 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         // 学习模式变化 → 立即重载今日任务，让新模式马上生效（无需重新进入应用）
         if (UserSettingsManager.KEY_STUDY_MODE.equals(key)) {
             studyMode = (String) value;
-            if (isAdded()) {
-                if (isLoadingTask) {
-                    reloadPendingForMode = true;
-                } else {
-                    reloadTodayTaskForSettings();
-                }
+            // 服务端回写不触发重载（防循环）；仅用户手动切换时重载
+            if (isApplyingStudyModeFromServer || !isAdded()) {
+                return;
+            }
+            if (isLoadingTask) {
+                reloadPendingForMode = true;
+            } else {
+                reloadTodayTaskForSettings();
             }
         }
     }
@@ -302,6 +307,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         if (reviewLimit > 0) {
             userSettingsManager.setMaxReviewWords(reviewLimit);
         }
+        // 服务端学习模式回写（跨设备/跨账号恢复本人偏好，防循环）
+        String serverStudyMode = responseJson.optString("studyModePreference", "");
+        if ("choice".equals(serverStudyMode) || "input".equals(serverStudyMode)) {
+            isApplyingStudyModeFromServer = true;
+            try {
+                userSettingsManager.setStudyMode(serverStudyMode);
+            } finally {
+                isApplyingStudyModeFromServer = false;
+            }
+        }
+        studyMode = userSettingsManager.getStudyMode();
 
         // 预加载词库
         LexiconResourceMap.loadLexicon(requireContext(), lexiconId);

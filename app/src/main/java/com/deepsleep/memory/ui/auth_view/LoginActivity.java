@@ -15,6 +15,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.deepsleep.memory.settings.UserSettingsManager;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 
@@ -99,6 +100,8 @@ public class LoginActivity extends AppCompatActivity {
     private void startMainActivity(int userId) {// 我勒个屎山啊，这个地方逻辑咋变得这么复杂的
         // Toast.makeText(this, String.valueOf(innerSettingsManager.isLoggedIn()),
         // Toast.LENGTH_SHORT).show();
+        // 异步拉取用户级设置并应用（跨设备/跨账号恢复本人偏好）
+        syncUserSettingsFromServer(userId);
         if (innerSettingsManager.isLoggedIn() == 2) {// 为了减少请求带来的延迟设置的，正常流程走完后，每次进入软件都应该直接进入主界面
             Log.i("LoginActivity", "startMainActivity: " + userId);
             Intent intent1 = new Intent(LoginActivity.this, MainActivity.class);
@@ -148,6 +151,29 @@ public class LoginActivity extends AppCompatActivity {
                 }
             }, msg_success, msg_failed, String.valueOf(userId));
         }
+    }
+
+    /** 从服务端拉取用户级设置并应用到本地（跨设备/跨账号恢复本人偏好） */
+    private void syncUserSettingsFromServer(int userId) {
+        GetDataByThread api = new GetDataByThread("/auth/getUserSettings");
+        api.getUserSettings(new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                if (msg.what != msg_success)
+                    return;
+                try {
+                    JSONObject response = new JSONObject((String) msg.obj);
+                    if ("200".equals(response.getString("code"))) {
+                        JSONObject settings = response.optJSONObject("settings");
+                        if (settings != null) {
+                            UserSettingsManager.getInstance(LoginActivity.this).applyUserSettings(settings);
+                        }
+                    }
+                } catch (JSONException e) {
+                    Log.e("LoginActivity", "解析用户设置失败", e);
+                }
+            }
+        }, msg_success, msg_failed, String.valueOf(userId));
     }
 
     private void startRegisterActivity() {

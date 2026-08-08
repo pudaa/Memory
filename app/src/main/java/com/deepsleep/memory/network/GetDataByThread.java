@@ -203,6 +203,24 @@ public class GetDataByThread {
         }
     }
 
+    // ── 用户级设置 ──
+    /** 获取用户级设置（JSON 对象，无记录时返回空对象） */
+    public void getUserSettings(Handler h, int ok, int fail, String uid) {
+        asyncGet1H(h, ok, fail, "GetUserSettings", "userId", uid);
+    }
+
+    /** 更新用户级设置 {userId, settings:{...}}（服务端增量合并） */
+    public void updateUserSettings(Handler h, int ok, int fail, int uid, JSONObject settings) {
+        try {
+            JSONObject j = new JSONObject();
+            j.put("userId", uid);
+            j.put("settings", settings);
+            asyncCall(h, ok, fail, "UpdateUserSettings", url -> HttpManager.doHttpPut(url, j));
+        } catch (Exception e) {
+            h.sendEmptyMessage(fail);
+        }
+    }
+
     // ── Words ──
     public void fetchWeakWords(Handler h, int ok, int fail, String uid) {
         asyncGet1H(h, ok, fail, null, "userId", uid);

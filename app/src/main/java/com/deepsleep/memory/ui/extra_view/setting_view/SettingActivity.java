@@ -58,6 +58,7 @@ public class SettingActivity extends AppCompatActivity {
     private Runnable pendingDailyWordsUpdate;
     private Runnable pendingStudyModeUpdate;
     private Runnable pendingMaxReviewUpdate;
+    private Runnable pendingUserSettingsUpdate;
     private static final long DEBOUNCE_DELAY_MS = 800;
 
     @Override
@@ -132,6 +133,7 @@ public class SettingActivity extends AppCompatActivity {
         switchSwipeBack = findViewById(R.id.switch_swipe_back);
         switchSwipeBack.setOnCheckedChangeListener((buttonView, isChecked) -> {
             userSettingsManager.setIsSlideBack(isChecked);
+            scheduleUserSettingsUpdate();
         });
 
         // === 主题模式 ===
@@ -264,6 +266,32 @@ public class SettingActivity extends AppCompatActivity {
         }, MSG_SUCCESS, MSG_FAILED, userId, newWords, mode, retentionTarget, maxReviewWords);
     }
 
+    /** 防抖推送用户级设置（滑动方向/主题）到服务端 */
+    private void scheduleUserSettingsUpdate() {
+        if (pendingUserSettingsUpdate != null) {
+            debounceHandler.removeCallbacks(pendingUserSettingsUpdate);
+        }
+        pendingUserSettingsUpdate = () -> {
+            callUpdateUserSettings();
+            pendingUserSettingsUpdate = null;
+        };
+        debounceHandler.postDelayed(pendingUserSettingsUpdate, DEBOUNCE_DELAY_MS);
+    }
+
+    private void callUpdateUserSettings() {
+        if (userId <= 0)
+            return;
+        GetDataByThread api = new GetDataByThread("/auth/updateUserSettings");
+        api.updateUserSettings(new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                if (msg.what != MSG_SUCCESS) {
+                    Toast.makeText(SettingActivity.this, "设置同步失败，已保存到本地", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }, MSG_SUCCESS, MSG_FAILED, userId, userSettingsManager.toUserSettingsJson());
+    }
+
     // ==================== 主题模式 ====================
 
     private void cycleThemeMode() {
@@ -271,6 +299,8 @@ public class SettingActivity extends AppCompatActivity {
         int next = (current + 1) % 3; // 循环：系统→浅色→深色→系统
         ThemeHelper.setThemeMode(this, next);
         updateThemeModeDisplay();
+        // 推送主题到服务端用户设置（跨设备同步）
+        scheduleUserSettingsUpdate();
         // 重建 Activity 以应用新主题
         recreate();
     }
@@ -291,6 +321,9 @@ public class SettingActivity extends AppCompatActivity {
         }
         if (pendingMaxReviewUpdate != null) {
             debounceHandler.removeCallbacks(pendingMaxReviewUpdate);
+        }
+        if (pendingUserSettingsUpdate != null) {
+            debounceHandler.removeCallbacks(pendingUserSettingsUpdate);
         }
     }
 }

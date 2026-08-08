@@ -3,6 +3,9 @@ package com.deepsleep.memory.settings;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -101,6 +104,30 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public void setThemeMode(int mode) {
         sharedPreferences.edit().putInt(KEY_THEME_MODE, mode).apply();
         notifySettingsChanged(KEY_THEME_MODE, mode);
+    }
+
+    /** 导出用户级设置（用于同步到服务端）：滑动方向/主题/字号 */
+    public JSONObject toUserSettingsJson() {
+        JSONObject json = new JSONObject();
+        try {
+            json.put("isSlideBack", isSlideBackEnabled());
+            json.put("themeMode", getThemeMode());
+            json.put("readerFontSize", getReaderFontSize());
+        } catch (JSONException ignored) {
+        }
+        return json;
+    }
+
+    /** 从服务端设置应用（仅覆盖存在的字段），自动触发对应监听回调 */
+    public void applyUserSettings(JSONObject settings) {
+        if (settings == null)
+            return;
+        if (settings.has("isSlideBack"))
+            setIsSlideBack(settings.optBoolean("isSlideBack"));
+        if (settings.has("themeMode"))
+            setThemeMode(settings.optInt("themeMode"));
+        if (settings.has("readerFontSize"))
+            setReaderFontSize(settings.optInt("readerFontSize"));
     }
 
     // 重置相关方法
