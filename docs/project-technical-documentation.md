@@ -1,6 +1,9 @@
 # Memory App — 项目技术文档
 
-> **版本**：2.0 | **日期**：2026-06-05 | **目标平台**：Android (minSdk 26, targetSdk 34) | **开发语言**：Java 11
+> **版本**：2.1 | **日期**：2026-08-04 | **目标平台**：Android (minSdk 26, targetSdk 34) | **开发语言**：Java 11
+>
+> **2.1 更新要点**：设置管理系统全面集中化（所有 SharedPreferences 收敛到 settings 管理器）；Activity Result API 迁移完成；卡片滑动 fling 支持。
+> 关联：[项目全景总览](project-overview.md)、[开发约束与规范](development-conventions.md)。
 
 ---
 
@@ -305,7 +308,9 @@ d:\Codes\Memory\
 ├── local.properties                   # 本地 SDK 路径
 ├── reasonix.toml                      # Reasonix 配置
 ├── docs/                              # 文档目录
-│   └── project-technical-documentation.md
+│   ├── project-overview.md                # 项目全景总览 + 已有能力清单
+│   ├── development-conventions.md         # 开发约束与规范
+│   └── project-technical-documentation.md # 技术文档（本文件）
 ├── gradle/wrapper/                    # Gradle Wrapper
 └── app/
     ├── build.gradle                   # 应用构建配置（依赖管理）
@@ -1386,7 +1391,9 @@ class WordEntry {
 
 ## 19. 设置管理系统
 
-### 19.1 UserSettingsManager（学习偏好）
+> **集中管理原则**：自 v2.1 起，**所有 SharedPreferences 访问一律收敛到 `settings/` 包**。任何 Activity/Fragment 不得直接调用 `getSharedPreferences()`。新增持久化需求先在对应管理器中扩展方法。详见 [开发约束与规范](development-conventions.md) §2.2。
+
+### 19.1 UserSettingsManager（用户偏好，文件 `AppSettings`）
 
 **设计模式**：线程安全单例 + 观察者模式。
 
@@ -1403,16 +1410,62 @@ public class UserSettingsManager {
 }
 ```
 
-**观察者模式应用**：`WordLearningFragment` 注册监听 `study_mode` 变更，实时切换选择题/填空题模式而无需重启 Activity。
+**存储键清单**：
 
-### 19.2 InnerSettingsManager（账户数据）
+| 键 | 类型 | 默认值 | 说明 |
+|----|------|--------|------|
+| `KEY_IS_SLIDE_BACK` | boolean | true | 用户右滑是否回到上一个卡片 |
+| `KEY_STUDY_MODE` | String | "choice" | 学习模式: "choice" / "input" |
+| `KEY_DAILY_NEW_WORDS` | int | 10 | 每日新学单词数 |
+| `KEY_READER_FONT_SIZE` | int | 19 | 阅读字号（每日一读） |
+| `KEY_THEME_MODE` | int | 0 | 主题模式: 0 跟随系统 / 1 浅色 / 2 深色 |
 
-| 存储键 | 类型 | 说明 |
-|--------|------|------|
-| `KEY_IS_LOGGED_IN` | int | 0=未登录, 1=新注册, 2=老用户 |
-| `KEY_USER_ID` | int | 当前用户 ID |
-| `KEY_NICK_NAME` | String | 昵称 |
-| `KEY_AVATAR_URL` | String | 头像 URL |
+**观察者模式应用**：`WordLearningFragment` 注册监听 `study_mode` / `is_slide_back` 变更，实时切换模式而无需重启 Activity；主题模式由 `ThemeHelper` 调用本管理器读写。
+
+### 19.2 InnerSettingsManager（应用内部信息记录器）
+
+**设计模式**：线程安全单例，内部持有多个 SharedPreferences 文件引用，对外统一提供方法。
+
+**① 登录 / 用户信息（文件 `UserPrefs`）**
+
+| 方法 | 说明 |
+|------|------|
+| `getUserId()` / `setUserId(int)` | 当前用户 ID |
+| `isLoggedIn()` / `setLoggedIn(int)` | 0=未登录, 1=新注册, 2=老用户 |
+| `getNickName()` / `setNickName(String)` | 昵称 |
+| `getUserName()` / `setUserName(String)` | 用户名 |
+| `getAvatarUrl()` / `setAvatarUrl(String)` | 头像 URL |
+| `clear()` | 清空登录信息 |
+
+**② 每日收藏（文件 `DailyFavoritePrefs`，按 userId 隔离）**
+
+| 方法 | 说明 |
+|------|------|
+| `getDailyFavoriteId(int userId)` | 今日收藏文章 ID（无则 -1） |
+| `getDailyFavoriteDate(int userId)` | 今日收藏日期（yyyy-MM-dd） |
+| `saveDailyFavorite(int userId, long favoriteId, String date)` | 保存今日收藏 |
+| `clearDailyFavorite(int userId)` | 清除今日收藏 |
+
+**③ 作文草稿（文件 `CompositionPrefs`，按 userId 隔离）**
+
+| 方法 | 说明 |
+|------|------|
+| `getCompositionDraft(int userId)` | 草稿内容 |
+| `getCompositionDraftSaveTime(int userId)` | 草稿保存时间戳 |
+| `saveCompositionDraft(int userId, String text, long saveTime)` | 保存草稿 |
+
+**④ 发音每日成绩（文件 `pronunciation_daily_scores`，按日期存储，内部 key `scores_yyyy-MM-dd`）**
+
+| 方法 | 说明 |
+|------|------|
+| `savePronunciationScores(String date, String json)` | 保存某日成绩 |
+| `getPronunciationScores(String date)` | 读取某日成绩 |
+| `getPronunciationScoreDates()` | 所有已存成绩的日期集合 |
+| `removePronunciationScores(String date)` | 删除某日成绩 |
+
+### 19.3 学习进度持久化（`DailyStateManager`）
+
+每日单词学习的"今日已完成"状态由 `main_view/DailyStateManager` 独立封装（key 为 `{userId}_completedWordIds` / `_completedLastDate` / `_completedWordDetails`），支持跨天自动重置。该管理器是 feature 内部封装，保持独立。
 
 ---
 

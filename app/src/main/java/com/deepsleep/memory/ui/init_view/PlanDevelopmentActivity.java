@@ -1,9 +1,7 @@
 package com.deepsleep.memory.ui.init_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,6 +15,7 @@ import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.TextCustomNumberPicker;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -25,9 +24,6 @@ import org.json.JSONObject;
 import java.util.*;
 
 public class PlanDevelopmentActivity extends AppCompatActivity {
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
-    private static final String KEY_USER_ID = "userId";
 
     // 视图
     TextView bookNameTextView;
@@ -306,8 +302,7 @@ public class PlanDevelopmentActivity extends AppCompatActivity {
         }
 
         JSONArray wordListIdsArray = new JSONArray(wordListIds);
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        int userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        int userId = InnerSettingsManager.getInstance(this).getUserId();
 
         try {
             JSONObject planData = new JSONObject();
@@ -375,10 +370,7 @@ public class PlanDevelopmentActivity extends AppCompatActivity {
     }
 
     private void startMainActivity() {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt(KEY_IS_LOGGED_IN, 2);
-        editor.apply();
+        InnerSettingsManager.getInstance(this).setLoggedIn(2);
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);

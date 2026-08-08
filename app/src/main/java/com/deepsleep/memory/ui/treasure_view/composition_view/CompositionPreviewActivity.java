@@ -1,9 +1,7 @@
 package com.deepsleep.memory.ui.treasure_view.composition_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,8 +34,6 @@ public class CompositionPreviewActivity extends AppCompatActivity {
     private ProgressBar loadingProgressBar;
     private String ocrText;
     private int userId;
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     static final int msg_success = 1;
     static final int msg_failed = -1;
     private int correctTimes = 0;
@@ -76,8 +73,7 @@ public class CompositionPreviewActivity extends AppCompatActivity {
 
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
 
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
 
         // 初始化加载视图
         loadingOverlay = findViewById(R.id.loading_overlay);
@@ -114,11 +110,11 @@ public class CompositionPreviewActivity extends AppCompatActivity {
             Toast.makeText(this, "已转化为文本", Toast.LENGTH_LONG).show();
         } else {
             // 检查是否有暂存的作文
-            SharedPreferences sharedPreferences = getSharedPreferences("CompositionPrefs", Context.MODE_PRIVATE);
-            String savedComposition = sharedPreferences.getString("saved_composition_" + userId, "");
+            InnerSettingsManager settings = InnerSettingsManager.getInstance(this);
+            String savedComposition = settings.getCompositionDraft(userId);
             if (!savedComposition.isEmpty()) {
                 etCompositionText.setText(savedComposition);
-                long saveTime = sharedPreferences.getLong("save_time_" + userId, 0);
+                long saveTime = settings.getCompositionDraftSaveTime(userId);
                 String timeStr = android.text.format.DateFormat
                         .format("yyyy-MM-dd HH:mm:ss", new java.util.Date(saveTime)).toString();
                 Toast.makeText(this, "已恢复暂存作文", Toast.LENGTH_LONG).show();
@@ -128,13 +124,10 @@ public class CompositionPreviewActivity extends AppCompatActivity {
 
     private void setListeners() {
         btnSaveTemp.setOnClickListener(v -> {
-            // 保存当前作文到本地SharedPreferences
+            // 保存当前作文草稿（统一由 InnerSettingsManager 持久化）
             String compositionText = etCompositionText.getText().toString();
-            SharedPreferences sharedPreferences = getSharedPreferences("CompositionPrefs", Context.MODE_PRIVATE);
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putString("saved_composition_" + userId, compositionText);
-            editor.putLong("save_time_" + userId, System.currentTimeMillis());
-            editor.apply();
+            InnerSettingsManager.getInstance(this).saveCompositionDraft(userId, compositionText,
+                    System.currentTimeMillis());
             Toast.makeText(this, "作文已暂存", Toast.LENGTH_SHORT).show();
         });
 

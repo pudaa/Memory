@@ -1,7 +1,5 @@
 package com.deepsleep.memory.ui.treasure_view.pronunciation_view;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,6 +26,7 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.card.MaterialCardView;
 
@@ -46,8 +45,6 @@ import java.util.Set;
 public class PronunciationMinuteFollowActivity extends AppCompatActivity
         implements WordPhraseListAdapter.OnScoreResultListener {
     private static final String TAG = "PronunciationMinute";
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     private static final int MSG_WORDS_SUCCESS = 1;
     private static final int MSG_WORDS_FAIL = 2;
 
@@ -86,7 +83,6 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
     // 成绩持久化 & 汇总
     private final List<ScoreRecord> todayScores = new ArrayList<>();
     private boolean isSummaryMode = false;
-    private static final String PREF_SCORES = "pronunciation_daily_scores";
 
     private static class ScoreRecord {
         String word;
@@ -144,8 +140,7 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         backButton = findViewById(R.id.btn_back);
         backButton.setOnClickListener(v -> finish());
 
-        SharedPreferences sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sp.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
 
         wordPhraseList = new ArrayList<>();
         initListView();
@@ -749,8 +744,7 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
                 obj.put("errors", errs);
                 arr.put(obj);
             }
-            getSharedPreferences(PREF_SCORES, Context.MODE_PRIVATE).edit().putString(getTodayKey(), arr.toString())
-                    .apply();
+            InnerSettingsManager.getInstance(this).savePronunciationScores(getTodayDate(), arr.toString());
         } catch (JSONException e) {
             Log.e(TAG, "保存成绩失败", e);
         }
@@ -760,7 +754,7 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         // 先清理过期数据（保留最近 7 天）
         cleanupOldScores(7);
 
-        String json = getSharedPreferences(PREF_SCORES, Context.MODE_PRIVATE).getString(getTodayKey(), null);
+        String json = InnerSettingsManager.getInstance(this).getPronunciationScores(getTodayDate());
         if (json == null)
             return;
         try {
@@ -796,37 +790,29 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
     /** 清理超过保留天数的旧成绩数据 */
     private void cleanupOldScores(int keepDays) {
         try {
-            SharedPreferences sp = getSharedPreferences(PREF_SCORES, Context.MODE_PRIVATE);
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
             java.util.Calendar cutoff = java.util.Calendar.getInstance();
             cutoff.add(java.util.Calendar.DAY_OF_YEAR, -keepDays);
 
-            SharedPreferences.Editor editor = null;
-            for (String key : sp.getAll().keySet()) {
-                if (!key.startsWith("scores_"))
-                    continue;
+            InnerSettingsManager settings = InnerSettingsManager.getInstance(this);
+            for (String dateStr : settings.getPronunciationScoreDates()) {
                 try {
-                    String dateStr = key.substring(7); // "scores_" 之后的部分
                     java.util.Date keyDate = sdf.parse(dateStr);
                     if (keyDate != null && keyDate.before(cutoff.getTime())) {
-                        if (editor == null)
-                            editor = sp.edit();
-                        editor.remove(key);
-                        Log.i(TAG, "清理过期成绩: " + key);
+                        settings.removePronunciationScores(dateStr);
+                        Log.i(TAG, "清理过期成绩: " + dateStr);
                     }
                 } catch (java.text.ParseException ignored) {
                 }
             }
-            if (editor != null)
-                editor.apply();
         } catch (Exception e) {
             Log.w(TAG, "清理旧成绩失败", e);
         }
     }
 
-    private String getTodayKey() {
+    private String getTodayDate() {
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        return "scores_" + sdf.format(new java.util.Date());
+        return sdf.format(new java.util.Date());
     }
 
     private void useFallbackWords() {

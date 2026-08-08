@@ -2,9 +2,7 @@ package com.deepsleep.memory.ui.treasure_view.composition_view;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -27,6 +25,7 @@ import androidx.core.content.FileProvider;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.CameraCaptureActivity;
 import com.deepsleep.memory.ui.components.UcropHelper;
 import com.yalantis.ucrop.UCrop;
@@ -124,8 +123,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
         // 获取历史作文记录
 
-        SharedPreferences sharedPreferences = getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
-        int userId = sharedPreferences.getInt("userId", 0);
+        int userId = InnerSettingsManager.getInstance(this).getUserId();
 
         GetDataByThread getRecords = new GetDataByThread("/composition/records");
         getRecords.fetchHistoryRecords(new Handler(Looper.getMainLooper()) {

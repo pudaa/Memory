@@ -1,8 +1,6 @@
 package com.deepsleep.memory.ui.treasure_view.evaluation_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
@@ -40,8 +39,6 @@ import java.util.Locale;
 
 public class EvaluationWeeklyReportActivity extends AppCompatActivity {
 
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     private static final int MSG_SUCCESS = 1;
     private static final int MSG_FAILED = -1;
     private static final int MSG_DEEP_SUCCESS = 2;
@@ -124,8 +121,7 @@ public class EvaluationWeeklyReportActivity extends AppCompatActivity {
     }
 
     private void loadData() {
-        SharedPreferences sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sp.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
 
         progressBar.setVisibility(View.VISIBLE);
         contentLayout.setVisibility(View.GONE);

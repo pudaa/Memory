@@ -3,7 +3,6 @@ package com.deepsleep.memory.ui.treasure_view.aichat_view;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,6 +36,7 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.MemAudioRecord;
 import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
@@ -58,8 +58,6 @@ import com.deepsleep.memory.network.HttpManager;
 
 public class AiConversationActivity extends AppCompatActivity {
     private static final String TAG = "AiConversation";
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     private static final int MSG_SUCCESS = 1;
     private static final int MSG_FAIL = 2;
     private static final int MSG_SESSION_SUCCESS = 3;
@@ -348,8 +346,7 @@ public class AiConversationActivity extends AppCompatActivity {
     }
 
     private void loadUserId() {
-        SharedPreferences sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        mUserId = sp.getInt(KEY_USER_ID, 0);
+        mUserId = InnerSettingsManager.getInstance(this).getUserId();
     }
 
     // ==================== 会话管理 ====================

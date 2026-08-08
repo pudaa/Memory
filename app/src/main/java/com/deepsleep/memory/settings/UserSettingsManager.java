@@ -12,10 +12,14 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public static final String KEY_IS_SLIDE_BACK = "is_slide_back"; // 用户右滑是否回到上一个卡片
     public static final String KEY_STUDY_MODE = "study_mode"; // 学习模式: "choice"(选择题) / "input"(输入题)
     public static final String KEY_DAILY_NEW_WORDS = "daily_new_words"; // 每日新学单词数
+    public static final String KEY_READER_FONT_SIZE = "reader_font_size"; // 阅读字号
+    public static final String KEY_THEME_MODE = "theme_mode"; // 主题模式: 0跟随系统 / 1浅色 / 2深色
     // 默认值
     private static final boolean DEFAULT_IS_SLIDE_BACK = true;
     private static final String DEFAULT_STUDY_MODE = "choice"; // 默认选择题模式
     private static final int DEFAULT_DAILY_NEW_WORDS = 10; // 默认每日10个新词
+    private static final int DEFAULT_READER_FONT_SIZE = 19; // 默认阅读字号
+    private static final int DEFAULT_THEME_MODE = 0; // 默认跟随系统
     private static UserSettingsManager instance;
     private final SharedPreferences sharedPreferences;
     private final List<OnSettingsChangedListener> listeners = new ArrayList<>();
@@ -62,6 +66,28 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public void setDailyNewWords(int count) {
         sharedPreferences.edit().putInt(KEY_DAILY_NEW_WORDS, count).apply();
         notifySettingsChanged(KEY_DAILY_NEW_WORDS, count);
+    }
+
+    /** 获取阅读字号 */
+    public int getReaderFontSize() {
+        return sharedPreferences.getInt(KEY_READER_FONT_SIZE, DEFAULT_READER_FONT_SIZE);
+    }
+
+    /** 设置阅读字号 */
+    public void setReaderFontSize(int size) {
+        sharedPreferences.edit().putInt(KEY_READER_FONT_SIZE, size).apply();
+        notifySettingsChanged(KEY_READER_FONT_SIZE, size);
+    }
+
+    /** 获取主题模式: 0跟随系统 / 1浅色 / 2深色 */
+    public int getThemeMode() {
+        return sharedPreferences.getInt(KEY_THEME_MODE, DEFAULT_THEME_MODE);
+    }
+
+    /** 设置主题模式 */
+    public void setThemeMode(int mode) {
+        sharedPreferences.edit().putInt(KEY_THEME_MODE, mode).apply();
+        notifySettingsChanged(KEY_THEME_MODE, mode);
     }
 
     // 重置相关方法

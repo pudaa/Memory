@@ -1,7 +1,5 @@
 package com.deepsleep.memory.ui.extra_view.setting_view;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.ThemeHelper;
 import com.deepsleep.memory.settings.UserSettingsManager;
 
@@ -59,8 +58,7 @@ public class SettingActivity extends AppCompatActivity {
         setContentView(R.layout.setting_layout);
         userSettingsManager = UserSettingsManager.getInstance(this);
 
-        SharedPreferences sp = getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
-        userId = sp.getInt("userId", 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
 
         // 返回按钮
         ImageButton btnBack = findViewById(R.id.btn_back);

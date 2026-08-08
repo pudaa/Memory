@@ -1,9 +1,7 @@
 package com.deepsleep.memory.ui.extra_view.plan_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import android.os.Handler;
@@ -14,6 +12,7 @@ import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.init_view.BookSelectActivity;
 import com.deepsleep.memory.network.GetDataByThread;
 import org.json.JSONArray;
@@ -31,9 +30,6 @@ public class PlanListActivity extends AppCompatActivity {
     private ImageButton btnBack, btnAdd;
     private ListView planListView;
     private PlanListAdapter planListAdapter;
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
-    private static final String KEY_USER_ID = "userId";
     int userId;
     static final int msg_success = 1;
     static final int msg_failed = -1;
@@ -55,18 +51,14 @@ public class PlanListActivity extends AppCompatActivity {
     }
 
     private void initView() {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
         btnBack = findViewById(R.id.btn_back);
         btnAdd = findViewById(R.id.btn_add);
         planListView = findViewById(R.id.plan_list);
     }
 
     private void startMainActivity() {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt(KEY_IS_LOGGED_IN, 2);
-        editor.apply();
+        InnerSettingsManager.getInstance(this).setLoggedIn(2);
         // 跳转到主页
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);

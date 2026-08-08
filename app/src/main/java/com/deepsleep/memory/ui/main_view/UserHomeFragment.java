@@ -2,9 +2,7 @@ package com.deepsleep.memory.ui.main_view;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,8 +38,6 @@ import java.io.InputStream;
 import java.util.Objects;
 
 public class UserHomeFragment extends Fragment {
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     private InnerSettingsManager innerSettingsManager;
 
     private Button reLoginBtn;
@@ -163,8 +159,7 @@ public class UserHomeFragment extends Fragment {
     }
 
     private void initView() {
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        userId = innerSettingsManager.getUserId();
         GetDataByThread getDataByThread = new GetDataByThread("/auth/getUserInfo");
         getDataByThread.getUserInfo(myHandler, msg_success, msg_failed, String.valueOf(userId));
 

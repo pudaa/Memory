@@ -1,9 +1,7 @@
 package com.deepsleep.memory.ui.extra_view.plan_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,6 +20,7 @@ import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,8 +39,6 @@ public class PlanCheckActivity extends AppCompatActivity {
     TextView tvMasteredWords, tvNote;
     ProgressBar planProgressBar;
     LinearLayout onPlanShow, toExchangePlan;
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     int userId;
     static final int MSG_SUCCESS = 1;
     static final int MSG_FAILED = -1;
@@ -70,8 +67,7 @@ public class PlanCheckActivity extends AppCompatActivity {
     }
 
     private void initView() {
-        SharedPreferences sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sp.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(this).getUserId();
         btnBack = findViewById(R.id.btn_back);
         planProgressBar = findViewById(R.id.plan_progress);
         onLearningBook = findViewById(R.id.on_learning_book);

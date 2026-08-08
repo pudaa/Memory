@@ -1,7 +1,5 @@
 package com.deepsleep.memory.ui.extra_view.my_word_view;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,6 +17,7 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -29,8 +28,6 @@ public class WeakWordsFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private WordListAdapter adapter;
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     int userId;
     // 线程处理
     static final  int msg_success = 1;
@@ -41,8 +38,7 @@ public class WeakWordsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_word_list, container, false);
         recyclerView = view.findViewById(R.id.word_list_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(requireContext()).getUserId();
         getSampleData();
         return view;
     }

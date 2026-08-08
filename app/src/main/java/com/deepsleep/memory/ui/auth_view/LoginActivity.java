@@ -18,9 +18,7 @@ import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import com.deepsleep.memory.ui.init_view.BookSelectActivity;
 import com.deepsleep.memory.network.GetDataByThread;
 import com.google.android.material.textfield.TextInputLayout;
@@ -29,13 +27,6 @@ import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
     private InnerSettingsManager innerSettingsManager;
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
-    private static final String KEY_USER_ID = "userId";
-
-    private static final String KEY_NICK_NAME = "nickName";
-    private static final String KEY_USER_NAME = "userName";
-    private static final String KEY_AVATAR_URL = "avatarUrl";
     private TextInputLayout tilPhone, tilPassword;
     private EditText etPhone, etPassword;
     private Button btnLogin;
@@ -98,14 +89,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void saveLoginStatus(int isLoggedIn, int userId, String nickName, String userName, String avatarUrl) {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putInt(KEY_IS_LOGGED_IN, isLoggedIn);
-        editor.putInt(KEY_USER_ID, userId);
-        editor.putString(KEY_NICK_NAME, nickName);
-        editor.putString(KEY_USER_NAME, userName);
-        editor.putString(KEY_AVATAR_URL, avatarUrl);
-        editor.apply();
+        innerSettingsManager.setLoggedIn(isLoggedIn);
+        innerSettingsManager.setUserId(userId);
+        innerSettingsManager.setNickName(nickName);
+        innerSettingsManager.setUserName(userName);
+        innerSettingsManager.setAvatarUrl(avatarUrl);
     }
 
     private void startMainActivity(int userId) {// 我勒个屎山啊，这个地方逻辑咋变得这么复杂的
@@ -133,9 +121,6 @@ public class LoginActivity extends AppCompatActivity {
                             Log.i("LoginActivity", "handleMessage: " + code);
                             switch (code) {
                             case "200":// 有找到学习计划说明直接进入主界面
-                                SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME,
-                                        Context.MODE_PRIVATE);
-                                SharedPreferences.Editor editor = sharedPreferences.edit();
                                 innerSettingsManager.setLoggedIn(2);
                                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                                 startActivity(intent);

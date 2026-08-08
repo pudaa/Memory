@@ -1,8 +1,6 @@
 package com.deepsleep.memory.ui.main_view;
 
 import android.animation.ObjectAnimator;
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,6 +29,8 @@ import com.deepsleep.memory.network.CozeAPI;
 import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.network.GetDataByThread;
 import com.deepsleep.memory.network.HttpManager;
+import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.deepsleep.memory.settings.UserSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import io.noties.markwon.*;
 
@@ -86,13 +86,6 @@ public class DailyReadingFragment extends Fragment {
     private List<Long> favoriteIds = new ArrayList<>();
     private List<String> favoriteTitles = new ArrayList<>();
 
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
-    private static final String PREF_READER = "ReaderPrefs";
-    private static final String KEY_FONT_SIZE = "reader_font_size";
-    private static final String PREF_DAILY = "DailyFavoritePrefs";
-    private static final String KEY_DAILY_FAV_ID = "daily_favorite_id";
-    private static final String KEY_DAILY_FAV_DATE = "daily_favorite_date";
     private int userId;
     private int currentFontSize = 19;
     private static final int FONT_SIZE_MIN = 15;
@@ -157,8 +150,7 @@ public class DailyReadingFragment extends Fragment {
             }
         });
 
-        SharedPreferences readerPrefs = requireContext().getSharedPreferences(PREF_READER, Context.MODE_PRIVATE);
-        currentFontSize = readerPrefs.getInt(KEY_FONT_SIZE, 19);
+        currentFontSize = UserSettingsManager.getInstance(requireContext()).getReaderFontSize();
         applyFontSizeToContent();
 
         btnFontDecrease.setOnClickListener(v -> {
@@ -186,8 +178,7 @@ public class DailyReadingFragment extends Fragment {
             btnRefresh.animate().rotationBy(360).setDuration(500).start();
             onArticleGenerate("generateArticle");
         });
-        SharedPreferences sharedPreferences = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sharedPreferences.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(requireContext()).getUserId();
         return view;
     }
 
@@ -325,8 +316,7 @@ public class DailyReadingFragment extends Fragment {
     }
 
     private void saveFontSize() {
-        SharedPreferences readerPrefs = requireContext().getSharedPreferences(PREF_READER, Context.MODE_PRIVATE);
-        readerPrefs.edit().putInt(KEY_FONT_SIZE, currentFontSize).apply();
+        UserSettingsManager.getInstance(requireContext()).setReaderFontSize(currentFontSize);
     }
 
     private void updateReadingProgress() {
@@ -574,9 +564,7 @@ public class DailyReadingFragment extends Fragment {
                         }
                     }).start();
                     // 如果删除的是今日收藏的文章，同步清理本地状态
-                    SharedPreferences dailyPrefs = requireContext().getSharedPreferences(PREF_DAILY,
-                            Context.MODE_PRIVATE);
-                    long dailyFavId = dailyPrefs.getLong(KEY_DAILY_FAV_ID + "_" + userId, -1);
+                    long dailyFavId = InnerSettingsManager.getInstance(requireContext()).getDailyFavoriteId(userId);
                     if (favoriteId == dailyFavId) {
                         clearDailyFavoriteState();
                     }
@@ -605,20 +593,17 @@ public class DailyReadingFragment extends Fragment {
     // ==================== 本地收藏状态持久化 ====================
 
     private void saveDailyFavoriteState(long favoriteId) {
-        SharedPreferences prefs = requireContext().getSharedPreferences(PREF_DAILY, Context.MODE_PRIVATE);
-        prefs.edit().putLong(KEY_DAILY_FAV_ID + "_" + userId, favoriteId)
-                .putString(KEY_DAILY_FAV_DATE + "_" + userId, getToday()).apply();
+        InnerSettingsManager.getInstance(requireContext()).saveDailyFavorite(userId, favoriteId, getToday());
     }
 
     private void clearDailyFavoriteState() {
-        SharedPreferences prefs = requireContext().getSharedPreferences(PREF_DAILY, Context.MODE_PRIVATE);
-        prefs.edit().remove(KEY_DAILY_FAV_ID + "_" + userId).remove(KEY_DAILY_FAV_DATE + "_" + userId).apply();
+        InnerSettingsManager.getInstance(requireContext()).clearDailyFavorite(userId);
     }
 
     private void restoreDailyFavoriteState(String currentTitle) {
-        SharedPreferences prefs = requireContext().getSharedPreferences(PREF_DAILY, Context.MODE_PRIVATE);
-        String savedDate = prefs.getString(KEY_DAILY_FAV_DATE + "_" + userId, "");
-        long savedId = prefs.getLong(KEY_DAILY_FAV_ID + "_" + userId, -1);
+        InnerSettingsManager settings = InnerSettingsManager.getInstance(requireContext());
+        String savedDate = settings.getDailyFavoriteDate(userId);
+        long savedId = settings.getDailyFavoriteId(userId);
 
         if (getToday().equals(savedDate) && savedId > 0) {
             isFavorited = true;

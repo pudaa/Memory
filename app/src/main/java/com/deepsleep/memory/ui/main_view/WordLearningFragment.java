@@ -1,9 +1,8 @@
 package com.deepsleep.memory.ui.main_view;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
+
 import android.os.*;
 import android.util.Log;
 import android.view.*;
@@ -21,6 +20,7 @@ import com.deepsleep.memory.ui.extra_view.word_search_view.SearchingActivity;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -54,8 +54,6 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private int operatedCount = 0;
     private int currentCardIndex = 0;
 
-    private static final String PREF_NAME = "UserPrefs";
-    private static final String KEY_USER_ID = "userId";
     private UserSettingsManager userSettingsManager;
     private int slideFlag = -1;
     private int userId;
@@ -133,8 +131,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         slideFlag = userSettingsManager.isSlideBackEnabled() ? 1 : -1;
         studyMode = userSettingsManager.getStudyMode();
 
-        SharedPreferences sp = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        userId = sp.getInt(KEY_USER_ID, 0);
+        userId = InnerSettingsManager.getInstance(requireContext()).getUserId();
 
         // 初始化提取的模块
         dailyState = new DailyStateManager(requireContext(), userId);

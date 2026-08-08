@@ -13,8 +13,6 @@ public class ThemeHelper {
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
 
-    private static final String KEY_THEME_MODE = "theme_mode";
-
     /**
      * 应用主题（应在 Activity.onCreate() 中 super.onCreate() 之前调用）
      */
@@ -35,13 +33,10 @@ public class ThemeHelper {
     }
 
     /**
-     * 设置并立即应用主题模式
+     * 设置并立即应用主题模式（持久化统一由 UserSettingsManager 管理）
      */
     public static void setThemeMode(Context context, int mode) {
-        context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                .edit()
-                .putInt(KEY_THEME_MODE, mode)
-                .apply();
+        UserSettingsManager.getInstance(context).setThemeMode(mode);
         applyTheme(context);
     }
 
@@ -49,8 +44,7 @@ public class ThemeHelper {
      * 获取当前主题模式
      */
     public static int getThemeMode(Context context) {
-        return context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                .getInt(KEY_THEME_MODE, THEME_SYSTEM);
+        return UserSettingsManager.getInstance(context).getThemeMode();
     }
 
     /**
