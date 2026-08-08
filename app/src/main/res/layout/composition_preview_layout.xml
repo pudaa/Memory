@@ -56,7 +56,8 @@
             android:background="@drawable/custom_textinput_background"
             android:gravity="top|start"
             android:hint="请输入或修改作文内容"
-            android:inputType="textMultiLine|textCapSentences"
+            android:inputType="textMultiLine|textCapSentences|textNoSuggestions"
+            android:importantForAutofill="no"
             android:padding="15dp"
             android:scrollbars="vertical"
             android:textSize="18sp" />
