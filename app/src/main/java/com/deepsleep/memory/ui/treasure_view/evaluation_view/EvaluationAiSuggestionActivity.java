@@ -26,6 +26,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+/**
+ * @deprecated 已弃用，AI建议功能已整合到 {@link EvaluationActivity} 的 Tab 页中。
+ * 保留此类仅为兼容性参考。
+ */
+@Deprecated
 public class EvaluationAiSuggestionActivity extends AppCompatActivity {
 
     private static final int MSG_SUCCESS = 1;

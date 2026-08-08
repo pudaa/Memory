@@ -384,6 +384,13 @@ public class GetDataByThread {
         asyncGet1H(h, ok, fail, "EvalAiSug", "userId", uid);
     }
 
+    /**
+     * 获取 AI 建议（支持 refresh 参数强制刷新）
+     */
+    public void getEvaluationAiSuggestion(Handler h, int ok, int fail, String uid, boolean refresh) {
+        asyncGet1HFull(h, ok, fail, "EvalAiSug", url_path + "?refresh=" + refresh, "userId", uid);
+    }
+
     public void getEvaluationDeepAnalysis(Handler h, int ok, int fail, String uid) {
         asyncGet1H(h, ok, fail, "EvalDeep", "userId", uid);
     }

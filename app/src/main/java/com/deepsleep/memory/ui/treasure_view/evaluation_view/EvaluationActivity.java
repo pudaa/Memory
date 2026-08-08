@@ -98,6 +98,22 @@ public class EvaluationActivity extends AppCompatActivity {
     private TextView tvRecommendedMode, tvSuggestedDailyNewWords;
     private View btnApplySettings;
 
+    // ── Tab3: 第3层即时反馈 ──
+    private View realtimeAlertCard;
+    private android.widget.ImageView ivAlertIcon;
+    private TextView tvRealtimeAlert;
+
+    // ── Tab3: 第1层长期策略 ──
+    private View longTermPlanCard;
+    private TextView tvLtpPhase, tvLtpGoal;
+    private LinearLayout milestonesLayout;
+    private TextView tvLtpNextAdjust, tvLtpRationale;
+
+    // ── Tab3: 元信息 ──
+    private View metaCard;
+    private TextView tvMetaSource, tvMetaStale;
+    private LinearLayout metaChangesLayout;
+
     // 数据缓存（用于应用设置时重新获取）
     private JSONObject cachedAiData;
 
@@ -282,6 +298,25 @@ public class EvaluationActivity extends AppCompatActivity {
         if (btnApplySettings != null) {
             btnApplySettings.setOnClickListener(v -> applyRecommendedSettings());
         }
+
+        // 第3层：即时反馈
+        realtimeAlertCard = root.findViewById(R.id.realtime_alert_card);
+        ivAlertIcon = root.findViewById(R.id.iv_alert_icon);
+        tvRealtimeAlert = root.findViewById(R.id.tv_realtime_alert);
+
+        // 第1层：长期策略
+        longTermPlanCard = root.findViewById(R.id.long_term_plan_card);
+        tvLtpPhase = root.findViewById(R.id.tv_ltp_phase);
+        tvLtpGoal = root.findViewById(R.id.tv_ltp_goal);
+        milestonesLayout = root.findViewById(R.id.milestones_layout);
+        tvLtpNextAdjust = root.findViewById(R.id.tv_ltp_next_adjust);
+        tvLtpRationale = root.findViewById(R.id.tv_ltp_rationale);
+
+        // 元信息
+        metaCard = root.findViewById(R.id.meta_card);
+        tvMetaSource = root.findViewById(R.id.tv_meta_source);
+        tvMetaStale = root.findViewById(R.id.tv_meta_stale);
+        metaChangesLayout = root.findViewById(R.id.meta_changes_layout);
     }
 
     // ═══════════════════════════════════════════════
@@ -645,18 +680,22 @@ public class EvaluationActivity extends AppCompatActivity {
                 if (aiRoot == null)
                     return;
 
+                // ===== 第2层：中期建议 =====
                 tvOverallAssessment.setText(data.optString("overallAssessment", "暂无评估"));
 
                 String intensity = data.optString("intensityLevel", "appropriate");
                 switch (intensity) {
                 case "too_light":
                     tvIntensityLevel.setText("强度偏低，可加大新词量");
+                    tvIntensityLevel.setTextColor(getErrorColor());
                     break;
                 case "too_heavy":
                     tvIntensityLevel.setText("强度偏高，建议放缓");
+                    tvIntensityLevel.setTextColor(getErrorColor());
                     break;
                 default:
                     tvIntensityLevel.setText("强度适中");
+                    tvIntensityLevel.setTextColor(getSuccessColor());
                     break;
                 }
 
@@ -664,12 +703,15 @@ public class EvaluationActivity extends AppCompatActivity {
                 switch (trendStr) {
                 case "improving":
                     tvTrend.setText("上升中");
+                    tvTrend.setTextColor(getSuccessColor());
                     break;
                 case "declining":
                     tvTrend.setText("下降中，需关注");
+                    tvTrend.setTextColor(getErrorColor());
                     break;
                 default:
                     tvTrend.setText("平稳");
+                    tvTrend.setTextColor(ContextCompat.getColor(this, R.color.theme_text_secondary));
                     break;
                 }
 
@@ -680,7 +722,7 @@ public class EvaluationActivity extends AppCompatActivity {
                 if (suggestions != null && suggestions.length() > 0) {
                     for (int i = 0; i < suggestions.length(); i++) {
                         TextView tv = new TextView(EvaluationActivity.this);
-                        tv.setText(suggestions.optString(i));
+                        tv.setText("  " + suggestions.optString(i));
                         tv.setTextSize(14);
                         tv.setTextColor(ContextCompat.getColor(EvaluationActivity.this, R.color.theme_text_primary));
                         tv.setPadding(16, 8, 16, 8);
@@ -694,6 +736,114 @@ public class EvaluationActivity extends AppCompatActivity {
 
                 int dailyNew = data.optInt("suggestedDailyNewWords", 10);
                 tvSuggestedDailyNewWords.setText("每日 " + dailyNew + " 个新词");
+
+                // ===== 第3层：即时反馈 =====
+                String realtimeAlert = data.optString("realtimeAlert", null);
+                String alertType = data.optString("realtimeAlertType", "none");
+                if (realtimeAlert != null && !"null".equals(realtimeAlert)
+                        && !"none".equals(alertType) && realtimeAlertCard != null) {
+                    realtimeAlertCard.setVisibility(View.VISIBLE);
+                    tvRealtimeAlert.setText(realtimeAlert);
+
+                    if ("warning".equals(alertType)) {
+                        ivAlertIcon.setImageResource(R.drawable.ic_warning);
+                        tvRealtimeAlert.setTextColor(getErrorColor());
+                    } else if ("encouragement".equals(alertType)) {
+                        ivAlertIcon.setImageResource(R.drawable.ic_celebration);
+                        tvRealtimeAlert.setTextColor(getSuccessColor());
+                    }
+                } else if (realtimeAlertCard != null) {
+                    realtimeAlertCard.setVisibility(View.GONE);
+                }
+
+                // ===== 第1层：长期策略 =====
+                JSONObject longTermPlan = data.optJSONObject("longTermPlan");
+                if (longTermPlan != null && longTermPlanCard != null) {
+                    longTermPlanCard.setVisibility(View.VISIBLE);
+
+                    tvLtpPhase.setText(longTermPlan.optString("phase", "—"));
+                    tvLtpGoal.setText(longTermPlan.optString("goal", "—"));
+
+                    // 里程碑
+                    milestonesLayout.removeAllViews();
+                    JSONArray milestones = longTermPlan.optJSONArray("milestones");
+                    if (milestones != null) {
+                        for (int i = 0; i < milestones.length(); i++) {
+                            JSONObject m = milestones.optJSONObject(i);
+                            if (m == null) continue;
+                            String name = m.optString("name", "");
+                            boolean achieved = m.optBoolean("achieved", false);
+
+                            LinearLayout row = new LinearLayout(EvaluationActivity.this);
+                            row.setOrientation(LinearLayout.HORIZONTAL);
+                            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                            row.setPadding(0, 4, 0, 4);
+
+                            android.widget.ImageView icon = new android.widget.ImageView(EvaluationActivity.this);
+                            icon.setImageResource(achieved ? R.drawable.ic_check_circle : R.drawable.ic_radio_unchecked);
+                            LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
+                                    dpToPx(20), dpToPx(20));
+                            iconLp.setMarginEnd(dpToPx(8));
+                            icon.setLayoutParams(iconLp);
+
+                            TextView label = new TextView(EvaluationActivity.this);
+                            label.setText(name);
+                            label.setTextSize(13);
+                            label.setTextColor(achieved
+                                    ? ContextCompat.getColor(EvaluationActivity.this, R.color.theme_stress)
+                                    : ContextCompat.getColor(EvaluationActivity.this, R.color.theme_text_secondary));
+
+                            row.addView(icon);
+                            row.addView(label);
+                            milestonesLayout.addView(row);
+                        }
+                    }
+
+                    tvLtpNextAdjust.setText(longTermPlan.optString("nextAdjustCondition", ""));
+                    tvLtpRationale.setText(longTermPlan.optString("rationale", ""));
+                } else if (longTermPlanCard != null) {
+                    longTermPlanCard.setVisibility(View.GONE);
+                }
+
+                // ===== 元信息 =====
+                JSONObject meta = data.optJSONObject("meta");
+                if (meta != null && metaCard != null) {
+                    metaCard.setVisibility(View.VISIBLE);
+
+                    String dataSource = meta.optString("dataSource", "fresh");
+                    if ("cached".equals(dataSource)) {
+                        tvMetaSource.setText("使用缓存数据");
+                    } else {
+                        tvMetaSource.setText("本次新生成");
+                    }
+
+                    int staleDays = meta.optInt("staleDays", 0);
+                    if (staleDays > 0) {
+                        tvMetaStale.setVisibility(View.VISIBLE);
+                        tvMetaStale.setText("（建议已过 " + staleDays + " 天）");
+                    } else {
+                        tvMetaStale.setVisibility(View.GONE);
+                    }
+
+                    // 变化列表
+                    metaChangesLayout.removeAllViews();
+                    JSONArray changes = meta.optJSONArray("changes");
+                    if (changes != null && changes.length() > 0) {
+                        metaChangesLayout.setVisibility(View.VISIBLE);
+                        for (int i = 0; i < changes.length(); i++) {
+                            TextView tv = new TextView(EvaluationActivity.this);
+                            tv.setText("  " + changes.optString(i));
+                            tv.setTextSize(12);
+                            tv.setTextColor(ContextCompat.getColor(EvaluationActivity.this, R.color.theme_text_secondary));
+                            tv.setPadding(16, 2, 16, 2);
+                            metaChangesLayout.addView(tv);
+                        }
+                    } else {
+                        metaChangesLayout.setVisibility(View.GONE);
+                    }
+                } else if (metaCard != null) {
+                    metaCard.setVisibility(View.GONE);
+                }
             });
 
         } catch (JSONException e) {
@@ -822,6 +972,41 @@ public class EvaluationActivity extends AppCompatActivity {
     private void showError(String msg) {
         progressBar.setVisibility(View.GONE);
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * 解析主题属性颜色（支持明暗主题）
+     * 使用标准 Material 属性：colorSecondary 作为正向色，colorError 作为警示色
+     */
+    private int resolveColor(int attrResId, int fallback) {
+        android.util.TypedValue tv = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(attrResId, tv, true)) {
+            return tv.data;
+        }
+        return fallback;
+    }
+
+    /**
+     * 获取正向/成功色（使用 colorSecondary，即 theme_stress）
+     */
+    private int getSuccessColor() {
+        return resolveColor(com.google.android.material.R.attr.colorSecondary,
+                ContextCompat.getColor(this, R.color.theme_stress));
+    }
+
+    /**
+     * 获取警示/错误色（使用 colorError）
+     */
+    private int getErrorColor() {
+        return resolveColor(com.google.android.material.R.attr.colorError,
+                ContextCompat.getColor(this, R.color.theme_error));
+    }
+
+    /**
+     * dp 转 px
+     */
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private static void fadeIn(View view) {
