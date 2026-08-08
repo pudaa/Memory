@@ -185,7 +185,7 @@ public class GetDataByThread {
     }
 
     public void updatePreference(Handler h, int ok, int fail, int uid, Integer dailyNew, String modePref,
-            Double retentionTarget) {
+            Double retentionTarget, Integer maxReviewWords) {
         try {
             JSONObject j = new JSONObject();
             j.put("userId", uid);
@@ -195,6 +195,8 @@ public class GetDataByThread {
                 j.put("studyModePreference", modePref);
             if (retentionTarget != null)
                 j.put("fsrsRetentionTarget", retentionTarget);
+            if (maxReviewWords != null)
+                j.put("fsrsMaxReviewWords", maxReviewWords);
             asyncCall(h, ok, fail, "UpdatePreference", url -> HttpManager.doHttpPut(url, j));
         } catch (Exception e) {
             h.sendEmptyMessage(fail);

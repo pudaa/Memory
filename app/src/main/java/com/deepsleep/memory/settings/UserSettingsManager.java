@@ -12,6 +12,7 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public static final String KEY_IS_SLIDE_BACK = "is_slide_back"; // 用户右滑是否回到上一个卡片
     public static final String KEY_STUDY_MODE = "study_mode"; // 学习模式: "choice"(选择题) / "input"(输入题)
     public static final String KEY_DAILY_NEW_WORDS = "daily_new_words"; // 每日新学单词数
+    public static final String KEY_MAX_REVIEW_WORDS = "max_review_words"; // 每日最大复习词数
     public static final String KEY_READER_FONT_SIZE = "reader_font_size"; // 阅读字号
     public static final String KEY_THEME_MODE = "theme_mode"; // 主题模式: 0跟随系统 / 1浅色 / 2深色
     // 默认值
@@ -66,6 +67,18 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public void setDailyNewWords(int count) {
         sharedPreferences.edit().putInt(KEY_DAILY_NEW_WORDS, count).apply();
         notifySettingsChanged(KEY_DAILY_NEW_WORDS, count);
+    }
+
+    /** 获取每日最大复习词数（默认 = 每日新词数×3，至少10） */
+    public int getMaxReviewWords() {
+        int defaultMax = Math.max(getDailyNewWords() * 3, 10);
+        return sharedPreferences.getInt(KEY_MAX_REVIEW_WORDS, defaultMax);
+    }
+
+    /** 设置每日最大复习词数 */
+    public void setMaxReviewWords(int count) {
+        sharedPreferences.edit().putInt(KEY_MAX_REVIEW_WORDS, count).apply();
+        notifySettingsChanged(KEY_MAX_REVIEW_WORDS, count);
     }
 
     /** 获取阅读字号 */

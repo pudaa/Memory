@@ -192,7 +192,7 @@ public class EvaluationAiSuggestionActivity extends AppCompatActivity {
                                                 Toast.LENGTH_SHORT).show();
                                     }
                                 }
-                            }, 1, -1, userId, dailyNew, mode, null);
+                            }, 1, -1, userId, dailyNew, mode, null, null);
                         }
                     } catch (JSONException e) {
                         Toast.makeText(EvaluationAiSuggestionActivity.this, "解析失败", Toast.LENGTH_SHORT).show();

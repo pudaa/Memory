@@ -722,7 +722,7 @@ public class EvaluationActivity extends AppCompatActivity {
                         Toast.makeText(EvaluationActivity.this, "应用设置失败", Toast.LENGTH_SHORT).show();
                     }
                 }
-            }, 1, -1, userId, dailyNew, mode, null);
+            }, 1, -1, userId, dailyNew, mode, null, null);
         } catch (Exception e) {
             Toast.makeText(this, "解析失败", Toast.LENGTH_SHORT).show();
         }

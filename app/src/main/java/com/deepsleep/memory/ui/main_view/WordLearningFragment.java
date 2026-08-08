@@ -70,6 +70,9 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     /** 防止 onCreateView 和 onResume 重复触发 loadTodayTask */
     private boolean isLoadingTask = false;
 
+    /** 学习模式切换时若正在加载任务，标记待重载（当前加载完成后补执行） */
+    private boolean reloadPendingForMode = false;
+
     /** 当前总结卡片视图引用（用于避免重复创建，更新时移除旧卡片再添加新卡片） */
     private View summaryCardView = null;
 
@@ -108,9 +111,16 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         if (UserSettingsManager.KEY_IS_SLIDE_BACK.equals(key)) {
             slideFlag = (Boolean) value ? 1 : -1;
         }
-        // 学习模式变化时重新加载
+        // 学习模式变化 → 立即重载今日任务，让新模式马上生效（无需重新进入应用）
         if (UserSettingsManager.KEY_STUDY_MODE.equals(key)) {
             studyMode = (String) value;
+            if (isAdded()) {
+                if (isLoadingTask) {
+                    reloadPendingForMode = true;
+                } else {
+                    reloadTodayTaskForSettings();
+                }
+            }
         }
     }
 
@@ -259,6 +269,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         getDataByThread.getPlan(myHandler, msg_success, msg_failed, String.valueOf(userId));
     }
 
+    /** 学习模式等设置变化后重载今日任务，使新配置立即生效 */
+    private void reloadTodayTaskForSettings() {
+        if (!isAdded() || isLoadingTask)
+            return;
+        wordCards.clear();
+        summaryCardView = null;
+        if (cardContainer != null)
+            cardContainer.removeAllCards();
+        loadTodayTask();
+    }
+
     /**
      * 解析新的 getTodayTask 响应并创建卡片 响应格式: {code, lexiconId, wordList: [[wordId,
      * headWord, R, D, S, lastScore], ...], dailyNewWordCount, studyDay?}
@@ -267,8 +288,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         isLoadingTask = false;
         lexiconId = responseJson.getString("lexiconId");
         // 兼容旧字段 dailyNewWordCount，优先读取服务端 newWordCount（修复固定为 10 的问题）
-        dailyNewWordCount = responseJson.has("newWordCount")
-                ? responseJson.optInt("newWordCount", 10)
+        dailyNewWordCount = responseJson.has("newWordCount") ? responseJson.optInt("newWordCount", 10)
                 : responseJson.optInt("dailyNewWordCount", 10);
         studyDay = responseJson.optInt("studyDay", 0); // 0=未返回时回退
         // 今日复习预算信息（方案B：服务端按"今日累计已复习"封顶）
@@ -278,6 +298,10 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
         // 同步服务端每日新词数到本地设置（保持设置页一致）
         userSettingsManager.setDailyNewWords(dailyNewWordCount);
+        // 同步服务端每日最大复习词数到本地设置（设置页展示/修改用）
+        if (reviewLimit > 0) {
+            userSettingsManager.setMaxReviewWords(reviewLimit);
+        }
 
         // 预加载词库
         LexiconResourceMap.loadLexicon(requireContext(), lexiconId);
@@ -412,10 +436,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     // ==================== 答案提交 ====================
 
     private void submitAnswerForCard(WordCard wordCard, long responseTimeMs) {
+        // 仅首次提交时计入标题栏进度（防止重复触发导致多计）
+        boolean firstSubmit = !wordCard.isOperated;
         wordCard.isOperated = true;
         // 乐观更新：立即标记完成（含正确性），确保总结卡片同步出现在卡片堆中
         dailyState.markCompletedWithResult(wordCard.word_id, wordCard.isCorrect);
         operatedCount++;
+        // 标题栏实时刷新：复习卡计入今日复习数（新词不占复习预算，与服务端口径一致）
+        if (firstSubmit && wordCard.type == WordCard.TYPE_REVIEW && reviewLimit > 0) {
+            reviewsDoneToday++;
+            updateTitleBar();
+        }
         checkAllCompleted();
 
         GetDataByThread submit = new GetDataByThread("/learning/submitAnswer");
@@ -567,6 +598,11 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                     String code = responseJson.getString("code");
                     if ("200".equals(code)) {
                         parseAndCreateCards(responseJson);
+                        // 学习模式切换时若有挂起的重载请求，在此补执行（当前加载已完成）
+                        if (reloadPendingForMode) {
+                            reloadPendingForMode = false;
+                            reloadTodayTaskForSettings();
+                        }
                     } else {
                         String message = responseJson.optString("message", "加载失败");
                         Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();

@@ -31,6 +31,12 @@ public class SettingActivity extends AppCompatActivity {
     private ImageButton btnNewWordsPlus;
     private int dailyNewWords;
 
+    // 每日最大复习词数
+    private TextView tvMaxReviewCount;
+    private ImageButton btnMaxReviewMinus;
+    private ImageButton btnMaxReviewPlus;
+    private int maxReviewWords;
+
     // 卡片操作
     private Switch switchSwipeBack;
 
@@ -40,6 +46,7 @@ public class SettingActivity extends AppCompatActivity {
     private static final int MIN_NEW_WORDS = 5;
     private static final int MAX_NEW_WORDS = 100;
     private static final int STEP_NEW_WORDS = 5;
+    private static final int STEP_MAX_REVIEW = 5;
 
     // 网络请求
     private int userId;
@@ -50,6 +57,7 @@ public class SettingActivity extends AppCompatActivity {
     private final Handler debounceHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingDailyWordsUpdate;
     private Runnable pendingStudyModeUpdate;
+    private Runnable pendingMaxReviewUpdate;
     private static final long DEBOUNCE_DELAY_MS = 800;
 
     @Override
@@ -97,6 +105,29 @@ public class SettingActivity extends AppCompatActivity {
             }
         });
 
+        // === 每日最大复习词数 ===
+        tvMaxReviewCount = findViewById(R.id.tv_max_review_count);
+        btnMaxReviewMinus = findViewById(R.id.btn_max_review_minus);
+        btnMaxReviewPlus = findViewById(R.id.btn_max_review_plus);
+
+        maxReviewWords = userSettingsManager.getMaxReviewWords();
+        clampMaxReview();
+        updateMaxReviewDisplay();
+
+        btnMaxReviewMinus.setOnClickListener(v -> {
+            if (maxReviewWords - STEP_MAX_REVIEW >= getMaxReviewMin()) {
+                maxReviewWords -= STEP_MAX_REVIEW;
+                applyMaxReviewChange();
+            }
+        });
+
+        btnMaxReviewPlus.setOnClickListener(v -> {
+            if (maxReviewWords + STEP_MAX_REVIEW <= getMaxReviewMax()) {
+                maxReviewWords += STEP_MAX_REVIEW;
+                applyMaxReviewChange();
+            }
+        });
+
         // === 卡片操作 ===
         switchSwipeBack = findViewById(R.id.switch_swipe_back);
         switchSwipeBack.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -117,6 +148,9 @@ public class SettingActivity extends AppCompatActivity {
         switchSwipeBack.setChecked(userSettingsManager.isSlideBackEnabled());
         dailyNewWords = userSettingsManager.getDailyNewWords();
         updateNewWordsDisplay();
+        maxReviewWords = userSettingsManager.getMaxReviewWords();
+        clampMaxReview();
+        updateMaxReviewDisplay();
     }
 
     // ==================== 学习模式 ====================
@@ -149,6 +183,35 @@ public class SettingActivity extends AppCompatActivity {
         btnNewWordsPlus.setAlpha(dailyNewWords >= MAX_NEW_WORDS ? 0.3f : 1.0f);
     }
 
+    // ==================== 每日最大复习词数 ====================
+
+    /** 复习上限下限：不低于每日新词数（至少5） */
+    private int getMaxReviewMin() {
+        return Math.max(dailyNewWords, 5);
+    }
+
+    /** 复习上限上限：不超过每日新词数×5 */
+    private int getMaxReviewMax() {
+        return Math.max(dailyNewWords * 5, getMaxReviewMin());
+    }
+
+    /** 将当前值收敛到合法区间（与计划创建页联动规则一致） */
+    private void clampMaxReview() {
+        maxReviewWords = Math.max(getMaxReviewMin(), Math.min(getMaxReviewMax(), maxReviewWords));
+    }
+
+    private void updateMaxReviewDisplay() {
+        tvMaxReviewCount.setText(String.valueOf(maxReviewWords));
+        btnMaxReviewMinus.setAlpha(maxReviewWords <= getMaxReviewMin() ? 0.3f : 1.0f);
+        btnMaxReviewPlus.setAlpha(maxReviewWords >= getMaxReviewMax() ? 0.3f : 1.0f);
+    }
+
+    private void applyMaxReviewChange() {
+        userSettingsManager.setMaxReviewWords(maxReviewWords);
+        updateMaxReviewDisplay();
+        scheduleMaxReviewUpdate();
+    }
+
     // ==================== 防抖 + API 同步 ====================
 
     private void scheduleDailyWordsUpdate() {
@@ -156,7 +219,7 @@ public class SettingActivity extends AppCompatActivity {
             debounceHandler.removeCallbacks(pendingDailyWordsUpdate);
         }
         pendingDailyWordsUpdate = () -> {
-            callUpdatePreference(dailyNewWords, null, null);
+            callUpdatePreference(dailyNewWords, null, null, null);
             pendingDailyWordsUpdate = null;
         };
         debounceHandler.postDelayed(pendingDailyWordsUpdate, DEBOUNCE_DELAY_MS);
@@ -167,13 +230,24 @@ public class SettingActivity extends AppCompatActivity {
             debounceHandler.removeCallbacks(pendingStudyModeUpdate);
         }
         pendingStudyModeUpdate = () -> {
-            callUpdatePreference(null, mode, null);
+            callUpdatePreference(null, mode, null, null);
             pendingStudyModeUpdate = null;
         };
         debounceHandler.postDelayed(pendingStudyModeUpdate, DEBOUNCE_DELAY_MS);
     }
 
-    private void callUpdatePreference(Integer newWords, String mode, Double retentionTarget) {
+    private void scheduleMaxReviewUpdate() {
+        if (pendingMaxReviewUpdate != null) {
+            debounceHandler.removeCallbacks(pendingMaxReviewUpdate);
+        }
+        pendingMaxReviewUpdate = () -> {
+            callUpdatePreference(null, null, null, maxReviewWords);
+            pendingMaxReviewUpdate = null;
+        };
+        debounceHandler.postDelayed(pendingMaxReviewUpdate, DEBOUNCE_DELAY_MS);
+    }
+
+    private void callUpdatePreference(Integer newWords, String mode, Double retentionTarget, Integer maxReviewWords) {
         if (userId <= 0)
             return;
 
@@ -187,7 +261,7 @@ public class SettingActivity extends AppCompatActivity {
                     Toast.makeText(SettingActivity.this, "同步到服务器失败，已保存到本地", Toast.LENGTH_SHORT).show();
                 }
             }
-        }, MSG_SUCCESS, MSG_FAILED, userId, newWords, mode, retentionTarget);
+        }, MSG_SUCCESS, MSG_FAILED, userId, newWords, mode, retentionTarget, maxReviewWords);
     }
 
     // ==================== 主题模式 ====================
@@ -214,6 +288,9 @@ public class SettingActivity extends AppCompatActivity {
         }
         if (pendingStudyModeUpdate != null) {
             debounceHandler.removeCallbacks(pendingStudyModeUpdate);
+        }
+        if (pendingMaxReviewUpdate != null) {
+            debounceHandler.removeCallbacks(pendingMaxReviewUpdate);
         }
     }
 }

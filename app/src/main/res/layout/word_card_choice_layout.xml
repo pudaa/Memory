@@ -57,7 +57,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
+                android:layout_marginBottom="0dp">
 
                 <TextView
                     android:id="@+id/tv_phonetic_US"
@@ -65,7 +65,7 @@
                     android:layout_height="wrap_content"
                     android:text="[/əˈbændən/]"
                     android:textSize="14sp"
-                    android:textColor="@color/tag_text_color" android:padding="8dp" android:minWidth="44dp" android:minHeight="44dp" android:gravity="center" android:background="?attr/selectableItemBackground"/>
+                    android:textColor="@color/tag_text_color" android:padding="8dp" android:minWidth="44dp" android:minHeight="30dp" android:gravity="center" android:background="?attr/selectableItemBackground"/>
 
                 <TextView
                     android:id="@+id/tv_phonetic_separator"
@@ -81,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:text="[/əˈbændən/]"
                     android:textSize="14sp"
-                    android:textColor="@color/tag_text_color" android:padding="8dp" android:minWidth="44dp" android:minHeight="44dp" android:gravity="center" android:background="?attr/selectableItemBackground"/>
+                    android:textColor="@color/tag_text_color" android:padding="8dp" android:minWidth="44dp" android:minHeight="30dp" android:gravity="center" android:background="?attr/selectableItemBackground"/>
             </LinearLayout>
 
             <!-- FSRS 状态标签（复习词显示） -->

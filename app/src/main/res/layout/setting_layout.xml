@@ -98,10 +98,17 @@
                         android:clickable="true"
                         android:focusable="true">
 
+                        <ImageView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:src="@drawable/ic_mode_choice"
+                            android:contentDescription="选择题"
+                            android:layout_marginBottom="4dp"/>
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="📝 选择题"
+                            android:text="选择题"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/theme_text_primary"/>
@@ -128,10 +135,17 @@
                         android:clickable="true"
                         android:focusable="true">
 
+                        <ImageView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:src="@drawable/ic_mode_input"
+                            android:contentDescription="输入题"
+                            android:layout_marginBottom="4dp"/>
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="✍️ 输入题"
+                            android:text="输入题"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/theme_text_primary"/>
@@ -203,6 +217,76 @@
 
                         <ImageButton
                             android:id="@+id/btn_new_words_plus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:src="@drawable/ic_plus"
+                            android:background="@drawable/button_round_background"
+                            android:scaleType="center"
+                            android:contentDescription="增加"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 每日最大复习词数 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:padding="16dp"
+                    android:background="@drawable/custom_setting_item"
+                    android:elevation="2dp"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="最大复习单词"
+                            android:textSize="18sp"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="每日最大复习词数，不少于每日新学词数，防止压力过大"
+                            android:textSize="12sp"
+                            android:textColor="@color/middle_gray"
+                            android:layout_marginTop="4dp"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageButton
+                            android:id="@+id/btn_max_review_minus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:src="@drawable/ic_minus"
+                            android:background="@drawable/button_round_background"
+                            android:scaleType="center"
+                            android:contentDescription="减少"/>
+
+                        <TextView
+                            android:id="@+id/tv_max_review_count"
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:text="30"
+                            android:textSize="22sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/theme_stress"
+                            android:gravity="center"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginEnd="12dp"/>
+
+                        <ImageButton
+                            android:id="@+id/btn_max_review_plus"
                             android:layout_width="36dp"
                             android:layout_height="36dp"
                             android:src="@drawable/ic_plus"
@@ -286,15 +370,31 @@
                 </LinearLayout>
 
                 <!-- 提示文字 -->
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="💡 提示：学习模式可在任意时刻切换，每日新词数的修改将在下次学习时生效。"
-                    android:textSize="13sp"
-                    android:textColor="@color/middle_gray"
-                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal"
                     android:gravity="center"
-                    android:lineSpacingExtra="4dp"/>
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_mode_tip"
+                        android:contentDescription="提示"
+                        android:layout_marginEnd="6dp"/>
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="提示：学习模式可随时切换并立即生效，每日新词数与复习上限的修改将在下次学习时生效。"
+                        android:textSize="13sp"
+                        android:textColor="@color/middle_gray"
+                        android:gravity="center"
+                        android:lineSpacingExtra="4dp"/>
+                </LinearLayout>
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
