@@ -374,7 +374,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center"
+                    android:gravity="center_vertical"
                     android:layout_marginTop="8dp"
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp">
@@ -389,10 +389,11 @@
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:text="提示：学习模式可随时切换并立即生效，每日新词数与复习上限的修改将在下次学习时生效。"
                         android:textSize="13sp"
                         android:textColor="@color/middle_gray"
-                        android:gravity="center"
+                        android:gravity="start|center_vertical"
                         android:lineSpacingExtra="4dp"/>
                 </LinearLayout>
             </LinearLayout>
