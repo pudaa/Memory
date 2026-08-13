@@ -250,27 +250,25 @@
                 android:orientation="vertical"
                 android:layout_marginBottom="12dp" />
 
-            <!-- 分割线：两侧虚线 + 中间实线（三 View 组合，渲染稳定） -->
+            <!-- 分割线：两侧虚线 + 中间实线（虚线用 Canvas 绘制 View，渲染稳定） -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:orientation="horizontal"
                 android:layout_marginBottom="12dp">
-                <View
+                <com.deepsleep.memory.ui.components.DashedDividerView
                     android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/divider_dashed_line" />
+                    android:layout_weight="1" />
                 <View
                     android:layout_width="0dp"
                     android:layout_height="1dp"
                     android:layout_weight="1"
                     android:background="@drawable/divider_solid_line" />
-                <View
+                <com.deepsleep.memory.ui.components.DashedDividerView
                     android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/divider_dashed_line" />
+                    android:layout_weight="1" />
             </LinearLayout>
 
             <!-- 下次调整条件 -->
