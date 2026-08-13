@@ -187,7 +187,7 @@ public class EvaluationWeeklyReportActivity extends AppCompatActivity {
         }
 
         // 成就已移除 - 当前版本未实现成就系统
-        tvNewlyMastered.setText("本周新掌握 " + data.optInt("newlyMasteredWords", 0) + " 个单词");
+        tvNewlyMastered.setText("上周新掌握 " + data.optInt("newlyMasteredWords", 0) + " 个单词");
     }
 
     @SuppressLint("SetTextI18n")

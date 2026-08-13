@@ -250,10 +250,28 @@
                 android:orientation="vertical"
                 android:layout_marginBottom="12dp" />
 
-            <!-- 分割线 -->
-            <View android:layout_width="match_parent" android:layout_height="1dp"
-                android:background="@drawable/section_divider_line"
-                android:layout_marginBottom="12dp" />
+            <!-- 分割线：两侧虚线 + 中间实线（三 View 组合，渲染稳定） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/divider_dashed_line" />
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/divider_solid_line" />
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/divider_dashed_line" />
+            </LinearLayout>
 
             <!-- 下次调整条件 -->
             <TextView android:id="@+id/tv_ltp_next_adjust"
@@ -270,43 +288,7 @@
                 android:lineSpacingMultiplier="1.3" />
         </LinearLayout>
 
-        <!-- ===== 元信息（数据来源 + 变化列表） ===== -->
-        <LinearLayout
-            android:id="@+id/meta_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/card_round_bg"
-            android:elevation="0dp"
-            android:orientation="vertical"
-            android:padding="12dp"
-            android:layout_marginBottom="20dp"
-            android:alpha="0.8"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical">
-
-                <TextView android:id="@+id/tv_meta_source"
-                    android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="" android:textSize="12sp"
-                    android:textColor="@color/theme_text_secondary" />
-
-                <TextView android:id="@+id/tv_meta_stale"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="" android:textSize="11sp"
-                    android:textColor="@color/theme_stress"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/meta_changes_layout"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone"
-                android:layout_marginTop="4dp" />
-        </LinearLayout>
-
+        <!-- 底部留白 -->
         <View android:layout_width="0dp" android:layout_height="20dp" />
 
     </LinearLayout>

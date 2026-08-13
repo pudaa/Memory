@@ -52,9 +52,9 @@
                 android:textSize="14sp" android:textColor="@color/theme_text_secondary"
                 android:layout_marginBottom="12dp" android:layout_gravity="center" />
 
-            <!-- 本周概览 -->
+            <!-- 上周概览 -->
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="本周概览" android:textSize="17sp"
+                android:text="上周概览" android:textSize="17sp"
                 android:textStyle="bold" android:textColor="@color/theme_text_primary"
                 android:layout_marginBottom="8dp" />
 
@@ -182,13 +182,13 @@
             <!-- 新掌握 -->
             <TextView android:id="@+id/tv_newly_mastered"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:text="本周新掌握 0 个单词"
+                android:text="上周新掌握 0 个单词"
                 android:textSize="15sp" android:textColor="@color/theme_stress"
                 android:gravity="center" android:padding="16dp" />
 
             <!-- FSRS 7日趋势 -->
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="FSRS 本周趋势" android:textSize="17sp"
+                android:text="FSRS 近7日趋势" android:textSize="17sp"
                 android:textStyle="bold" android:textColor="@color/theme_text_primary"
                 android:layout_marginBottom="8dp" />
 

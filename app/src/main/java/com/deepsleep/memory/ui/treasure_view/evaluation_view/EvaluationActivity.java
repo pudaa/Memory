@@ -96,7 +96,7 @@ public class EvaluationActivity extends AppCompatActivity {
     private TextView tvWeaknessAnalysis;
     private LinearLayout suggestionsLayout;
     private TextView tvRecommendedMode, tvSuggestedDailyNewWords;
-    private View btnApplySettings;
+    private TextView btnApplySettings;
 
     // ── Tab3: 第3层即时反馈 ──
     private View realtimeAlertCard;
@@ -108,11 +108,6 @@ public class EvaluationActivity extends AppCompatActivity {
     private TextView tvLtpPhase, tvLtpGoal;
     private LinearLayout milestonesLayout;
     private TextView tvLtpNextAdjust, tvLtpRationale;
-
-    // ── Tab3: 元信息 ──
-    private View metaCard;
-    private TextView tvMetaSource, tvMetaStale;
-    private LinearLayout metaChangesLayout;
 
     // 数据缓存（用于应用设置时重新获取）
     private JSONObject cachedAiData;
@@ -312,12 +307,6 @@ public class EvaluationActivity extends AppCompatActivity {
         milestonesLayout = root.findViewById(R.id.milestones_layout);
         tvLtpNextAdjust = root.findViewById(R.id.tv_ltp_next_adjust);
         tvLtpRationale = root.findViewById(R.id.tv_ltp_rationale);
-
-        // 元信息
-        metaCard = root.findViewById(R.id.meta_card);
-        tvMetaSource = root.findViewById(R.id.tv_meta_source);
-        tvMetaStale = root.findViewById(R.id.tv_meta_stale);
-        metaChangesLayout = root.findViewById(R.id.meta_changes_layout);
     }
 
     // ═══════════════════════════════════════════════
@@ -528,7 +517,7 @@ public class EvaluationActivity extends AppCompatActivity {
                     return;
                 String summary = data.optString("aiWeeklySummary", "");
                 Markwon.create(EvaluationActivity.this).setMarkdown(tvAiWeeklySummary,
-                        summary.isEmpty() ? "暂无本周总结" : summary);
+                        summary.isEmpty() ? "暂无周报总结" : summary);
             });
         } catch (JSONException e) {
             Log.e("Evaluation", "Weekly JSON error", e);
@@ -740,6 +729,20 @@ public class EvaluationActivity extends AppCompatActivity {
                 int dailyNew = data.optInt("suggestedDailyNewWords", 10);
                 tvSuggestedDailyNewWords.setText("每日 " + dailyNew + " 个新词");
 
+                // 推荐设置与当前一致（AI 判定"维持当前设置"）→ 按钮置灰，避免无意义重复应用
+                boolean keepCurrent = data.optBoolean("keepCurrentSettings", false);
+                if (btnApplySettings != null) {
+                    if (keepCurrent) {
+                        btnApplySettings.setText("维持当前设置");
+                        btnApplySettings.setEnabled(false);
+                        btnApplySettings.setAlpha(0.5f);
+                    } else {
+                        btnApplySettings.setText("应用推荐设置");
+                        btnApplySettings.setEnabled(true);
+                        btnApplySettings.setAlpha(1f);
+                    }
+                }
+
                 // ===== 第3层：即时反馈 =====
                 String realtimeAlert = data.optString("realtimeAlert", null);
                 String alertType = data.optString("realtimeAlertType", "none");
@@ -806,46 +809,6 @@ public class EvaluationActivity extends AppCompatActivity {
                     tvLtpRationale.setText(longTermPlan.optString("rationale", ""));
                 } else if (longTermPlanCard != null) {
                     longTermPlanCard.setVisibility(View.GONE);
-                }
-
-                // ===== 元信息 =====
-                JSONObject meta = data.optJSONObject("meta");
-                if (meta != null && metaCard != null) {
-                    metaCard.setVisibility(View.VISIBLE);
-
-                    String dataSource = meta.optString("dataSource", "fresh");
-                    if ("cached".equals(dataSource)) {
-                        tvMetaSource.setText("使用缓存数据");
-                    } else {
-                        tvMetaSource.setText("本次新生成");
-                    }
-
-                    int staleDays = meta.optInt("staleDays", 0);
-                    if (staleDays > 0) {
-                        tvMetaStale.setVisibility(View.VISIBLE);
-                        tvMetaStale.setText("（建议已过 " + staleDays + " 天）");
-                    } else {
-                        tvMetaStale.setVisibility(View.GONE);
-                    }
-
-                    // 变化列表
-                    metaChangesLayout.removeAllViews();
-                    JSONArray changes = meta.optJSONArray("changes");
-                    if (changes != null && changes.length() > 0) {
-                        metaChangesLayout.setVisibility(View.VISIBLE);
-                        for (int i = 0; i < changes.length(); i++) {
-                            TextView tv = new TextView(EvaluationActivity.this);
-                            tv.setText("  " + changes.optString(i));
-                            tv.setTextSize(12);
-                            tv.setTextColor(ContextCompat.getColor(EvaluationActivity.this, R.color.theme_text_secondary));
-                            tv.setPadding(16, 2, 16, 2);
-                            metaChangesLayout.addView(tv);
-                        }
-                    } else {
-                        metaChangesLayout.setVisibility(View.GONE);
-                    }
-                } else if (metaCard != null) {
-                    metaCard.setVisibility(View.GONE);
                 }
             });
 
