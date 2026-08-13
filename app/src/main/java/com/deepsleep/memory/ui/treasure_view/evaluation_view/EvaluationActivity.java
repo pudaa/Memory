@@ -139,6 +139,7 @@ public class EvaluationActivity extends AppCompatActivity {
                 break;
             case MSG_AI_FAIL:
                 onLoadFailed("AI建议");
+                showAiError("AI建议加载失败，请稍后重试");
                 break;
             case MSG_WEEKLY_OK:
                 onWeeklyLoaded((String) msg.obj);
@@ -669,8 +670,10 @@ public class EvaluationActivity extends AppCompatActivity {
     private void onAiLoaded(String result) {
         try {
             JSONObject response = new JSONObject(result);
-            if (!"200".equals(response.getString("code")))
+            if (!"200".equals(response.getString("code"))) {
+                showAiError("AI建议加载失败，请稍后重试");
                 return;
+            }
 
             final JSONObject data = response.getJSONObject("data");
             cachedAiData = data;
@@ -849,6 +852,20 @@ public class EvaluationActivity extends AppCompatActivity {
         } catch (JSONException e) {
             Log.e("Evaluation", "AI JSON error", e);
         }
+    }
+
+    /** AI 建议加载失败时展示错误文案，避免停留在"加载中" */
+    private void showAiError(String msg) {
+        viewPager.post(() -> {
+            bindPageViews();
+            if (aiRoot == null)
+                return;
+            tvOverallAssessment.setText(msg);
+            tvWeaknessAnalysis.setText(msg);
+            if (btnApplySettings != null) {
+                btnApplySettings.setEnabled(false);
+            }
+        });
     }
 
     private void applyRecommendedSettings() {
