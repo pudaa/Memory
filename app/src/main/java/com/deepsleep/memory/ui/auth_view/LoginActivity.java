@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.UserSettingsManager;
+import com.deepsleep.memory.handle_utils.lexicon.db.LexiconDatabase;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 
@@ -41,6 +42,9 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_layout);
         EdgeToEdge.enable(this);
+        // 预热词库数据库：后台打开（首装含 assets 拷贝），与后续网络请求并行，
+        // 避免单词清单响应后主线程首次查询才触发 open 造成卡顿
+        LexiconDatabase.warmUpAsync(getApplicationContext());
         innerSettingsManager = InnerSettingsManager.getInstance(this);
 
         tilPhone = findViewById(R.id.til_phone);

@@ -2,6 +2,7 @@ package com.deepsleep.memory.ui.treasure_view.composition_view;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -25,12 +26,11 @@ import androidx.core.content.FileProvider;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.HttpManager;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.CameraCaptureActivity;
-import com.deepsleep.memory.ui.components.UcropHelper;
-import com.yalantis.ucrop.UCrop;
-import com.yalantis.ucrop.model.AspectRatio;
-import com.yalantis.ucrop.view.CropImageView;
+import com.deepsleep.memory.ui.components.ThemeCropActivity;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,6 +60,19 @@ public class CompositionMenuActivity extends AppCompatActivity {
     static final int msg_records_failed = -2;
     private Uri croppedImageUri;
 
+    /** OCR 识别进行中标志：防止重复上传、离开页面浪费资源 */
+    private boolean isOcrInProgress = false;
+    /** OCR 处理进度对话框（分阶段文案：上传 → 识别） */
+    private Dialog ocrProgressDialog;
+    private TextView ocrProgressText;
+    /** 用于切换进度文案的 Handler（上传 → 识别阶段） */
+    private final Handler ocrStageHandler = new Handler(Looper.getMainLooper());
+    private final Runnable ocrStageRunnable = () -> {
+        if (isOcrInProgress && ocrProgressText != null) {
+            ocrProgressText.setText("图片已上传,正在识别文字,请稍候…");
+        }
+    };
+
     /** 拍照回调（自定义相机，拍照后返回照片路径） */
     private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -73,13 +86,14 @@ public class CompositionMenuActivity extends AppCompatActivity {
                 }
             });
 
-    /** 裁剪回调（uCrop 完成后进入 OCR） */
+    /** 裁剪回调（裁剪完成后进入 OCR） */
     private final ActivityResultLauncher<Intent> cropLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    // uCrop编辑完成，进行OCR识别
-                    croppedImageUri = UCrop.getOutput(result.getData());
-                    if (croppedImageUri != null) {
+                    // 裁剪完成，进行OCR识别
+                    String outputUri = result.getData().getStringExtra(ThemeCropActivity.EXTRA_OUTPUT_URI);
+                    if (outputUri != null) {
+                        croppedImageUri = Uri.parse(outputUri);
                         uploadImageForOCR();
                     }
                 } else {
@@ -105,8 +119,15 @@ public class CompositionMenuActivity extends AppCompatActivity {
         historyCompositionList = findViewById(R.id.history_composition_list);
         noHistoryText = findViewById(R.id.no_history_text);
 
-        // 设置返回按钮
-        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        // 设置返回按钮（OCR 进行中时提示确认，避免误触浪费已上传的识别）
+        findViewById(R.id.btn_back).setOnClickListener(v -> {
+            if (isOcrInProgress) {
+                new MaterialAlertDialogBuilder(this).setTitle("正在识别").setMessage("图片正在识别中,退出将丢弃本次识别结果。确定退出吗?")
+                        .setPositiveButton("确定退出", (d, w) -> finish()).setNegativeButton("继续等待", null).show();
+            } else {
+                finish();
+            }
+        });
 
         // 初始化历史作文记录列表
         compositionRecords = new ArrayList<>();
@@ -115,6 +136,10 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
         // 设置列表项点击事件
         historyCompositionList.setOnItemClickListener((parent, view, position, id) -> {
+            if (isOcrInProgress) {
+                Toast.makeText(this, "正在识别,请稍候…", Toast.LENGTH_SHORT).show();
+                return;
+            }
             CompositionRecord record = compositionRecords.get(position);
             Intent intent = new Intent(CompositionMenuActivity.this, CompositionResultActivity.class);
             intent.putExtra("result_json", record.getCorrectionResult());
@@ -145,6 +170,11 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
     private void setListeners() {
         btnTakePhoto.setOnClickListener(v -> {
+            // OCR 进行中禁止重复拍照，避免并发请求浪费
+            if (isOcrInProgress) {
+                Toast.makeText(this, "正在识别,请稍候…", Toast.LENGTH_SHORT).show();
+                return;
+            }
             // 检查相机权限
             if (ContextCompat.checkSelfPermission(this,
                     Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -156,6 +186,10 @@ public class CompositionMenuActivity extends AppCompatActivity {
         });
 
         btnTypeComposition.setOnClickListener(v -> {
+            if (isOcrInProgress) {
+                Toast.makeText(this, "正在识别,请稍候…", Toast.LENGTH_SHORT).show();
+                return;
+            }
             Intent intent = new Intent(CompositionMenuActivity.this, CompositionPreviewActivity.class);
             startActivity(intent);
         });
@@ -195,38 +229,86 @@ public class CompositionMenuActivity extends AppCompatActivity {
     private void startUCropActivity() {
         Uri sourceUri = Uri.fromFile(new File(currentPhotoPath));
 
-        // 创建裁剪后保存的文件
-        String destinationFileName = "cropped_image_" + System.currentTimeMillis() + ".jpg";
-        File destinationFile = new File(getCacheDir(), destinationFileName);
-        Uri destinationUri = Uri.fromFile(destinationFile);
-
-        // 使用应用主题的 UCrop 配置
-        UCrop.Options options = UcropHelper.createThemedOptions(this);
-
-        // 设置更多预设的裁剪比例（作文批改专用）
-        options.setAspectRatioOptions(0, new AspectRatio("自由", 0, 0),
-                new AspectRatio("原始", CropImageView.SOURCE_IMAGE_ASPECT_RATIO, CropImageView.SOURCE_IMAGE_ASPECT_RATIO),
-                new AspectRatio("1:1", 1, 1), new AspectRatio("3:2", 3, 2), new AspectRatio("4:3", 4, 3),
-                new AspectRatio("16:9", 16, 9), new AspectRatio("16:10", 16, 10), new AspectRatio("A4", 210, 297));
-
-        // 启动uCrop
-        UCrop uCrop = UCrop.of(sourceUri, destinationUri).withMaxResultSize(2048, 2048).withOptions(options);
-
-        cropLauncher.launch(uCrop.getIntent(this));
+        // 启动自建裁剪页（预设比例已内置：自由/原始/1:1/3:2/4:3/16:9/16:10/A4，最大输出 2048）
+        Intent intent = new Intent(this, ThemeCropActivity.class);
+        intent.putExtra(ThemeCropActivity.EXTRA_SOURCE_URI, sourceUri);
+        cropLauncher.launch(intent);
     }
 
     private void uploadImageForOCR() {
+        if (isOcrInProgress) {
+            Toast.makeText(this, "正在识别,请稍候…", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (croppedImageUri == null) {
             Toast.makeText(this, "图片数据不存在", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 显示正在处理提示
-        Toast.makeText(this, "正在识别图片中的文字...", Toast.LENGTH_SHORT).show();
+        isOcrInProgress = true;
+        showOcrProgress();
 
         // 使用GetDataByThread进行OCR识别
         GetDataByThread getDataByThread = new GetDataByThread("/composition/extractText");
         getDataByThread.extractTextFromImageUri(new OCRHandler(), msg_success, msg_failed, croppedImageUri, this);
+    }
+
+    /** 显示 OCR 处理进度对话框（先“上传中”，2 秒后切到“识别中”） */
+    private void showOcrProgress() {
+        if (isFinishing() || isDestroyed())
+            return;
+        try {
+            View v = getLayoutInflater().inflate(R.layout.dialog_ocr_progress, null);
+            ocrProgressText = v.findViewById(R.id.ocr_progress_text);
+            ocrProgressText.setText("正在上传图片…");
+            ocrProgressDialog = new MaterialAlertDialogBuilder(this).setCancelable(false).setView(v).create();
+            ocrProgressDialog.show();
+            ocrStageHandler.removeCallbacks(ocrStageRunnable);
+            ocrStageHandler.postDelayed(ocrStageRunnable, 2000);
+        } catch (Exception e) {
+            ocrProgressDialog = null;
+            ocrProgressText = null;
+        }
+    }
+
+    /** 关闭 OCR 进度对话框并清理状态 */
+    private void dismissOcrProgress() {
+        ocrStageHandler.removeCallbacks(ocrStageRunnable);
+        if (ocrProgressDialog != null && ocrProgressDialog.isShowing()) {
+            try {
+                ocrProgressDialog.dismiss();
+            } catch (Exception ignored) {
+            }
+        }
+        ocrProgressDialog = null;
+        ocrProgressText = null;
+    }
+
+    /** 展示 OCR 失败原因并引导用户自检 */
+    private void showOcrError() {
+        if (isFinishing() || isDestroyed())
+            return;
+        String err = HttpManager.getLastImageUploadError();
+        String msg;
+        if (err == null || err.isEmpty()) {
+            msg = "未能识别图片中的文字。\n\n建议:\n• 调整拍摄角度与距离,保证文字清晰\n• 避免反光/阴影遮挡文字\n• 稍后重试";
+        } else if (err.contains("超时")) {
+            msg = err + "\n\n请检查:\n• 手机网络是否正常\n• 服务器是否已启动\n确认后稍后重试";
+        } else if (err.contains("无法连接")) {
+            msg = err + "\n\n请检查:\n• 手机网络/数据流量是否开启\n• 服务器(含内网穿透)是否在线\n确认后重试";
+        } else if (err.contains("服务器返回错误码")) {
+            msg = err + "\n\n请稍后重试;若持续失败,可联系管理员查看服务端日志。";
+        } else {
+            msg = err + "\n\n建议:\n• 调整拍摄后重试\n• 检查网络后重试";
+        }
+        new MaterialAlertDialogBuilder(this).setTitle("识别失败").setMessage(msg).setPositiveButton("知道了", null).show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        isOcrInProgress = false;
+        dismissOcrProgress();
     }
 
     @Override
@@ -261,10 +343,18 @@ public class CompositionMenuActivity extends AppCompatActivity {
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
+            // 用户已离开页面：丢弃结果、清理状态，不再跳转/弹窗（避免误跳与资源浪费）
+            if (isFinishing() || isDestroyed()) {
+                isOcrInProgress = false;
+                dismissOcrProgress();
+                return;
+            }
             switch (msg.what) {
             case msg_success: // OCR成功
                 String result = (String) msg.obj;
                 Log.d("OCR", "识别结果：" + result);
+                isOcrInProgress = false;
+                dismissOcrProgress();
                 // 删除临时文件
                 deleteTempImageFile();
                 // 跳转到预览界面并传递识别结果
@@ -273,9 +363,12 @@ public class CompositionMenuActivity extends AppCompatActivity {
                 startActivity(intent);
                 break;
             case msg_failed: // OCR失败
+                isOcrInProgress = false;
+                dismissOcrProgress();
                 // 删除临时文件
                 deleteTempImageFile();
-                Toast.makeText(CompositionMenuActivity.this, "文字识别失败", Toast.LENGTH_SHORT).show();
+                // 区分失败原因并引导用户自检
+                showOcrError();
                 break;
             }
         }

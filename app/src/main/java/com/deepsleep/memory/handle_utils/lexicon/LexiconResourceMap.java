@@ -29,6 +29,8 @@ public class LexiconResourceMap {
 
     private static Context appContext;
     private static String specifiedLexiconId;
+    /** 已完成就绪校验的词书 ID：同一词书重复进入时跳过 count 查询 */
+    private static String validatedLexiconId;
 
     // 懒缓存：仅缓存已查询过的 wordRank → WordEntry
     private static final Map<String, Map<Integer, WordEntry>> rankCache = new HashMap<>();
@@ -42,12 +44,17 @@ public class LexiconResourceMap {
         if (appContext == null) {
             appContext = context.getApplicationContext();
         }
+        // 同一词书已校验过则直接返回，避免每次进单词页都执行 count 查询
+        if (lexiconId.equals(specifiedLexiconId) && lexiconId.equals(validatedLexiconId)) {
+            return;
+        }
         specifiedLexiconId = lexiconId;
         // 确保词书存在
         int count = LexiconDatabase.getInstance(appContext).wordDao().getWordCountByBookId(lexiconId);
         if (count == 0) {
             Log.e("LexiconResourceMap", "词书在数据库中不存在: " + lexiconId);
         } else {
+            validatedLexiconId = lexiconId;
             Log.d("LexiconResourceMap", "词书就绪(SQLite): " + lexiconId + ", 共 " + count + " 个单词");
         }
     }

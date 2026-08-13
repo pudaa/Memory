@@ -35,6 +35,28 @@ public class HttpManager {
 	 * 这是一个http请求类，定义了无参数，1个参数，2个参数，多个参数访问接口的方法
 	 */
 
+	/** 最近一次图片上传失败的可读原因（供 UI 层区分并引导用户），成功时清空 */
+	private static volatile String sLastImageUploadError;
+
+	/** 获取最近一次图片上传失败的原因描述；无失败/已成功时为 null */
+	public static String getLastImageUploadError() {
+		return sLastImageUploadError;
+	}
+
+	private static void setLastImageUploadError(String error) {
+		sLastImageUploadError = error;
+	}
+
+	/** 将上传异常归类为可读提示 */
+	private static String describeUploadError(Exception e) {
+		if (e instanceof java.net.SocketTimeoutException)
+			return "连接服务器超时,请检查网络后重试";
+		if (e instanceof java.net.ConnectException || e instanceof java.net.UnknownHostException)
+			return "无法连接服务器,请检查网络连接后重试";
+		String m = e.getMessage();
+		return m != null && !m.isEmpty() ? "网络错误: " + m : "网络错误,请重试";
+	}
+
 	public static String doHttpGetNoPara(String url) {// 不传参数，只根据url地址访问接口
 		try {
 			HttpGet request = new HttpGet(url);
@@ -622,56 +644,89 @@ public class HttpManager {
 		String boundary = "----" + UUID.randomUUID().toString();
 		String lineEnd = "\r\n";
 		String twoHyphens = "--";
+		String fileName = "cropped_image.jpg";
+		String contentType = "image/jpeg";
 
 		try {
 			Log.i("HttpManager", "doHttpPostWithImageUri → " + url);
+			setLastImageUploadError(null);
+
+			// ── 计算请求体总长度（multipart 头 + 图片字节 + multipart 尾） ──
+			// 必须先获取图片大小：① 用于 setFixedLengthStreamingMode（流式上传，避免 HttpURLConnection
+			// 把整个请求体缓冲到内存，导致上传与发送分两段、网络空等）；② 用于 Content-Length 头。
+			InputStream sizeStream = context.getContentResolver().openInputStream(imageUri);
+			if (sizeStream == null) {
+				Log.e("HttpManager", "无法打开图片 URI: " + imageUri);
+				setLastImageUploadError("无法读取图片文件");
+				return null;
+			}
+			long imageSize = 0;
+			try {
+				// 优先用 available()（content:// 与 file:// 通常都可用），否则逐块读统计
+				long avail = sizeStream.available();
+				if (avail > 0) {
+					imageSize = avail;
+				} else {
+					byte[] probe = new byte[8192];
+					int n;
+					while ((n = sizeStream.read(probe)) != -1) {
+						imageSize += n;
+					}
+				}
+			} finally {
+				sizeStream.close();
+			}
+			Log.i("HttpManager", "图片大小: " + imageSize + " bytes");
+
+			byte[] headerBytes = (twoHyphens + boundary + lineEnd
+					+ "Content-Disposition: form-data; name=\"image\"; filename=\"" + fileName + "\"" + lineEnd
+					+ "Content-Type: " + contentType + lineEnd + lineEnd).getBytes("UTF-8");
+			byte[] footerBytes = (lineEnd + twoHyphens + boundary + twoHyphens + lineEnd).getBytes("UTF-8");
+			long requestLength = headerBytes.length + imageSize + footerBytes.length;
+
 			URL urlObj = new URL(url);
 			HttpURLConnection connection = (HttpURLConnection) urlObj.openConnection();
 
-			// 超时设置（连接 15s，读取 30s）
+			// 超时设置（连接 15s，读取 90s）
+			// 读取放宽到 90s：OCR 服务端（远程 PaddleOCR 或降级本地 Tesseract）处理较慢，原 30s 偏紧易超时
 			connection.setConnectTimeout(15000);
-			connection.setReadTimeout(30000);
+			connection.setReadTimeout(90000);
 
 			// 设置请求方法和属性
 			connection.setRequestMethod("POST");
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
 			connection.setUseCaches(false);
-			connection.setRequestProperty("Connection", "Keep-Alive");
+			// 关闭连接复用：frp/代理中转下 Keep-Alive 连接易被提前关闭，
+			// 复用陈旧连接会报 "unexpected end of stream"，改为每次请求新建连接
+			connection.setRequestProperty("Connection", "close");
 			connection.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
+			// 流式上传：指定固定长度，HttpURLConnection 将边写边发，不再缓冲整个请求体
+			connection.setFixedLengthStreamingMode(requestLength);
 
-			// 写入数据
+			// 写入数据（流式：先 multipart 头 → 图片字节（边读边写） → multipart 尾）
 			DataOutputStream dos = new DataOutputStream(connection.getOutputStream());
 
-			// 从Uri读取图片数据
+			dos.write(headerBytes);
+
 			InputStream inputStream = context.getContentResolver().openInputStream(imageUri);
 			if (inputStream == null) {
+				dos.close();
 				Log.e("HttpManager", "无法打开图片 URI: " + imageUri);
+				setLastImageUploadError("无法读取图片文件");
 				return null;
 			}
-			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-			byte[] buffer = new byte[1024];
+			byte[] buffer = new byte[16 * 1024];
 			int bytesRead;
+			long written = 0;
 			while ((bytesRead = inputStream.read(buffer)) != -1) {
-				byteArrayOutputStream.write(buffer, 0, bytesRead);
+				dos.write(buffer, 0, bytesRead);
+				written += bytesRead;
 			}
-			byte[] imageData = byteArrayOutputStream.toByteArray();
-			Log.i("HttpManager", "图片大小: " + imageData.length + " bytes");
-
 			inputStream.close();
-			byteArrayOutputStream.close();
+			Log.i("HttpManager", "已写入图片字节: " + written + " bytes");
 
-			// 写入文件部分
-			dos.writeBytes(twoHyphens + boundary + lineEnd);
-			dos.writeBytes("Content-Disposition: form-data; name=\"image\"; filename=\"cropped_image.jpg\"" + lineEnd);
-			dos.writeBytes("Content-Type: image/jpeg" + lineEnd);
-			dos.writeBytes(lineEnd);
-
-			// 写入图片数据
-			dos.write(imageData);
-
-			dos.writeBytes(lineEnd);
-			dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+			dos.write(footerBytes);
 
 			// 关闭流
 			dos.flush();
@@ -692,6 +747,7 @@ public class HttpManager {
 				is.close();
 				String result = response.toString();
 				Log.i("HttpManager", "响应体: " + result);
+				setLastImageUploadError(null);
 				return result;
 			} else {
 				// 读取服务端错误信息
@@ -708,9 +764,11 @@ public class HttpManager {
 				} else {
 					Log.e("HttpManager", "服务端错误码 " + responseCode + "，无错误响应体");
 				}
+				setLastImageUploadError("服务器返回错误码 " + responseCode);
 			}
 		} catch (Exception e) {
 			Log.e("HttpManager", "图片上传异常: " + e.getMessage(), e);
+			setLastImageUploadError(describeUploadError(e));
 		}
 
 		return null;

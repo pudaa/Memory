@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 横屏下压缩底部控制栏高度，为预览留出更多空间 -->
+    <dimen name="camera_bottom_bar_height">76dp</dimen>
+    <dimen name="camera_bottom_bar_margin">12dp</dimen>
+</resources>

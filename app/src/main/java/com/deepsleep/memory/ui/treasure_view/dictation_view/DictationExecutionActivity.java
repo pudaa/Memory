@@ -32,8 +32,7 @@ import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.network.HttpManager;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.CameraCaptureActivity;
-import com.deepsleep.memory.ui.components.UcropHelper;
-import com.yalantis.ucrop.UCrop;
+import com.deepsleep.memory.ui.components.ThemeCropActivity;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -81,25 +80,20 @@ public class DictationExecutionActivity extends AppCompatActivity {
                 }
             });
 
-    /** 裁剪回调（uCrop 完成后进入 OCR） */
+    /** 裁剪回调（裁剪完成后进入 OCR） */
     private final ActivityResultLauncher<Intent> cropLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 Intent data = result.getData();
                 if (result.getResultCode() == RESULT_OK && data != null) {
                     // 裁剪完成 → 获取裁剪后的图片进行 OCR
-                    Uri croppedUri = UCrop.getOutput(data);
-                    if (croppedUri != null) {
-                        uploadForOcr(croppedUri);
+                    String outputUri = data.getStringExtra(ThemeCropActivity.EXTRA_OUTPUT_URI);
+                    if (outputUri != null) {
+                        uploadForOcr(Uri.parse(outputUri));
                     } else {
                         Toast.makeText(this, "裁剪结果获取失败", Toast.LENGTH_SHORT).show();
                     }
-                } else if (result.getResultCode() == UCrop.RESULT_ERROR) {
-                    Throwable error = UCrop.getError(data);
-                    if (error != null)
-                        error.printStackTrace();
-                    Toast.makeText(this, "裁剪失败", Toast.LENGTH_SHORT).show();
                 } else {
-                    // 用户在裁剪界面点击取消 → 返回相机重新拍摄
+                    // 用户在裁剪界面点击取消/失败 → 返回相机重新拍摄
                     openCamera();
                 }
             });
@@ -552,15 +546,11 @@ public class DictationExecutionActivity extends AppCompatActivity {
             return;
 
         Uri sourceUri = Uri.fromFile(new File(currentPhotoPath));
-        String destFileName = "dict_cropped_" + System.currentTimeMillis() + ".jpg";
-        File destFile = new File(getCacheDir(), destFileName);
-        Uri destUri = Uri.fromFile(destFile);
 
-        // 使用应用主题的 UCrop 配置
-        UCrop.Options options = UcropHelper.createThemedOptions(this);
-
-        cropLauncher.launch(
-                UCrop.of(sourceUri, destUri).withMaxResultSize(2048, 2048).withOptions(options).getIntent(this));
+        // 启动自建裁剪页（听写默认自由比例，最大输出 2048）
+        Intent intent = new Intent(this, ThemeCropActivity.class);
+        intent.putExtra(ThemeCropActivity.EXTRA_SOURCE_URI, sourceUri);
+        cropLauncher.launch(intent);
     }
 
     private void uploadForOcr(Uri imageUri) {

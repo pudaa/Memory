@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android' version '2.0.21'
 }
 
 android {
@@ -26,6 +27,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
 }
 
 dependencies {
@@ -46,7 +50,10 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.12.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
     implementation 'io.noties.markwon:core:4.6.2'
-    implementation 'com.github.yalantis:ucrop:2.2.8'
+    // 裁剪组件源码已内置（见 com.canhub.cropper 包，含 wrap/缩放行为定制），仅保留其运行时依赖
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    implementation "androidx.exifinterface:exifinterface:1.3.7"
+    implementation "androidx.core:core-ktx:1.13.1"
     implementation 'com.github.bumptech.glide:glide:4.12.0'
     implementation 'com.afollestad.material-dialogs:input:3.3.0'
     implementation 'com.afollestad.material-dialogs:core:3.3.0'

@@ -1,64 +1,64 @@
 package com.deepsleep.memory.ui.components;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 
 import androidx.core.content.ContextCompat;
 
+import com.canhub.cropper.CropImageOptions;
+import com.canhub.cropper.CropImageView;
 import com.deepsleep.memory.R;
-import com.yalantis.ucrop.UCrop;
 
 /**
- * UCrop 裁剪组件主题化工具。
+ * 图片裁剪组件主题化工具（CanHub Android-Image-Cropper 版，替代原 UCrop）。
  * <p>
- * 将 UCrop 默认的黑白橙配色替换为应用主题色（蓝色系）， 确保裁剪界面与应用整体视觉风格一致。
+ * 将裁剪组件默认配色替换为应用主题色（蓝色系），确保裁剪界面与应用整体视觉风格一致。
  */
 public class UcropHelper {
 
+    /** 裁剪输出最大边长（与原 UCrop 配置保持一致） */
+    public static final int MAX_CROP_RESULT_SIZE = 2048;
+
     /**
-     * 创建预配置的应用主题 UCrop.Options。
+     * 创建预配置的应用主题 CropImageOptions。
      * <p>
-     * 已设置：压缩质量 90、自由裁剪、工具栏/状态栏/控件颜色。 调用方仍需自行设置 {@code setAspectRatioOptions}
-     * 等业务相关选项。
+     * 已设置：压缩质量 90、裁剪网格/边框/圆角为主题色、输出上限 2048、允许旋转/翻转。 调用方（自建裁剪 Activity）通过
+     * {@link CropImageView#setImageCropOptions(CropImageOptions)} 应用。
      */
-    public static UCrop.Options createThemedOptions(Context context) {
-        UCrop.Options options = new UCrop.Options();
+    public static CropImageOptions createThemedCropOptions(Context context) {
+        CropImageOptions options = new CropImageOptions();
 
-        // ── 压缩质量 ──
-        options.setCompressionQuality(90);
-
-        // ── 隐藏标题栏文字 ──
-        options.setToolbarTitle("");
-
-        // ── 裁剪功能 ──
-        options.setFreeStyleCropEnabled(true);
-        options.setShowCropGrid(true);
-        options.setHideBottomControls(false);
-
-        // ── 主题色（蓝色系） ──
         int themeColor = ContextCompat.getColor(context, R.color.theme_color);
-        int themeStress = ContextCompat.getColor(context, R.color.theme_stress);
         int themePrimary = ContextCompat.getColor(context, R.color.theme_primary);
-        int white = ContextCompat.getColor(context, android.R.color.white);
 
-        // 工具栏背景色
-        options.setToolbarColor(themePrimary);
-        // 状态栏颜色
-        options.setStatusBarColor(themePrimary);
-        // 工具栏图标/文字颜色
-        options.setToolbarWidgetColor(white);
-        // 底部控件激活态颜色（选中的裁剪比例按钮等）
-        options.setActiveControlsWidgetColor(themeStress);
+        // ── 输出与压缩 ──
+        options.outputCompressFormat = Bitmap.CompressFormat.JPEG;
+        // JPEG 质量 85：近无损、对 OCR 影响极小，减小上传体积（与 ThemeCropActivity.doCrop 一致）
+        options.outputCompressQuality = 85;
+        // 注意：不再设置 maxCropResult（保持默认 99999）。该值会按“屏幕缩放比例”反算并钳制裁剪框的
+        // 屏幕像素尺寸——当图片显示较小时，2048 会被换算成很小的裁剪框，导致无法选择较大区域。
+        // 输出 2048 上限已由 ThemeCropActivity.doCrop() 的 RESIZE_INSIDE 保证。
 
-        // 裁剪网格线
-        options.setCropGridColor(themeColor);
-        options.setCropGridStrokeWidth(1);
+        // ── 裁剪 UI（主题色） ──
+        options.guidelines = CropImageView.Guidelines.ON;
+        options.borderLineThickness = 2f;
+        options.borderLineColor = themeColor;
+        options.borderCornerThickness = 4f;
+        options.borderCornerLength = 20f;
+        options.borderCornerColor = themeColor;
+        options.guidelinesThickness = 1f;
+        options.guidelinesColor = themeColor;
 
-        // 裁剪框
-        options.setCropFrameColor(themeColor);
-        options.setCropFrameStrokeWidth(1);
-
-        // 日志友好的提示
-        options.setToolbarTitle(" ");
+        // ── 交互 ──
+        options.allowRotation = true;
+        options.allowCounterRotation = true;
+        // 【定制】关闭自动缩放：裁剪页图片始终完整可见（contain），捏合自由调整裁剪框
+        options.autoZoomEnabled = false;
+        options.multiTouchEnabled = true;
+        // 初始裁剪框与图片边缘保持 8% 留白（覆盖绝大部分图片，可再手动缩小）
+        options.initialCropWindowPaddingRatio = 0.08f;
+        options.showProgressBar = true;
+        options.activityTitle = "";
 
         return options;
     }

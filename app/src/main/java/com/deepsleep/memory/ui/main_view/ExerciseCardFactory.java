@@ -39,6 +39,12 @@ public class ExerciseCardFactory {
     private final int userId;
     private final Callback callback;
 
+    /** 词书全部词条缓存：整个会话仅加载一次，避免每张卡重复全表 Room 查询（40 张卡 = 40 次全表查询是首帧卡顿主因） */
+    private List<WordEntry> cachedAllEntries = null;
+    /** 预洗好的干扰项释义池：所有卡片共享、按游标顺序取用，避免每张卡重复 shuffle 全表 */
+    private List<String> meaningPool = null;
+    private int meaningPoolCursor = 0;
+
     public ExerciseCardFactory(Context context, String lexiconId, String studyMode, int userId, Callback callback) {
         this.context = context;
         this.inflater = LayoutInflater.from(context);
@@ -106,12 +112,11 @@ public class ExerciseCardFactory {
 
     // ── 选择题模式 ──
 
-    private int selectedOptionIndex = -1;
-
     private void setupChoiceCardView(View cardView, WordCard wordCard) {
         WordEntry entry = LexiconResourceMap.getWordByRank(lexiconId, wordCard.word_id);
         final String correctMeaning = entry != null ? entry.getChineseTranslation() : "";
-        selectedOptionIndex = -1;
+        // 每张卡独立记录选中项（原为工厂级共享字段，多卡并存时会串状态）
+        final int[] selectedIdxHolder = new int[] { -1 };
 
         String[] options = generateChoiceOptions(wordCard.word_id, correctMeaning);
         final int correctIdx = (int) (Math.random() * 4);
@@ -129,7 +134,7 @@ public class ExerciseCardFactory {
 
             final int idx = i;
             cardView.findViewById(optionIds[i]).setOnClickListener(v -> {
-                selectedOptionIndex = idx;
+                selectedIdxHolder[0] = idx;
                 highlightSelectedOption(cardView, optionCardIds, idx);
                 View btnConfirm = cardView.findViewById(R.id.btn_confirm);
                 if (btnConfirm != null)
@@ -148,13 +153,13 @@ public class ExerciseCardFactory {
         if (btnConfirm != null) {
             btnConfirm.setEnabled(false);
             btnConfirm.setOnClickListener(v -> {
-                if (selectedOptionIndex < 0)
+                if (selectedIdxHolder[0] < 0)
                     return;
-                boolean isCorrect = (selectedOptionIndex == correctIdx);
+                boolean isCorrect = (selectedIdxHolder[0] == correctIdx);
                 wordCard.isCorrect = isCorrect;
                 long responseTimeMs = System.currentTimeMillis() - wordCard.displayStartTime;
                 showChoiceFeedback(cardView, feedbackContainer, btnConfirm, btnNext, optionCardIds, correctIdx,
-                        selectedOptionIndex, isCorrect, correctMeaning);
+                        selectedIdxHolder[0], isCorrect, correctMeaning);
                 callback.onSubmitAnswer(wordCard, responseTimeMs);
             });
         }
@@ -163,26 +168,48 @@ public class ExerciseCardFactory {
         }
     }
 
+    /**
+     * 生成 3 个干扰项。 词书全表仅加载一次并预洗出释义池，所有卡片共享、按游标取用。 原实现每张卡都执行一次全表 Room 查询 + shuffle（40
+     * 张卡 ≈ 40 次 × 1341 行），是首帧卡顿主因。
+     */
     private String[] generateChoiceOptions(int correctWordId, String correctMeaning) {
         String[] options = new String[3];
-        List<WordEntry> allEntries = LexiconResourceMap.getAllEntries(lexiconId);
-        List<String> candidates = new ArrayList<>();
-        if (allEntries != null) {
-            for (WordEntry e : allEntries) {
-                if (e.getWordRank() != correctWordId) {
+        if (meaningPool == null) {
+            List<String> pool = new ArrayList<>();
+            List<WordEntry> allEntries = getAllEntriesCached();
+            if (allEntries != null) {
+                for (WordEntry e : allEntries) {
+                    if (e == null || e.getWordRank() == correctWordId)
+                        continue;
                     String m = e.getChineseTranslation();
                     if (m != null && !m.isEmpty() && !m.equals(correctMeaning))
-                        candidates.add(m);
+                        pool.add(m);
                 }
             }
+            java.util.Collections.shuffle(pool);
+            meaningPool = pool;
+            meaningPoolCursor = 0;
         }
-        java.util.Collections.shuffle(candidates);
         int idx = 0;
-        for (int i = 0; i < 3 && i < candidates.size(); i++)
-            options[idx++] = candidates.get(i);
+        while (idx < 3 && meaningPoolCursor < meaningPool.size()) {
+            String m = meaningPool.get(meaningPoolCursor++);
+            if (m.equals(correctMeaning))
+                continue;
+            options[idx++] = m;
+        }
+        // 释义池耗尽时兜底
         while (idx < 3)
             options[idx++] = "——";
         return options;
+    }
+
+    /** 获取词书全部词条（工厂级内存缓存，整个会话只查一次全表） */
+    private List<WordEntry> getAllEntriesCached() {
+        if (cachedAllEntries == null) {
+            List<WordEntry> entries = LexiconResourceMap.getAllEntries(lexiconId);
+            cachedAllEntries = entries != null ? entries : new ArrayList<>();
+        }
+        return cachedAllEntries;
     }
 
     private void highlightSelectedOption(View cardView, int[] cardIds, int selectedIdx) {
@@ -338,7 +365,8 @@ public class ExerciseCardFactory {
      * @param aiFeedback AI 反馈文字
      */
     public static void updateInputFeedbackResult(View cardView, int fsrsScore, boolean isCorrect, String aiFeedback) {
-        if (cardView == null) return;
+        if (cardView == null)
+            return;
 
         TextView tvResult = cardView.findViewById(R.id.tv_feedback_result);
         if (tvResult != null) {
@@ -346,10 +374,22 @@ public class ExerciseCardFactory {
             String level;
             int color;
             switch (fsrsScore) {
-                case 4:  level = "完全掌握";  color = 0xFF4CAF50; break;
-                case 3:  level = "基本掌握";  color = 0xFF2196F3; break;
-                case 2:  level = "部分理解";  color = 0xFFFF9800; break;
-                default: level = "不理解";    color = 0xFFF44336; break;
+            case 4:
+                level = "完全掌握";
+                color = 0xFF4CAF50;
+                break;
+            case 3:
+                level = "基本掌握";
+                color = 0xFF2196F3;
+                break;
+            case 2:
+                level = "部分理解";
+                color = 0xFFFF9800;
+                break;
+            default:
+                level = "不理解";
+                color = 0xFFF44336;
+                break;
             }
             if (fsrsScore > 0) {
                 tvResult.setText(fsrsScore + "  " + level);

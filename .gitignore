@@ -31,6 +31,9 @@ local.properties
 .vscode-test/
 .github/
 
+# workbuddy
+.workbuddy/
+
 # OS files
 .DS_Store
 Thumbs.db

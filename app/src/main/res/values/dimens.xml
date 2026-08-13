@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 相机页底部控制栏尺寸（横屏下由 values-land 覆盖） -->
+    <dimen name="camera_bottom_bar_height">120dp</dimen>
+    <dimen name="camera_bottom_bar_margin">32dp</dimen>
+</resources>

@@ -76,8 +76,21 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     /** 服务端回写学习模式时置位，避免触发重复重载（防循环） */
     private boolean isApplyingStudyModeFromServer = false;
 
+    /** 后台（被其他页面覆盖）时收到学习模式变更，置位后在 onResume 补重载 */
+    private boolean pendingStudyModeReload = false;
+
     /** 当前总结卡片视图引用（用于避免重复创建，更新时移除旧卡片再添加新卡片） */
     private View summaryCardView = null;
+
+    // ── 卡片视图渐进式构建（避免 40 张卡片一次性 inflate 阻塞主线程约 2s） ──
+    /** 卡片视图构建专用 Handler：分帧批量构建，避免长时间占用主线程 */
+    private final Handler cardBuildHandler = new Handler(Looper.getMainLooper());
+    /** 首批同步构建的卡片数：保证响应到达后马上有卡可学 */
+    private static final int CARD_BUILD_INITIAL_COUNT = 2;
+    /** 每帧追加构建的卡片数（把 inflate 与选项生成成本分摊到多帧） */
+    private static final int CARD_BUILD_CHUNK_SIZE = 3;
+    /** 下一个待构建视图的 wordCards 下标 */
+    private int pendingViewBuildIndex = 0;
 
     // ── 前台跨夜检测 ──
     /** 上一次检测到的日期（用于前台跨天检测），null 表示尚未记录 */
@@ -90,17 +103,19 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         public void run() {
             if (!isAdded())
                 return;
+            // 应用在后台（被其他页面覆盖）时不加载任务，仅保持轮询
+            if (!isResumed()) {
+                midnightCheckHandler.postDelayed(this, 60_000);
+                return;
+            }
             String todayStr = java.time.LocalDate.now().toString();
             if (lastKnownDate != null && !lastKnownDate.equals(todayStr)) {
                 Log.i("WordLearning", "[跨夜检测] 前台跨天! " + lastKnownDate + " → " + todayStr);
                 lastKnownDate = todayStr;
                 boolean dayChanged = dailyState.checkAndResetDailyState();
                 if (dayChanged) {
-                    wordCards.clear();
                     isLoadingTask = false;
-                    summaryCardView = null;
-                    if (cardContainer != null)
-                        cardContainer.removeAllCards();
+                    clearCardsAndCancelBuilds();
                     loadTodayTask();
                 }
             }
@@ -119,6 +134,11 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             studyMode = (String) value;
             // 服务端回写不触发重载（防循环）；仅用户手动切换时重载
             if (isApplyingStudyModeFromServer || !isAdded()) {
+                return;
+            }
+            // 应用在后台（如被拍照/裁剪页面覆盖）时不立即请求，回到前台再补重载，避免后台刷请求
+            if (!isResumed()) {
+                pendingStudyModeReload = true;
                 return;
             }
             if (isLoadingTask) {
@@ -189,15 +209,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         boolean dayChanged = dailyState.checkAndResetDailyState();
         if (dayChanged) {
             // 日切时强制清空内存中的旧卡片，避免昨日残留数据
-            wordCards.clear();
             isLoadingTask = false;
-            summaryCardView = null;
-            if (cardContainer != null)
-                cardContainer.removeAllCards();
+            clearCardsAndCancelBuilds();
         }
         boolean containerEmpty = cardContainer != null && cardContainer.getAllCards().isEmpty();
         if ((dayChanged || wordCards.isEmpty() || containerEmpty) && !isLoadingTask) {
             loadTodayTask();
+        }
+        // 后台挂起的学习模式重载，回到前台补执行（保证切换模式后回到单词页立即生效）
+        if (pendingStudyModeReload) {
+            pendingStudyModeReload = false;
+            reloadTodayTaskForSettings();
         }
         // 重置当前卡片的计时器：用户可能从其他 Tab 切回，或 App 从后台恢复
         resetCurrentCardTimer();
@@ -278,11 +300,18 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private void reloadTodayTaskForSettings() {
         if (!isAdded() || isLoadingTask)
             return;
+        clearCardsAndCancelBuilds();
+        loadTodayTask();
+    }
+
+    /** 清空卡片数据与视图，并取消挂起的分帧构建任务（重载/日切时调用） */
+    private void clearCardsAndCancelBuilds() {
+        cardBuildHandler.removeCallbacksAndMessages(null);
+        pendingViewBuildIndex = 0;
         wordCards.clear();
         summaryCardView = null;
         if (cardContainer != null)
             cardContainer.removeAllCards();
-        loadTodayTask();
     }
 
     /**
@@ -310,11 +339,14 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         // 服务端学习模式回写（跨设备/跨账号恢复本人偏好，防循环）
         String serverStudyMode = responseJson.optString("studyModePreference", "");
         if ("choice".equals(serverStudyMode) || "input".equals(serverStudyMode)) {
-            isApplyingStudyModeFromServer = true;
-            try {
-                userSettingsManager.setStudyMode(serverStudyMode);
-            } finally {
-                isApplyingStudyModeFromServer = false;
+            // 与本地一致时跳过写回，避免无谓的设置变更通知
+            if (!serverStudyMode.equals(userSettingsManager.getStudyMode())) {
+                isApplyingStudyModeFromServer = true;
+                try {
+                    userSettingsManager.setStudyMode(serverStudyMode);
+                } finally {
+                    isApplyingStudyModeFromServer = false;
+                }
             }
         }
         studyMode = userSettingsManager.getStudyMode();
@@ -323,7 +355,6 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         LexiconResourceMap.loadLexicon(requireContext(), lexiconId);
 
         JSONArray wordList = responseJson.getJSONArray("wordList");
-        List<View> cardViews = new ArrayList<>();
         wordCards.clear();
         dailyState.clearFilteredSnapshot();
 
@@ -374,13 +405,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
             WordCard wc = buildWordCard(wordId, headWord, r, d, s, lastScore);
             wordCards.add(wc);
-            cardViews.add(cardFactory.createExerciseCardView(wc));
         }
 
         if (filteredCount > 0)
             Log.i("StudyLog", "客户端过滤掉 " + filteredCount + " 个今日已完成单词");
 
-        if (cardViews.isEmpty()) {
+        if (wordCards.isEmpty()) {
             Log.i("StudyLog", "今日所有单词已完成，展示总结卡片");
             addSummaryCard();
             totalWords = 0;
@@ -397,8 +427,60 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         totalWords = wordCards.size();
         operatedCount = 0;
         currentCardIndex = 0;
-        for (View cv : cardViews)
-            cardContainer.addCard(cv);
+        // 取消上一轮可能仍挂起的分帧构建任务，避免旧批次继续追加卡片
+        cardBuildHandler.removeCallbacksAndMessages(null);
+        pendingViewBuildIndex = 0;
+        // 首批卡片同步构建，保证首帧即有卡片可学；剩余卡片分帧构建，避免一次 inflate 40 张卡阻塞主线程
+        if (buildNextCardViewBatch(CARD_BUILD_INITIAL_COUNT)) {
+            cardBuildHandler.post(this::buildRemainingCardViews);
+        }
+    }
+
+    /**
+     * 构建下一批卡片视图（每批最多 maxCount 张），返回是否仍有剩余待构建。
+     */
+    private boolean isBuildingCardBatch = false;
+
+    private boolean buildNextCardViewBatch(int maxCount) {
+        // 防重入：addCard 首张卡会触发 showCard→onCurrentCardChanged→ensureNextCardsBuilt，
+        // 若无保护会嵌套构建同一张卡导致重复视图
+        if (isBuildingCardBatch || cardFactory == null || cardContainer == null)
+            return false;
+        isBuildingCardBatch = true;
+        try {
+            int built = 0;
+            while (pendingViewBuildIndex < wordCards.size() && built < maxCount) {
+                WordCard wc = wordCards.get(pendingViewBuildIndex);
+                // 先推进下标再 addCard，双重保险防止重入时重复构建同一张卡
+                pendingViewBuildIndex++;
+                cardContainer.addCard(cardFactory.createExerciseCardView(wc));
+                built++;
+            }
+            return pendingViewBuildIndex < wordCards.size();
+        } finally {
+            isBuildingCardBatch = false;
+        }
+    }
+
+    /** 分帧构建剩余卡片视图：每帧一批，把 inflate 成本分摊到多个空闲帧 */
+    private void buildRemainingCardViews() {
+        if (!isAdded() || cardFactory == null || cardContainer == null)
+            return;
+        if (buildNextCardViewBatch(CARD_BUILD_CHUNK_SIZE)) {
+            cardBuildHandler.post(this::buildRemainingCardViews);
+        }
+    }
+
+    /** 兜底补建：用户快翻到已构建卡片末尾时，立即补建下一批，避免无卡可翻 */
+    private void ensureNextCardsBuilt() {
+        if (pendingViewBuildIndex >= wordCards.size() || cardContainer == null)
+            return;
+        int builtCount = cardContainer.getAllCards().size();
+        if (summaryCardView != null)
+            builtCount--; // 排除总结卡片
+        if (currentCardIndex >= builtCount - 1) {
+            buildNextCardViewBatch(CARD_BUILD_CHUNK_SIZE);
+        }
     }
 
     /**
@@ -558,6 +640,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     }
 
     private void moveToNextCard() {
+        // 兜底：先确保下一张卡片视图已构建，避免翻到已构建末尾时无卡可翻
+        ensureNextCardsBuilt();
         // 使用 -slideFlag 确保始终前进到下一个卡片
         cardContainer.animateCardOut(-slideFlag);
     }
@@ -571,6 +655,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             currentCardIndex = wordCards.indexOf(wordCard);
             // 记录卡片展示时间
             wordCard.resetExerciseState();
+            // 渐进式构建兜底：快翻到已构建末尾时补建下一批
+            ensureNextCardsBuilt();
         }
     }
 
@@ -605,6 +691,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             super.handleMessage(msg);
             if (!isAdded())
                 return;
+            // 应用在后台（被拍照/裁剪等页面覆盖）时丢弃响应并复位加载标记，由 onResume 兜底重载
+            if (!isResumed()) {
+                isLoadingTask = false;
+                reloadPendingForMode = false;
+                return;
+            }
             switch (msg.what) {
             case msg_success:
                 String result = (String) msg.obj;
@@ -646,6 +738,10 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             super.handleMessage(msg);
             if (!isAdded())
                 return;
+            // 应用在后台时不处理学习完成回调，避免后台触发 Toast 等
+            if (!isResumed()) {
+                return;
+            }
             switch (msg.what) {
             case msg_success:
                 String result = (String) msg.obj;

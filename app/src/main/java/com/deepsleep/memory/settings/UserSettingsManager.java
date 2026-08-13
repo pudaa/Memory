@@ -18,12 +18,14 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public static final String KEY_MAX_REVIEW_WORDS = "max_review_words"; // 每日最大复习词数
     public static final String KEY_READER_FONT_SIZE = "reader_font_size"; // 阅读字号
     public static final String KEY_THEME_MODE = "theme_mode"; // 主题模式: 0跟随系统 / 1浅色 / 2深色
+    public static final String KEY_CAMERA_ASPECT_RATIO = "camera_aspect_ratio_index"; // 自定义相机拍摄比例索引
     // 默认值
     private static final boolean DEFAULT_IS_SLIDE_BACK = true;
     private static final String DEFAULT_STUDY_MODE = "choice"; // 默认选择题模式
     private static final int DEFAULT_DAILY_NEW_WORDS = 10; // 默认每日10个新词
     private static final int DEFAULT_READER_FONT_SIZE = 19; // 默认阅读字号
     private static final int DEFAULT_THEME_MODE = 0; // 默认跟随系统
+    private static final int DEFAULT_CAMERA_ASPECT_RATIO = 1; // 默认 16:9
     private static UserSettingsManager instance;
     private final SharedPreferences sharedPreferences;
     private final List<OnSettingsChangedListener> listeners = new ArrayList<>();
@@ -41,6 +43,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     // 设置相关方法
     public void setIsSlideBack(boolean enabled) {
+        if (isSlideBackEnabled() == enabled)
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putBoolean(KEY_IS_SLIDE_BACK, enabled).apply();
         notifySettingsChanged(KEY_IS_SLIDE_BACK, enabled);
     }
@@ -57,6 +61,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     /** 设置学习模式: "choice" 或 "input" */
     public void setStudyMode(String mode) {
+        if (mode != null && mode.equals(getStudyMode()))
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putString(KEY_STUDY_MODE, mode).apply();
         notifySettingsChanged(KEY_STUDY_MODE, mode);
     }
@@ -68,6 +74,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     /** 设置每日新词数 */
     public void setDailyNewWords(int count) {
+        if (getDailyNewWords() == count)
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putInt(KEY_DAILY_NEW_WORDS, count).apply();
         notifySettingsChanged(KEY_DAILY_NEW_WORDS, count);
     }
@@ -80,6 +88,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     /** 设置每日最大复习词数 */
     public void setMaxReviewWords(int count) {
+        if (getMaxReviewWords() == count)
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putInt(KEY_MAX_REVIEW_WORDS, count).apply();
         notifySettingsChanged(KEY_MAX_REVIEW_WORDS, count);
     }
@@ -91,6 +101,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     /** 设置阅读字号 */
     public void setReaderFontSize(int size) {
+        if (getReaderFontSize() == size)
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putInt(KEY_READER_FONT_SIZE, size).apply();
         notifySettingsChanged(KEY_READER_FONT_SIZE, size);
     }
@@ -102,8 +114,20 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
 
     /** 设置主题模式 */
     public void setThemeMode(int mode) {
+        if (getThemeMode() == mode)
+            return; // 值未变化：跳过写入与通知，避免冗余广播
         sharedPreferences.edit().putInt(KEY_THEME_MODE, mode).apply();
         notifySettingsChanged(KEY_THEME_MODE, mode);
+    }
+
+    /** 获取自定义相机拍摄比例索引（0=4:3, 1=16:9；1:1 因 CameraX 不支持已移除） */
+    public int getCameraAspectRatioIndex() {
+        return sharedPreferences.getInt(KEY_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_ASPECT_RATIO);
+    }
+
+    /** 记录自定义相机拍摄比例索引（切换后持久化，下次进入保持） */
+    public void setCameraAspectRatioIndex(int index) {
+        sharedPreferences.edit().putInt(KEY_CAMERA_ASPECT_RATIO, index).apply();
     }
 
     /** 导出用户级设置（用于同步到服务端）：滑动方向/主题/字号 */
