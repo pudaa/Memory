@@ -12,6 +12,7 @@ import android.widget.LinearLayout;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.ThemeHelper;
 import com.deepsleep.memory.ui.main_view.DailyReadingFragment;
+import com.deepsleep.memory.ui.main_view.PendingUploadSync;
 import com.deepsleep.memory.ui.main_view.TreasureBoxFragment;
 import com.deepsleep.memory.ui.main_view.UserHomeFragment;
 import com.deepsleep.memory.ui.main_view.WordLearningFragment;
@@ -43,6 +44,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.main_layout);
         initViews();
         selectTab(currentTab);
+        // 网络恢复信号：App 启动即尝试补传断网期间未同步的答题记录（静默）
+        PendingUploadSync.sync(this, null);
     }
 
     private void initViews() {

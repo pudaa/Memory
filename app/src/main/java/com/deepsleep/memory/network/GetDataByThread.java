@@ -9,6 +9,11 @@ import android.util.Log;
 import org.json.JSONObject;
 
 public class GetDataByThread {
+    /** 网络层失败（null 响应/异常）后的额外重试次数，共 1 + MAX_RETRIES 次尝试 */
+    private static final int MAX_RETRIES = 2;
+    /** 首次重试等待时间（指数退避基数：1s、2s） */
+    private static final long RETRY_BASE_DELAY_MS = 1000L;
+
     private final String url_path;
 
     public GetDataByThread(String path) {
@@ -20,29 +25,56 @@ public class GetDataByThread {
         return url_path;
     }
 
+    /**
+     * 统一异步调用入口：网络层失败（响应为 null 或抛异常）时静默自动重试，
+     * 指数退避（1s、2s），全部失败后才回调 fail；业务错误（非 null 响应）不重试。
+     */
     private void asyncCall(Handler h, int ok, int fail, String tag, Callable callable) {
         new Thread(() -> {
-            try {
-                if (tag != null)
-                    Log.i(tag, "--------" + url_path);
-                String result = callable.call(url_path);
-                if (tag != null)
-                    Log.i(tag, "--------" + result);
-                if (result != null) {
-                    Message m = Message.obtain();
-                    m.what = ok;
-                    m.obj = result;
-                    h.sendMessage(m);
-                } else {
-                    h.sendEmptyMessage(fail);
+            String result = null;
+            for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    if (tag != null && attempt == 0) {
+                        Log.i(tag, "--------" + url_path);
+                    }
+                    result = callable.call(url_path);
+                    if (tag != null) {
+                        Log.i(tag, "--------" + result);
+                    }
+                    if (result != null) {
+                        Message m = Message.obtain();
+                        m.what = ok;
+                        m.obj = result;
+                        h.sendMessage(m);
+                        return;
+                    }
+                    // result == null：连接层失败（如 Connection reset / 超时），可重试
+                    if (tag != null) {
+                        Log.w(tag, "空响应，attempt=" + (attempt + 1));
+                    }
+                } catch (Exception e) {
+                    if (tag != null)
+                        Log.e(tag, "Error: " + e.getMessage());
+                    else
+                        e.printStackTrace();
                 }
-            } catch (Exception e) {
-                if (tag != null)
-                    Log.e(tag, "Error: " + e.getMessage());
-                else
-                    e.printStackTrace();
-                h.sendEmptyMessage(fail);
+
+                // 还有重试机会：指数退避后重试
+                if (attempt < MAX_RETRIES) {
+                    long delay = RETRY_BASE_DELAY_MS << attempt; // 1s、2s
+                    if (tag != null) {
+                        Log.w(tag, "第 " + (attempt + 1) + " 次尝试失败，" + delay + "ms 后重试");
+                    }
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
             }
+            // 全部尝试失败
+            h.sendEmptyMessage(fail);
         }).start();
     }
 
@@ -143,7 +175,7 @@ public class GetDataByThread {
     }
 
     public void submitAnswer(Handler h, int ok, int fail, int uid, int wid, String lexiconId, String headWord,
-            boolean isCorrect, long rtMs, String mode) {
+            boolean isCorrect, long rtMs, String mode, String submitId) {
         try {
             JSONObject j = new JSONObject();
             j.put("userId", uid);
@@ -153,6 +185,9 @@ public class GetDataByThread {
             j.put("isCorrect", isCorrect);
             j.put("responseTimeMs", rtMs);
             j.put("studyMode", mode);
+            if (submitId != null && !submitId.isEmpty()) {
+                j.put("submitId", submitId);
+            }
             asyncPostJson(h, ok, fail, "SubmitAnswer", j);
         } catch (Exception e) {
             h.sendEmptyMessage(fail);
@@ -160,7 +195,7 @@ public class GetDataByThread {
     }
 
     public void submitAnswerInput(Handler h, int ok, int fail, int uid, int wid, String lexiconId, String headWord,
-            boolean isCorrect, long rtMs, String userAnswer, String referenceDefinition, String pos) {
+            boolean isCorrect, long rtMs, String userAnswer, String referenceDefinition, String pos, String submitId) {
         try {
             JSONObject j = new JSONObject();
             j.put("userId", uid);
@@ -174,6 +209,9 @@ public class GetDataByThread {
             j.put("referenceDefinition", referenceDefinition);
             j.put("word", headWord);
             j.put("pos", pos);
+            if (submitId != null && !submitId.isEmpty()) {
+                j.put("submitId", submitId);
+            }
             asyncPostJson(h, ok, fail, "SubmitAnswer", j);
         } catch (Exception e) {
             h.sendEmptyMessage(fail);

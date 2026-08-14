@@ -4,9 +4,14 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -24,9 +29,13 @@ public class DailyStateManager {
     private static final String SUFFIX_LAST_DATE = "_completedLastDate";
     /** 持久化完成的单词详情 JSON: [{"id":123,"correct":true,"score":3,"feedback":"..."}, ...] */
     private static final String SUFFIX_COMPLETED_DETAILS = "_completedWordDetails";
+    /** 待上传答题记录队列 JSON（断网/提交失败时暂存，联网后补传；跨天不清空） */
+    private static final String SUFFIX_PENDING_UPLOADS = "_pendingUploads";
 
     private final Set<Integer> completedWordIds = new HashSet<>();
     private final List<CompletedWordEntry> completedWordDetails = new ArrayList<>();
+    /** 待上传答题记录队列（内存态，与磁盘同步） */
+    private final List<PendingUpload> pendingUploads = new ArrayList<>();
     private LocalDate lastDate = LocalDate.now();
     private final Context context;
     private final int userId;
@@ -45,6 +54,10 @@ public class DailyStateManager {
 
     private String keyDetails() {
         return userId + SUFFIX_COMPLETED_DETAILS;
+    }
+
+    private String keyPendingUploads() {
+        return userId + SUFFIX_PENDING_UPLOADS;
     }
 
     public DailyStateManager(Context context, int userId) {
@@ -139,6 +152,130 @@ public class DailyStateManager {
         return completedWordDetails;
     }
 
+    // ── 待上传队列（断网/提交失败暂存，联网后补传；跨天不清空） ──
+
+    /** 获取待上传记录列表（副本） */
+    public List<PendingUpload> getPendingUploads() {
+        return new ArrayList<>(pendingUploads);
+    }
+
+    public int getPendingUploadCount() {
+        return pendingUploads.size();
+    }
+
+    /**
+     * 入队一条待上传记录（按 wordId 去重覆盖，保证同一单词只有一条待同步记录）
+     * 先同步磁盘状态再修改，兼容多个 DailyStateManager 实例（Fragment / 启动补传）交替操作
+     */
+    public void enqueuePendingUpload(PendingUpload upload) {
+        if (upload == null) {
+            return;
+        }
+        loadPendingFromPrefs();
+        Iterator<PendingUpload> it = pendingUploads.iterator();
+        while (it.hasNext()) {
+            if (it.next().wordId == upload.wordId) {
+                it.remove();
+                break;
+            }
+        }
+        pendingUploads.add(upload);
+        savePendingToPrefs();
+    }
+
+    /** 移除一条待上传记录（服务端确认成功后调用） */
+    public void removePendingUpload(int wordId) {
+        loadPendingFromPrefs();
+        Iterator<PendingUpload> it = pendingUploads.iterator();
+        boolean removed = false;
+        while (it.hasNext()) {
+            if (it.next().wordId == wordId) {
+                it.remove();
+                removed = true;
+                break;
+            }
+        }
+        if (removed) {
+            savePendingToPrefs();
+        }
+    }
+
+    /**
+     * 补传失败时移到队尾，避免阻塞队列中其他记录（本轮不再重试，等待下次触发）
+     */
+    public void requeuePendingUpload(PendingUpload upload) {
+        if (upload == null) {
+            return;
+        }
+        loadPendingFromPrefs();
+        Iterator<PendingUpload> it = pendingUploads.iterator();
+        while (it.hasNext()) {
+            if (it.next().wordId == upload.wordId) {
+                it.remove();
+                break;
+            }
+        }
+        pendingUploads.add(upload);
+        savePendingToPrefs();
+    }
+
+    private void savePendingToPrefs() {
+        JSONArray arr = new JSONArray();
+        for (PendingUpload p : pendingUploads) {
+            JSONObject o = new JSONObject();
+            try {
+                o.put("id", p.wordId);
+                o.put("sid", p.submitId != null ? p.submitId : "");
+                o.put("lex", p.lexiconId);
+                o.put("word", p.word);
+                o.put("correct", p.isCorrect);
+                o.put("score", p.fsrsScore);
+                o.put("fb", p.aiFeedback != null ? p.aiFeedback : "");
+                o.put("rt", p.responseTimeMs);
+                o.put("mode", p.studyMode);
+                o.put("ans", p.userAnswer != null ? p.userAnswer : "");
+                o.put("ref", p.referenceDefinition != null ? p.referenceDefinition : "");
+                o.put("pos", p.pos != null ? p.pos : "");
+                arr.put(o);
+            } catch (JSONException e) {
+                Log.w("WordLearning", "[补传] 序列化待上传记录失败", e);
+            }
+        }
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
+                .putString(keyPendingUploads(), arr.toString()).apply();
+    }
+
+    private void loadPendingFromPrefs() {
+        pendingUploads.clear();
+        SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        String saved = sp.getString(keyPendingUploads(), "");
+        if (saved == null || saved.isEmpty()) {
+            return;
+        }
+        try {
+            JSONArray arr = new JSONArray(saved);
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                PendingUpload p = new PendingUpload();
+                p.wordId = o.optInt("id");
+                p.submitId = o.optString("sid", "");
+                p.lexiconId = o.optString("lex", "");
+                p.word = o.optString("word", "");
+                p.isCorrect = o.optBoolean("correct", false);
+                p.fsrsScore = o.optInt("score", 0);
+                p.aiFeedback = o.optString("fb", "");
+                p.responseTimeMs = o.optLong("rt", 0);
+                p.studyMode = o.optString("mode", "");
+                p.userAnswer = o.optString("ans", "");
+                p.referenceDefinition = o.optString("ref", "");
+                p.pos = o.optString("pos", "");
+                pendingUploads.add(p);
+            }
+        } catch (JSONException e) {
+            Log.w("WordLearning", "[补传] 解析待上传队列失败", e);
+        }
+    }
+
     // ── 过滤快照（仅内存，不持久化） ──
 
     public void addFilteredCard(WordCard card) {
@@ -196,6 +333,9 @@ public class DailyStateManager {
             lastDate = today;
             Log.i("WordLearning", "[防重复] userId=" + userId + " 跨天重置，lastDate=" + lastDate + "，从零开始");
         }
+
+        // 待上传队列独立于每日状态：跨天不清空（历史未同步记录仍需补传）
+        loadPendingFromPrefs();
     }
 
     private void saveToPrefs() {
@@ -341,5 +481,24 @@ public class DailyStateManager {
             this.fsrsScore = fsrsScore;
             this.aiFeedback = aiFeedback != null ? aiFeedback : "";
         }
+    }
+
+    /**
+     * 待上传答题记录：提交失败/断网时暂存，联网后逐条补传到服务端
+     */
+    public static class PendingUpload {
+        public int wordId;
+        /** 客户端提交幂等键：正常提交与补传共用，服务端据此去重防止重复推进 FSRS */
+        public String submitId = "";
+        public String lexiconId = "";
+        public String word = "";
+        public boolean isCorrect;
+        public int fsrsScore;                 // AI 评分（输入模式），0=未评分
+        public String aiFeedback = "";
+        public long responseTimeMs;           // 答题耗时
+        public String studyMode = "";         // choice / input
+        public String userAnswer = "";        // 输入模式用户答案
+        public String referenceDefinition = ""; // 输入模式标准释义
+        public String pos = "";               // 输入模式词性
     }
 }

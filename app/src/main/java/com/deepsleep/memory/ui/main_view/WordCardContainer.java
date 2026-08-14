@@ -10,15 +10,11 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.*;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.widget.NestedScrollView;
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.UserSettingsManager;
 
 import java.util.ArrayList;
@@ -45,15 +41,16 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
     private final Handler longPressHandler = new Handler(Looper.getMainLooper());
     private UserSettingsManager userSettingsManager;
     private int slideFlag = 1;
-    /** 交互模式：true 时卡片内子视图（按钮/输入框）可交互，不再拦截触摸事件 */
-    private boolean interactiveMode = false;
     /** 速度追踪器：用于识别短距离快速甩动 */
     private VelocityTracker velocityTracker;
-
-    /** 设置交互模式 */
-    public void setInteractiveMode(boolean interactive) {
-        this.interactiveMode = interactive;
-    }
+    /** 系统标准触摸判定阈值（slop），超过视为滑动意图 */
+    private int touchSlop;
+    /** 当前手势 DOWN 是否落在输入框（EditText）上：输入框区域不参与滑动拦截 */
+    private boolean touchIsOnEditText = false;
+    /** 当前手势是否已触发长按（查词）：触发后吞掉后续事件，防止按钮误触发点击 */
+    private boolean longPressTriggered = false;
+    /** 当前手势是否已取消长按检测：避免 MOVE 每帧重复调用取消逻辑（重启恢复动画） */
+    private boolean longPressCancelled = false;
 
     @Override
     public void onSettingChanged(String key, Object value) {
@@ -104,143 +101,248 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
         userSettingsManager.addSettingsChangeListener(this);
         slideFlag = userSettingsManager.isSlideBackEnabled() ? 1 : -1;
 
-        // 初始化手势检测
-        setOnTouchListener((v, event) -> {
-            if (currentCard == null)
-                return false;
+        // 手势判定阈值（系统标准 touch slop）
+        touchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
+    }
 
-            // 交互模式下不拦截触摸，让子视图（按钮/输入框）处理
-            // if (interactiveMode) {
-            // return false;
-            // }
+    /**
+     * 事件仲裁：DOWN 放行给子视图（ABCD 按钮/输入框可正常点击聚焦），
+     * MOVE 阶段检测到明显的横向滑动意图后接管事件流（子视图收到 CANCEL，不会误触发点击）。
+     */
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        if (currentCard == null) {
+            return false;
+        }
 
-            switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                currentCard.setTranslationZ(1);
-                startX = event.getX();
-                startY = event.getY();
-                lastX = startX;
-                isMoving = false;
-                currentCard.animate().setDuration(0).translationX(0);
-                getParent().requestDisallowInterceptTouchEvent(true);
-                // 初始化速度追踪（用于快速甩动识别）
-                if (velocityTracker == null) {
-                    velocityTracker = VelocityTracker.obtain();
-                } else {
-                    velocityTracker.clear();
-                }
-                velocityTracker.addMovement(event);
+        switch (ev.getActionMasked()) {
+        case MotionEvent.ACTION_DOWN:
+            startX = ev.getX();
+            startY = ev.getY();
+            lastX = startX;
+            isMoving = false;
+            longPressTriggered = false;
+            longPressCancelled = false;
+            currentCard.setTranslationZ(1);
+            currentCard.animate().setDuration(0).translationX(0);
+            // 初始化速度追踪（用于快速甩动识别）
+            if (velocityTracker == null) {
+                velocityTracker = VelocityTracker.obtain();
+            } else {
+                velocityTracker.clear();
+            }
+            velocityTracker.addMovement(ev);
+            // 输入框区域不参与滑动拦截：仅保证点击聚焦（输入模式）
+            touchIsOnEditText = isTouchOnEditText(ev.getRawX(), ev.getRawY());
+            if (!touchIsOnEditText) {
                 // 设置长按检测
                 setupLongPressDetection();
-                return true;
+            }
+            // 不拦截 DOWN，放行给子视图（按钮/输入框），由 MOVE 阶段仲裁
+            return false;
 
-            case MotionEvent.ACTION_MOVE:
-                float currentX = event.getX();
-                float currentY = event.getY();
-                float deltaX = currentX - lastX;
-                float deltaY = currentY - startY;
-                float dist = currentX - startX;
-                if (velocityTracker != null) {
-                    velocityTracker.addMovement(event);
-                }
-                // 判断是否为移动操作（避免轻微抖动误判）
-                if (!isMoving && (Math.abs(dist) > 20 || Math.abs(deltaY) > 20)) {
-                    isMoving = true;
-                    // 取消长按检测
+        case MotionEvent.ACTION_MOVE:
+            if (longPressTriggered) {
+                // 长按已触发查词：接管后续事件，防止松手时误触发按钮点击
+                return true;
+            }
+            if (touchIsOnEditText) {
+                // 输入框区域：始终不拦截，保证光标拖动等交互
+                return false;
+            }
+            float dx = ev.getX() - startX;
+            float dy = ev.getY() - startY;
+            if (!isMoving) {
+                // 手指移动超过阈值即取消长按检测（仅一次）
+                if (!longPressCancelled && (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop)) {
+                    longPressCancelled = true;
                     cancelLongPressDetection();
                 }
-                // 移动当前卡片
-                currentCard.setTranslationX(currentCard.getTranslationX() + deltaX);
-                lastX = currentX;
-
-                // 计算透明度变化（根据滑动距离）
-                float progress = Math.abs(deltaX) / getWidth();
-                float alpha = 1 - Math.min(progress, 0.5f);
-                currentCard.setAlpha(alpha);
-
-                // 根据滑动卡片位置显示预览下一个卡片
-                if (dist > 0 && (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)) {
-                    previewCard(currentCardIndex - slideFlag); // 显示前一个卡片
-                } else if (dist < 0
-                        && (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0)) {
-                    previewCard(currentCardIndex + slideFlag);
-                }
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                cancelLongPressDetection();
-                float endX = event.getX();
-                float distanceX = endX - startX;
-
-                // 计算甩动速度：快速滑动时手指位移可能很小，仅靠距离阈值会漏判
-                int flingDirection = 0;
-                if (velocityTracker != null) {
-                    velocityTracker.addMovement(event);
-                    velocityTracker.computeCurrentVelocity(1000);
-                    float vx = velocityTracker.getXVelocity();
-                    velocityTracker.recycle();
-                    velocityTracker = null;
-                    if (Math.abs(vx) > FLING_MIN_VELOCITY) {
-                        flingDirection = vx > 0 ? 1 : -1;
-                    }
-                }
-                // 兜底：极快甩动时手指在抬起前会减速，瞬时速度可能读不到（约等于 0），
-                // 改用“手势总时长 + 位移”判定，避免漏判导致预览卡闪烁却不翻卡
-                if (flingDirection == 0 && Math.abs(distanceX) >= FLING_MIN_DISTANCE
-                        && (event.getEventTime() - event.getDownTime()) < FLING_MAX_DURATION_MS) {
-                    flingDirection = distanceX > 0 ? 1 : -1;
-                }
-
-                // 判断是否是点击事件（滑动距离小）
-                boolean isClick = Math.abs(distanceX) < 10 && Math.abs(event.getY() - startY) < 10;
-
-                if (isClick) {
-                    // 是点击事件，调用 performClick()
-                    currentCard.performClick();
-                    // 若手势期间预览过相邻卡片（极快微甩动），点击时收起，避免残留“闪烁”的鬼影卡片
-                    hideOtherCardsExcept(currentCard, null);
-                    LinearLayout definitionContainer = currentCard.findViewById(R.id.definition_container);
-                    if (definitionContainer != null && definitionContainer.getVisibility() != View.VISIBLE) {
-                        // int visibility = definitionContainer.getVisibility() == View.VISIBLE ?
-                        // View.GONE : View.VISIBLE;
-                        definitionContainer.setVisibility(View.VISIBLE);
-                        getParent().requestDisallowInterceptTouchEvent(false);
-                        ValueAnimator scaleDown = ValueAnimator.ofFloat(1f, 0.99f, 1f);
-                        scaleDown.setDuration(300);
-                        scaleDown.setInterpolator(new AccelerateDecelerateInterpolator());
-                        scaleDown.addUpdateListener(animation -> {
-                            float scale = (float) animation.getAnimatedValue();
-                            currentCard.setScaleX(scale);
-                            currentCard.setScaleY(scale);
-                        });
-                        scaleDown.start();
-                    }
-
+                // 明显的横向滑动意图：接管事件流，子视图将收到 CANCEL
+                if (Math.abs(dx) > touchSlop && Math.abs(dx) > Math.abs(dy) * 1.2f) {
+                    isMoving = true;
+                    lastX = ev.getX(); // 从拦截点重新起算位移，避免卡片瞬跳
+                    getParent().requestDisallowInterceptTouchEvent(true);
                     return true;
                 }
+                return false;
+            }
+            // 已接管：后续事件由 onTouchEvent 处理
+            return true;
 
-                // 处理滑动事件：距离超过阈值 或 快速甩动（fling）都触发翻卡
-                boolean crossedThreshold = Math.abs(distanceX) > getWidth() * SWIPE_THRESHOLD;
-                boolean isFling = flingDirection != 0;
-                int direction = isFling ? flingDirection : (distanceX > 0 ? 1 : -1);
-                boolean canMove = direction > 0
-                        ? (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)
-                        : (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0);
-
-                if ((crossedThreshold || isFling) && canMove) {
-                    // 滑动有效，移除当前卡片并显示相邻卡片
-                    animateCardOut(direction);
-                } else {
-                    // 否则将卡片返回原位
-                    animateCardBack();
-                }
-                getParent().requestDisallowInterceptTouchEvent(false);
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+            cancelLongPressDetection();
+            if (longPressTriggered) {
+                // 长按后抬手：拦截 UP，避免子视图（按钮）收到并误触发点击
                 return true;
             }
             return false;
-        });
+        }
+        return false;
+    }
+
+    /** 卡片手势处理：拖动卡片、翻卡判定（事件被拦截后或空白区域按下时进入） */
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (currentCard == null) {
+            return false;
+        }
+        if (velocityTracker != null) {
+            velocityTracker.addMovement(event);
+        }
+
+        switch (event.getActionMasked()) {
+        case MotionEvent.ACTION_DOWN:
+            // 空白区域按下（无子视图消费）：接管手势
+            startX = event.getX();
+            startY = event.getY();
+            lastX = startX;
+            isMoving = false;
+            longPressTriggered = false;
+            longPressCancelled = false;
+            touchIsOnEditText = false;
+            return true;
+
+        case MotionEvent.ACTION_MOVE:
+            if (longPressTriggered || touchIsOnEditText) {
+                return true;
+            }
+            float currentX = event.getX();
+            float currentY = event.getY();
+            float deltaX = currentX - lastX;
+            float dist = currentX - startX;
+            float distY = currentY - startY;
+            // 判断是否为移动操作（避免轻微抖动误判）
+            if (!isMoving) {
+                if (Math.abs(dist) > touchSlop || Math.abs(distY) > touchSlop) {
+                    isMoving = true;
+                    // 取消长按检测
+                    cancelLongPressDetection();
+                    lastX = currentX; // 跳过首次位移，避免卡片瞬跳
+                    return true;
+                }
+                return true;
+            }
+            // 移动当前卡片
+            currentCard.setTranslationX(currentCard.getTranslationX() + deltaX);
+            lastX = currentX;
+
+            // 计算透明度变化（根据滑动距离）
+            float progress = Math.abs(deltaX) / getWidth();
+            float alpha = 1 - Math.min(progress, 0.5f);
+            currentCard.setAlpha(alpha);
+
+            // 根据滑动卡片位置显示预览下一个卡片
+            if (dist > 0 && (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)) {
+                previewCard(currentCardIndex - slideFlag); // 显示前一个卡片
+            } else if (dist < 0
+                    && (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0)) {
+                previewCard(currentCardIndex + slideFlag);
+            }
+            return true;
+
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+            boolean wasLongPress = longPressTriggered;
+            cancelLongPressDetection();
+            longPressTriggered = false;
+            isMoving = false;
+            getParent().requestDisallowInterceptTouchEvent(false);
+
+            // 结算并释放速度追踪器
+            int flingDirection = 0;
+            if (velocityTracker != null) {
+                velocityTracker.computeCurrentVelocity(1000);
+                float vx = velocityTracker.getXVelocity();
+                velocityTracker.recycle();
+                velocityTracker = null;
+                if (Math.abs(vx) > FLING_MIN_VELOCITY) {
+                    flingDirection = vx > 0 ? 1 : -1;
+                }
+            }
+
+            if (wasLongPress) {
+                // 长按已触发查词：松手不做任何卡片操作
+                return true;
+            }
+            if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                animateCardBack();
+                return true;
+            }
+
+            float endX = event.getX();
+            float distanceX = endX - startX;
+            // 兜底：极快甩动时手指在抬起前会减速，瞬时速度可能读不到（约等于 0），
+            // 改用"手势总时长 + 位移"判定，避免漏判导致预览卡闪烁却不翻卡
+            if (flingDirection == 0 && Math.abs(distanceX) >= FLING_MIN_DISTANCE
+                    && (event.getEventTime() - event.getDownTime()) < FLING_MAX_DURATION_MS) {
+                flingDirection = distanceX > 0 ? 1 : -1;
+            }
+
+            // 判断是否是点击事件（滑动距离小）
+            boolean isClick = Math.abs(distanceX) < 10 && Math.abs(event.getY() - startY) < 10;
+            if (isClick) {
+                // 空白区域点击：旧版"点击卡片显示/隐藏释义"设计已移除；
+                // 若手势期间预览过相邻卡片（极快微甩动），点击时收起，避免残留"闪烁"的鬼影卡片
+                hideOtherCardsExcept(currentCard, null);
+                return true;
+            }
+
+            // 处理滑动事件：距离超过阈值 或 快速甩动（fling）都触发翻卡
+            boolean crossedThreshold = Math.abs(distanceX) > getWidth() * SWIPE_THRESHOLD;
+            boolean isFling = flingDirection != 0;
+            int direction = isFling ? flingDirection : (distanceX > 0 ? 1 : -1);
+            boolean canMove = direction > 0
+                    ? (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)
+                    : (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0);
+
+            if ((crossedThreshold || isFling) && canMove) {
+                // 滑动有效，移除当前卡片并显示相邻卡片
+                animateCardOut(direction);
+            } else {
+                // 否则将卡片返回原位
+                animateCardBack();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /** 判断触摸点是否落在输入框（EditText）上（屏幕坐标） */
+    private boolean isTouchOnEditText(float rawX, float rawY) {
+        if (currentCard == null) {
+            return false;
+        }
+        int[] loc = new int[2];
+        currentCard.getLocationOnScreen(loc);
+        return hitTestEditText(currentCard, rawX - loc[0], rawY - loc[1]) != null;
+    }
+
+    /** 递归命中测试：返回触摸点命中的 EditText（若有），只对输入框感兴趣 */
+    private View hitTestEditText(View view, float x, float y) {
+        if (view instanceof EditText) {
+            return view;
+        }
+        if (!(view instanceof ViewGroup)) {
+            return null;
+        }
+        ViewGroup group = (ViewGroup) view;
+        for (int i = group.getChildCount() - 1; i >= 0; i--) {
+            View child = group.getChildAt(i);
+            if (child.getVisibility() != View.VISIBLE) {
+                continue;
+            }
+            float cx = x - child.getLeft();
+            float cy = y - child.getTop();
+            if (cx >= 0 && cx < child.getWidth() && cy >= 0 && cy < child.getHeight()) {
+                View hit = hitTestEditText(child, cx, cy);
+                if (hit != null) {
+                    return hit;
+                }
+            }
+        }
+        return null;
     }
 
     public void addCard(View cardView) {

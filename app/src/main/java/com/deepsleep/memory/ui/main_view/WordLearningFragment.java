@@ -181,7 +181,6 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
         cardContainer = view.findViewById(R.id.word_card_container);
         if (cardContainer != null) {
-            cardContainer.setInteractiveMode(true);
             cardContainer.setOnCardSwipedListener(this);
             dailyState.loadFromPrefs();
             loadTodayTask();
@@ -226,6 +225,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         // 启动/刷新前台跨夜检测
         lastKnownDate = LocalDate.now().toString();
         startMidnightCheck();
+        // 网络恢复信号：静默补传断网期间未同步的答题记录
+        flushPendingUploads();
     }
 
     @Override
@@ -320,6 +321,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
      */
     private void parseAndCreateCards(JSONObject responseJson) throws JSONException {
         isLoadingTask = false;
+        // 能拉到今日任务说明网络已通：静默补传断网期间未同步的答题记录
+        flushPendingUploads();
         lexiconId = responseJson.getString("lexiconId");
         // 兼容旧字段 dailyNewWordCount，优先读取服务端 newWordCount（修复固定为 10 的问题）
         dailyNewWordCount = responseJson.has("newWordCount") ? responseJson.optInt("newWordCount", 10)
@@ -547,6 +550,25 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         }
         checkAllCompleted();
 
+        // 生成客户端提交幂等键：正常提交与补传共用，服务端据此去重（防止重复推进 FSRS）
+        final String submitId = wordCard.word_id + "_" + System.currentTimeMillis();
+
+        // 入队待上传记录：断网/提交失败时联网后自动补传，服务端确认成功后移除
+        DailyStateManager.PendingUpload pendingUpload = new DailyStateManager.PendingUpload();
+        pendingUpload.wordId = wordCard.word_id;
+        pendingUpload.submitId = submitId;
+        pendingUpload.lexiconId = lexiconId;
+        pendingUpload.word = wordCard.word;
+        pendingUpload.isCorrect = wordCard.isCorrect;
+        pendingUpload.fsrsScore = wordCard.fsrsScore;
+        pendingUpload.aiFeedback = wordCard.aiFeedback != null ? wordCard.aiFeedback : "";
+        pendingUpload.responseTimeMs = responseTimeMs;
+        pendingUpload.studyMode = studyMode;
+        pendingUpload.userAnswer = wordCard.userAnswer != null ? wordCard.userAnswer : "";
+        pendingUpload.referenceDefinition = wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "";
+        pendingUpload.pos = wordCard.pos != null ? wordCard.pos : "";
+        dailyState.enqueuePendingUpload(pendingUpload);
+
         GetDataByThread submit = new GetDataByThread("/learning/submitAnswer");
         if (WordCard.MODE_INPUT.equals(studyMode)) {
             // 输入模式：发送扩展字段，服务端进行 AI 评判
@@ -569,6 +591,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                                 // 持久化完整的 AI 评判结果
                                 dailyState.markCompletedWithFullResult(wordCard.word_id, serverIsCorrect, fsrsScore,
                                         aiFeedback);
+                                // 服务端确认成功：移出待上传队列
+                                dailyState.removePendingUpload(wordCard.word_id);
                                 // 找到对应的卡片视图并更新 AI 评判结果
                                 if (cardContainer != null) {
                                     for (View cv : cardContainer.getAllCards()) {
@@ -595,20 +619,41 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
                     responseTimeMs, wordCard.userAnswer != null ? wordCard.userAnswer : "",
                     wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "",
-                    wordCard.pos != null ? wordCard.pos : "");
+                    wordCard.pos != null ? wordCard.pos : "", submitId);
         } else {
             // 选择题模式：保持原有行为
             submit.submitAnswer(new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
-                    if (msg.what != msg_success) {
+                    if (msg.what == msg_success) {
+                        // 服务端确认成功：移出待上传队列
+                        dailyState.removePendingUpload(wordCard.word_id);
+                    } else {
                         Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
-                        // 提交失败时回滚：但保留已完成标记，避免重复练习
+                        // 提交失败：记录保留在待上传队列，联网后自动补传
                     }
                 }
             }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
-                    responseTimeMs, studyMode);
+                    responseTimeMs, studyMode, submitId);
         }
+    }
+
+    // ==================== 断网补传（待上传队列） ====================
+
+    /**
+     * 网络恢复信号（onResume / 今日任务加载成功）后触发：
+     * 由 PendingUploadSync 静默逐条补传本地未同步的答题记录（App 启动时也会全局触发）。
+     */
+    private void flushPendingUploads() {
+        PendingUploadSync.sync(requireContext(), (syncedCount, remainCount) -> {
+            // 补传完成后兜底：今日已全部完成时重报学习列表完成状态（幂等）
+            if (!isAdded() || remainCount != 0) {
+                return;
+            }
+            if (operatedCount >= totalWords && totalWords > 0) {
+                resendLearningListCompletion();
+            }
+        });
     }
 
     private void checkAllCompleted() {
@@ -616,11 +661,16 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             Log.i("StudyLog", "--------完成了今天的学习");
             // 添加总结卡片（放在卡片堆末尾）
             addSummaryCard();
-            GetDataByThread updateLearningList = new GetDataByThread("/learning/updateLearningListCompletion");
-            int actualStudyDay = studyDay > 0 ? studyDay : 1;
-            updateLearningList.updateLearningListCompletion(new UpdateHandler(), msg_success, msg_failed, userId,
-                    lexiconId, actualStudyDay, true);
+            resendLearningListCompletion();
         }
+    }
+
+    /** 上报学习列表完成状态（幂等操作，补传完成后兜底重发） */
+    private void resendLearningListCompletion() {
+        GetDataByThread updateLearningList = new GetDataByThread("/learning/updateLearningListCompletion");
+        int actualStudyDay = studyDay > 0 ? studyDay : 1;
+        updateLearningList.updateLearningListCompletion(new UpdateHandler(), msg_success, msg_failed, userId,
+                lexiconId, actualStudyDay, true);
     }
 
     /** 添加今日学习总结卡片（幂等：先移除旧总结卡片，再添加新的，避免重复堆积） */

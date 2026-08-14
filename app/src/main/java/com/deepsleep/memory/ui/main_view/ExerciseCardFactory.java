@@ -41,8 +41,8 @@ public class ExerciseCardFactory {
 
     /** 词书全部词条缓存：整个会话仅加载一次，避免每张卡重复全表 Room 查询（40 张卡 = 40 次全表查询是首帧卡顿主因） */
     private List<WordEntry> cachedAllEntries = null;
-    /** 预洗好的干扰项释义池：所有卡片共享、按游标顺序取用，避免每张卡重复 shuffle 全表 */
-    private List<String> meaningPool = null;
+    /** 预洗好的干扰项词条池：所有卡片共享、按游标顺序取用，避免每张卡重复 shuffle 全表（含词性，用于显示） */
+    private List<WordEntry> meaningPool = null;
     private int meaningPoolCursor = 0;
 
     public ExerciseCardFactory(Context context, String lexiconId, String studyMode, int userId, Callback callback) {
@@ -115,10 +115,13 @@ public class ExerciseCardFactory {
     private void setupChoiceCardView(View cardView, WordCard wordCard) {
         WordEntry entry = LexiconResourceMap.getWordByRank(lexiconId, wordCard.word_id);
         final String correctMeaning = entry != null ? entry.getChineseTranslation() : "";
+        final String correctPos = entry != null ? entry.getPos() : "";
+        // 正确选项显示文本：词性 + 释义（如 "vt. 放弃"）
+        final String correctDisplay = formatMeaningWithPos(correctPos, correctMeaning);
         // 每张卡独立记录选中项（原为工厂级共享字段，多卡并存时会串状态）
         final int[] selectedIdxHolder = new int[] { -1 };
 
-        String[] options = generateChoiceOptions(wordCard.word_id, correctMeaning);
+        WordEntry[] options = generateChoiceOptions(wordCard.word_id, correctMeaning);
         final int correctIdx = (int) (Math.random() * 4);
 
         int[] optionIds = { R.id.option_a, R.id.option_b, R.id.option_c, R.id.option_d };
@@ -128,8 +131,15 @@ public class ExerciseCardFactory {
         int distractorIdx = 0;
         for (int i = 0; i < 4; i++) {
             TextView optText = cardView.findViewById(optionTextIds[i]);
-            String displayText = (i == correctIdx) ? correctMeaning
-                    : (distractorIdx < options.length ? options[distractorIdx++] : "——");
+            String displayText;
+            if (i == correctIdx) {
+                displayText = correctDisplay;
+            } else if (distractorIdx < options.length && options[distractorIdx] != null) {
+                WordEntry distractor = options[distractorIdx++];
+                displayText = formatMeaningWithPos(distractor.getPos(), distractor.getChineseTranslation());
+            } else {
+                displayText = "——";
+            }
             optText.setText(displayText != null ? displayText : "——");
 
             final int idx = i;
@@ -159,7 +169,7 @@ public class ExerciseCardFactory {
                 wordCard.isCorrect = isCorrect;
                 long responseTimeMs = System.currentTimeMillis() - wordCard.displayStartTime;
                 showChoiceFeedback(cardView, feedbackContainer, btnConfirm, btnNext, optionCardIds, correctIdx,
-                        selectedIdxHolder[0], isCorrect, correctMeaning);
+                        selectedIdxHolder[0], isCorrect, correctDisplay);
                 callback.onSubmitAnswer(wordCard, responseTimeMs);
             });
         }
@@ -168,14 +178,25 @@ public class ExerciseCardFactory {
         }
     }
 
+    /** 组装"词性 + 释义"显示文本：词性为空时仅显示释义 */
+    private static String formatMeaningWithPos(String pos, String meaning) {
+        if (meaning == null || meaning.isEmpty()) {
+            return "——";
+        }
+        if (pos == null || pos.trim().isEmpty()) {
+            return meaning;
+        }
+        return pos.trim() + " " + meaning;
+    }
+
     /**
-     * 生成 3 个干扰项。 词书全表仅加载一次并预洗出释义池，所有卡片共享、按游标取用。 原实现每张卡都执行一次全表 Room 查询 + shuffle（40
-     * 张卡 ≈ 40 次 × 1341 行），是首帧卡顿主因。
+     * 生成 3 个干扰项词条。 词书全表仅加载一次并预洗出干扰项池，所有卡片共享、按游标取用。 原实现每张卡都执行一次全表 Room 查询 +
+     * shuffle（40 张卡 ≈ 40 次 × 1341 行），是首帧卡顿主因。
      */
-    private String[] generateChoiceOptions(int correctWordId, String correctMeaning) {
-        String[] options = new String[3];
+    private WordEntry[] generateChoiceOptions(int correctWordId, String correctMeaning) {
+        WordEntry[] options = new WordEntry[3];
         if (meaningPool == null) {
-            List<String> pool = new ArrayList<>();
+            List<WordEntry> pool = new ArrayList<>();
             List<WordEntry> allEntries = getAllEntriesCached();
             if (allEntries != null) {
                 for (WordEntry e : allEntries) {
@@ -183,7 +204,7 @@ public class ExerciseCardFactory {
                         continue;
                     String m = e.getChineseTranslation();
                     if (m != null && !m.isEmpty() && !m.equals(correctMeaning))
-                        pool.add(m);
+                        pool.add(e);
                 }
             }
             java.util.Collections.shuffle(pool);
@@ -192,14 +213,15 @@ public class ExerciseCardFactory {
         }
         int idx = 0;
         while (idx < 3 && meaningPoolCursor < meaningPool.size()) {
-            String m = meaningPool.get(meaningPoolCursor++);
-            if (m.equals(correctMeaning))
+            WordEntry e = meaningPool.get(meaningPoolCursor++);
+            String m = e.getChineseTranslation();
+            if (m == null || m.isEmpty() || m.equals(correctMeaning))
                 continue;
-            options[idx++] = m;
+            options[idx++] = e;
         }
-        // 释义池耗尽时兜底
+        // 释义池耗尽时兜底（options 为 null 时显示 "——"）
         while (idx < 3)
-            options[idx++] = "——";
+            options[idx++] = null;
         return options;
     }
 
@@ -224,7 +246,7 @@ public class ExerciseCardFactory {
     }
 
     private void showChoiceFeedback(View cardView, View feedbackContainer, View btnConfirm, View btnNext,
-            int[] optionCardIds, int correctIdx, int selectedIdx, boolean isCorrect, String correctMeaning) {
+            int[] optionCardIds, int correctIdx, int selectedIdx, boolean isCorrect, String correctDisplay) {
         for (int i = 0; i < optionCardIds.length; i++) {
             View card = cardView.findViewById(optionCardIds[i]);
             if (card != null) {
@@ -247,7 +269,7 @@ public class ExerciseCardFactory {
                         : android.graphics.Color.parseColor("#F44336"));
             }
             if (tvMeaning != null)
-                tvMeaning.setText("正确释义：" + correctMeaning);
+                tvMeaning.setText("正确释义：" + correctDisplay);
         }
         if (btnConfirm != null)
             btnConfirm.setVisibility(View.GONE);

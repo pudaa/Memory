@@ -169,7 +169,7 @@
                         android:id="@+id/option_a"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:gravity="center"
+                        android:gravity="center_horizontal"
                         android:padding="12dp"
                         android:background="@drawable/option_background_default"
                         android:orientation="vertical">
@@ -186,11 +186,12 @@
                         <TextView
                             android:id="@+id/option_a_text"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
                             android:text="放弃"
                             android:textSize="16sp"
                             android:gravity="center"
-                            android:maxLines="2"
+                            android:maxLines="4"
                             android:ellipsize="end" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -207,7 +208,7 @@
                         android:id="@+id/option_b"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:gravity="center"
+                        android:gravity="center_horizontal"
                         android:padding="12dp"
                         android:background="@drawable/option_background_default"
                         android:orientation="vertical">
@@ -224,11 +225,12 @@
                         <TextView
                             android:id="@+id/option_b_text"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
                             android:text="抛弃"
                             android:textSize="16sp"
                             android:gravity="center"
-                            android:maxLines="2"
+                            android:maxLines="4"
                             android:ellipsize="end" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -253,7 +255,7 @@
                         android:id="@+id/option_c"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:gravity="center"
+                        android:gravity="center_horizontal"
                         android:padding="12dp"
                         android:background="@drawable/option_background_default"
                         android:orientation="vertical">
@@ -270,11 +272,12 @@
                         <TextView
                             android:id="@+id/option_c_text"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
                             android:text="接受"
                             android:textSize="16sp"
                             android:gravity="center"
-                            android:maxLines="2"
+                            android:maxLines="4"
                             android:ellipsize="end" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -291,7 +294,7 @@
                         android:id="@+id/option_d"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:gravity="center"
+                        android:gravity="center_horizontal"
                         android:padding="12dp"
                         android:background="@drawable/option_background_default"
                         android:orientation="vertical">
@@ -308,11 +311,12 @@
                         <TextView
                             android:id="@+id/option_d_text"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
                             android:text="吸收"
                             android:textSize="16sp"
                             android:gravity="center"
-                            android:maxLines="2"
+                            android:maxLines="4"
                             android:ellipsize="end" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
