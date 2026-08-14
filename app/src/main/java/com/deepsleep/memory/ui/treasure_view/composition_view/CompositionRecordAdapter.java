@@ -69,16 +69,30 @@ public class CompositionRecordAdapter extends BaseAdapter {
         }
 
         try {
-            // 输入格式: "2025-08-16 21:17:00.0"
-            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S", Locale.getDefault());
+            // 输入格式: "2026-06-25T14:31:01" (ISO 8601, T 分隔, 无毫秒)
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
             Date date = inputFormat.parse(createdTime);
+            if (date == null) {
+                return createdTime;
+            }
 
-            // 输出格式: "2025-08-16 21:17"
+            // 输出格式: "2026-06-25 14:31"
             SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
             return outputFormat.format(date);
         } catch (Exception e) {
-            e.printStackTrace();
-            return createdTime;
+            // 兼容旧格式: "2025-08-16 21:17:00.0" (空格分隔, 带毫秒)
+            try {
+                SimpleDateFormat legacyFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S", Locale.getDefault());
+                Date date = legacyFormat.parse(createdTime);
+                if (date == null) {
+                    return createdTime;
+                }
+                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+                return outputFormat.format(date);
+            } catch (Exception e2) {
+                // 解析失败时直接显示原始时间，避免崩溃
+                return createdTime;
+            }
         }
     }
 
