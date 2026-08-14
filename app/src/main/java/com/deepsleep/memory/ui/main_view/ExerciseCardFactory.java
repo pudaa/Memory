@@ -58,10 +58,10 @@ public class ExerciseCardFactory {
     public View createExerciseCardView(WordCard wordCard) {
         View cardView;
         if (WordCard.MODE_INPUT.equals(studyMode)) {
-            cardView = inflater.inflate(R.layout.word_card_input_layout, null);
+            cardView = inflater.inflate(R.layout.view_word_card_input, null);
             setupInputCardView(cardView, wordCard);
         } else {
-            cardView = inflater.inflate(R.layout.word_card_choice_layout, null);
+            cardView = inflater.inflate(R.layout.view_word_card_choice, null);
             setupChoiceCardView(cardView, wordCard);
         }
         setupCommonCardView(cardView, wordCard);

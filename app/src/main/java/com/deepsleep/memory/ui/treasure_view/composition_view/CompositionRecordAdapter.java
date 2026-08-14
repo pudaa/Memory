@@ -42,7 +42,7 @@ public class CompositionRecordAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
         if (convertView == null) {
-            convertView = inflater.inflate(R.layout.composition_records_item, parent, false);
+            convertView = inflater.inflate(R.layout.item_composition_record, parent, false);
             holder = new ViewHolder();
             holder.previewContent = convertView.findViewById(R.id.preview_content);
             holder.score = convertView.findViewById(R.id.score);

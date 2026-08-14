@@ -27,7 +27,7 @@ public class BookAdapter extends ArrayAdapter<JSONObject> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.book_select_layout_item, parent, false);
+            convertView = LayoutInflater.from(context).inflate(R.layout.item_book_select, parent, false);
         }
 
         JSONObject book = books.get(position);

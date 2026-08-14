@@ -36,26 +36,6 @@
         <activity
                 android:name=".ui.treasure_view.evaluation_view.EvaluationActivity"
                 android:exported="false"
-                android:screenOrientation="portrait"/>
-        <activity
-                android:name=".ui.treasure_view.evaluation_view.EvaluationDashboardActivity"
-                android:exported="false"
-                android:screenOrientation="portrait"/>
-        <activity
-                android:name=".ui.treasure_view.evaluation_view.EvaluationTrendActivity"
-                android:exported="false"
-                android:screenOrientation="portrait"/>
-        <activity
-                android:name=".ui.treasure_view.evaluation_view.EvaluationWeeklyReportActivity"
-                android:exported="false"
-                android:screenOrientation="portrait"/>
-        <activity
-                android:name=".ui.treasure_view.evaluation_view.EvaluationAiSuggestionActivity"
-                android:exported="false"
-                android:screenOrientation="portrait"/>
-        <activity
-                android:name=".ui.treasure_view.evaluation_view.EvaluationDeepAnalysisActivity"
-                android:exported="false"
                 android:screenOrientation="portrait"/>        <activity
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationMenuActivity"
                 android:exported="false"/>

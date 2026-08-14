@@ -149,7 +149,7 @@ public class CameraCaptureActivity extends AppCompatActivity {
         insetsController.hide(WindowInsetsCompat.Type.systemBars());
         insetsController.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
 
-        setContentView(R.layout.activity_camera_capture);
+        setContentView(R.layout.camera_capture_layout);
 
         viewFinder = findViewById(R.id.view_finder);
         btnCapture = findViewById(R.id.btn_capture);

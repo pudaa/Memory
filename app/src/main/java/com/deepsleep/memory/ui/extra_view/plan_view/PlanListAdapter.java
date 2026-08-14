@@ -50,7 +50,7 @@ public class PlanListAdapter extends BaseAdapter {
     @SuppressLint("ViewHolder")
     @Override
     public View getView(int i, View view, ViewGroup viewGroup) {
-        view = LayoutInflater.from(this.context).inflate(R.layout.plan_list_layout_item, viewGroup, false);
+        view = LayoutInflater.from(this.context).inflate(R.layout.item_plan_list, viewGroup, false);
         List<JSONObject> allBooks = loadBooksFromJson(this.context);
         TextView lexiconText = view.findViewById(R.id.lexicon_id);
         TextView planProgressText = view.findViewById(R.id.plan_progress_text);

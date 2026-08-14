@@ -23,7 +23,7 @@ public class ManualDialogFragment extends DialogFragment {
     @Override
     public AlertDialog onCreateDialog(Bundle savedInstanceState) {
         // 创建自定义视图
-        View view = getActivity().getLayoutInflater().inflate(R.layout.dialog_manual_layout, null);
+        View view = getActivity().getLayoutInflater().inflate(R.layout.dialog_manual, null);
         TextView manualTextView = view.findViewById(R.id.manual_text_view);
 
         markwon = Markwon.create(requireContext());

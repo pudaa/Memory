@@ -1111,13 +1111,16 @@ sequenceDiagram
 
 ### 13.2 涉及文件
 
+> 说明：原多个独立页面（Dashboard / Trend / Weekly / AiSuggestion / DeepAnalysis）已重构合并为
+> 单页三 Tab 结构（`EvaluationActivity`），旧 Activity 与旧布局已清理删除。
+
 | 文件 | 职责 |
 |------|------|
-| `EvaluationDashboardActivity.java` | 总览仪表盘（概览卡片 + 饼图 + 折线图） |
-| `EvaluationTrendActivity.java` | 30/90/180 天学习趋势折线图 |
-| `EvaluationWeeklyReportActivity.java` | 周报（AI 生成总结 + 成就徽章） |
-| `EvaluationAiSuggestionActivity.java` | AI 个性化学习建议 |
-| `EvaluationDeepAnalysisActivity.java` | 深度分析（FSRS 趋势 + 行为分析 + 弱词榜） |
+| `EvaluationActivity.java` | 统一入口页，ViewPager2 + TabLayout 三个 Tab：学习概览 \| 深度分析 \| AI建议 |
+| `evaluation_main_layout.xml` | 主页面布局（返回栏 + TabLayout + ViewPager2 + 进度条） |
+| `evaluation_page_overview.xml` | Tab1 学习概览（概览卡片 + 掌握度饼图 + 近7日折线图 + 周报总结） |
+| `evaluation_page_deep.xml` | Tab2 深度分析（FSRS 趋势 + 薄弱/危急单词） |
+| `evaluation_page_ai.xml` | Tab3 AI建议（总体评估 + 建议列表 + 长期策略 + 即时反馈 + 应用设置） |
 
 ### 13.3 客户端解析注意事项
 
@@ -1214,7 +1217,7 @@ Markwon 基于 commonmark-java，约 4 MB APK 增量。支持标准 Markdown 语
 | 入口 | 目标 Activity | 功能 |
 |------|-------------|------|
 | 我的词书 | `MyWordBookActivity` | ViewPager2：收藏词 + 薄弱词 |
-| 学习报告 | `EvaluationDashboardActivity` | 学习评估仪表盘 |
+| 学习报告 | `EvaluationActivity` | 学习评估（概览 / 深度分析 / AI建议 三 Tab） |
 | 设置 | `SettingActivity` | 学习偏好、环境切换 |
 | 计划管理 | `PlanListActivity` / `PlanCheckActivity` | 计划列表、进度查看 |
 

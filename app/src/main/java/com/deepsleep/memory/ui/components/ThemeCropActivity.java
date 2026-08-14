@@ -60,7 +60,7 @@ public class ThemeCropActivity extends AppCompatActivity {
         insetsController.hide(WindowInsetsCompat.Type.systemBars());
         insetsController.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
 
-        setContentView(R.layout.activity_theme_crop);
+        setContentView(R.layout.theme_crop_layout);
 
         cropImageView = findViewById(R.id.crop_image_view);
         Uri sourceUri = getIntent().getParcelableExtra(EXTRA_SOURCE_URI);

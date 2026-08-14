@@ -42,7 +42,7 @@ public class SummaryCardBuilder {
      */
     public View buildTodaySummary(List<WordCard> wordCards, List<WordCard> filteredSnapshot, int completedCount,
             List<DailyStateManager.CompletedWordEntry> persistedDetails, String lexiconId) {
-        View view = inflater.inflate(R.layout.card_summary_layout, null);
+        View view = inflater.inflate(R.layout.view_card_summary, null);
         LinearLayout wordContainer = view.findViewById(R.id.summary_word_container);
         TextView tvCorrect = view.findViewById(R.id.tv_summary_correct);
         TextView tvWrong = view.findViewById(R.id.tv_summary_wrong);

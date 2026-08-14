@@ -1,6 +1,9 @@
 # Memory App — 开发约束与规范（Development Conventions）
 
-> **版本**：1.0 | **生效日期**：2026-08-04
+> **版本**：1.1 | **生效日期**：2026-08-14
+>
+> **更新记录**：
+> - 1.1（2026-08-14）：新增 §3.8 布局文件命名规范（Layout 命名铁律）
 >
 > 本文档是项目开发的**强制性约束**。所有新代码、重构以及 AI 辅助开发都必须遵守。
 > 关联文档：[项目全景总览](project-overview.md)（先读总览建立全局观）、[项目技术文档](project-technical-documentation.md)（技术细节）。
@@ -118,6 +121,75 @@
 - 项目为 **XML + View（Java）** 体系，M3 的配色角色 / 字体类型 / 形状 / 高度通过 **Material 属性与自定义样式**落地（参考 `.github/references/material3-theming.md` 的**设计原则**，其中 Compose 代码仅为概念参考，不直接照搬）；
 - 优先复用已有的 Material 组件与既有样式（`themes.xml`、`colors.xml`、`drawable` shape），避免每页自造一套；
 - 涉及界面精细打磨时可调用移动端设计技能（mobile-android-design / make-interfaces-feel-better）辅助评审。
+
+### 3.8 布局文件命名规范（Layout 命名铁律）
+
+**目的**：布局文件名必须"一眼可辨组件类型 + 所属功能"。前期手动编写与 AI 生成的命名混用（`activity_` 前缀、`_item` 后缀、裸名等）导致对接时经常改错页面。**所有新增 / 修改布局文件必须遵守本节。**
+
+**命名总则**：全小写 + 下划线（`snake_case`），格式 = `[类型前缀] + 功能语义名`。功能名用模块英文名（`composition` / `dictation` / `evaluation` 等），禁止中文、拼音、无意义缩写。
+
+#### 3.8.1 核心规则（强制）
+
+| 布局类型 | 命名格式 | 示例 | 判定依据 |
+|---------|---------|------|---------|
+| **Activity 页面** | `<功能>_layout` | `composition_menu_layout`（作文批改菜单页） | `setContentView(R.layout.xxx)` 的完整页面，以 `_layout` 结尾 |
+| **Fragment 页面** | `fragment_<功能>` | `fragment_daily_reading`（每日阅读页） | Fragment `onCreateView()` inflate 的布局，`fragment_` 开头 |
+| **列表项 / 内嵌小组件** | `item_<实体>` | `item_weak_word`（薄弱词列表项） | RecyclerView / ListView 等列表的每个 item，或页内复用小部件，`item_` 开头 |
+
+#### 3.8.2 补充规则（强制）
+
+| 布局类型 | 命名格式 | 示例 | 判定依据 |
+|---------|---------|------|---------|
+| **对话框** | `dialog_<功能>` | `dialog_ocr_progress`（OCR 进度对话框） | `AlertDialog` / `DialogFragment` 的内容布局 |
+| **底部弹层** | `sheet_<功能>` | `sheet_scenario_picker`（场景选择弹层） | `BottomSheetDialog` / `BottomSheetDialogFragment` 内容布局 |
+| **Tab 子页面** | `<模块>_page_<名称>` | `evaluation_page_overview`（学情分析概览 Tab） | ViewPager2 / TabLayout 内嵌的子页面（非独立 Activity） |
+| **自定义 View / 可复用组件** | `view_<名称>` | `view_bottom_nav` | 自定义控件类 inflate 到自己；或被 `<include>` / 工厂类复用的组件 |
+
+#### 3.8.3 禁止写法（红线）
+
+- ❌ `activity_` 前缀（旧写法，如 `activity_main`）→ 统一为 `<功能>_layout`；
+- ❌ `_item` 后缀（如 `xxx_item`）→ 统一为 `item_<实体>`；
+- ❌ 类型前缀与 `_layout` 后缀混用（如 `dialog_xxx_layout`）→ 只保留类型前缀，去掉 `_layout`；
+- ❌ 无类型前缀的裸名（如 `bottom_layout`）→ 无法判断组件类型，必须加前缀；
+- ❌ 中文 / 拼音 / 无意义缩写命名。
+
+#### 3.8.4 存量不合规迁移记录（2026-08-14 已完成）
+
+> ✅ **迁移已于 2026-08-14 执行完毕**（`git mv` 保留历史 + 同步更新全部 `R.layout.xxx` 与 `<include>` 引用，`assembleDebug` 构建通过）。后续所有布局必须直接符合 §3.8.1 / §3.8.2，不再存在例外存量。
+
+**已完成重命名（`activity_` 前缀 / `_item` 后缀）：**
+
+| 原文件名 | 新文件名 | 引用位置 |
+|------|--------|---------|
+| `activity_main.xml` | `main_layout.xml` | `MainActivity` |
+| `activity_camera_capture.xml` | `camera_capture_layout.xml` | `CameraCaptureActivity` |
+| `activity_theme_crop.xml` | `theme_crop_layout.xml` | `ThemeCropActivity` |
+| `composition_records_item.xml` | `item_composition_record.xml` | `CompositionRecordAdapter` |
+| `book_select_layout_item.xml` | `item_book_select.xml` | `BookAdapter` |
+| `fragment_word_list_item.xml` | `item_word_list.xml` | `WordListAdapter` |
+| `plan_list_layout_item.xml` | `item_plan_list.xml` | `PlanListAdapter` |
+
+**已完成重命名（可复用组件 / 对话框，统一加类型前缀）：**
+
+| 原文件名 | 新文件名 | 引用位置 |
+|------|--------|---------|
+| `bottom_layout.xml` | `view_bottom_nav.xml` | `main_layout.xml`（`<include>`） |
+| `card_container_layout.xml` | `view_word_card_container.xml` | `WordCardContainer` |
+| `card_summary_layout.xml` | `view_card_summary.xml` | `SummaryCardBuilder` |
+| `word_card_choice_layout.xml` | `view_word_card_choice.xml` | `ExerciseCardFactory` |
+| `word_card_input_layout.xml` | `view_word_card_input.xml` | `ExerciseCardFactory` |
+| `dialog_manual_layout.xml` | `dialog_manual.xml` | `ManualDialogFragment` |
+
+**已删除孤儿文件（原全库零引用）：**
+
+| 文件 | 来源 |
+|------|------|
+| `item_trend_day.xml` / `item_trend_legend.xml` / `item_trend_row.xml` | 已删除的旧 `EvaluationTrendActivity` 遗留 |
+| `item_mastery_bar.xml` | 旧学情分析遗留 |
+| `item_section_header.xml` | 历史遗留 |
+| `word_card_layout.xml` | 旧单词卡片基础布局遗留 |
+
+> ⚠️ `crop_image_view.xml` 为裁剪库 vendor 代码（`com.canhub.cropper.CropImageView`）私有布局，**保持不动**，不纳入本项目命名规范。
 
 ---
 

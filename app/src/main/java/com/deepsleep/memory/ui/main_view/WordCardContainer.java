@@ -95,7 +95,7 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
     private void init(Context context) {
         // 从XML布局加载容器结构
         LayoutInflater inflater = LayoutInflater.from(getContext());
-        View rootView = inflater.inflate(R.layout.card_container_layout, this, true);
+        View rootView = inflater.inflate(R.layout.view_word_card_container, this, true);
 
         // 获取容器引用
         cardStackContainer = rootView.findViewById(R.id.card_stack_container);
