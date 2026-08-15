@@ -78,7 +78,19 @@
 
 ### 2.5 相机 / 裁剪 / 相册链
 
-- 自定义拍照走 `CameraCaptureActivity`（相机用例统一用 `ResolutionSelector` 4:3）；
+- 自定义拍照走 `CameraCaptureActivity`（`ResolutionSelector` 支持 4:3 / 16:9 切换，默认 16:9，选择持久化于 `UserSettingsManager`）；
+- 遮罩/预览跟随比例动态切换（`applyRatioVisual()`，借鉴系统相机）：**16:9 → `FILL_CENTER` 铺满全屏 + 渐变遮罩；4:3 → `FIT_CENTER` 完整画面居中（四周天然黑边）+ 遮罩置为透明**（黑边本身即黑，若用不透明遮罩会盖住 FIT 画面底部/侧边并遮挡网格线）；
+- 横竖屏布局分列 `layout/camera_capture_layout.xml` 与 `layout-land/camera_capture_layout.xml`，控件 id 必须一致；渐变遮罩为独立全边缘 View（`top_scrim` / `bottom_scrim`），**禁止**在控制栏上内嵌背景 + margin 制造渐变（会留出底部未覆盖缺口）；
+- **相机控件朝向不做任何代码旋转**（重要结论）：横竖屏切换由 Activity 重建天然处理，横屏布局（layout-land）中控件保持相对窗口 0° 即用户在横持视角的正立方向；此前传感器（OrientationEventListener/主动读取加速度计）+ Display rotation 驱动的旋转机制因 ROM 报告不可靠（华为重建后回调缺失/报告旧值）反复出错，且用户实测确认"横屏应逆时针再转 90°"即回归 0°，**已整体移除**（`rotation="-90"` 预设、监听器、主动采样、DisplayListener 全部删除）；
+- **系统栏隐藏需在 `onWindowFocusChanged` 中重复执行**（`hideSystemBars()`）：部分 ROM（华为）横屏时可能覆盖沉浸模式或重建时序导致隐藏失效（表现为竖屏隐藏正常、横屏状态栏复现）；
+- 预览层手势：`onSingleTapUp` 必须返回 `false`（否则 GestureDetector 禁用双击检测），单击对焦走 `onSingleTapConfirmed`，双击缩放走 `onDoubleTap`，捏合缩放灵敏度按 CameraView 做法 ×2，单指上下滑动调节曝光补偿（`onScroll`，每 80px 一个档位，`setExposureCompensationIndex`）；
+- 自定义叠加层（如网格线）若覆盖预览层，**必须设置 `setOnTouchListener` 转发触摸到 focus_overlay**，否则 clickable=false 的 View 会截胡事件（hit-test 命中后向上冒泡，不会穿透到下层）；
+- 网格线开关持久化于 `UserSettingsManager`（`isCameraGridEnabled`），控件 id 约定：`btn_grid` / `btn_switch_camera` / `grid_overlay` / `ev_label`；
+- **网格线三分位置必须基于画面实际渲染区域**（`GridOverlayView.setRenderRect`）：渲染矩形由 `updateGridRenderRect()` 计算，优先使用 `Preview.getResolutionInfo()` 返回的**真实分辨率 + 旋转角**（`ResolutionInfo.getResolution()/getRotationDegrees()`，绑定后 ~250ms 异步就绪，勿用 `Preview.PreviewResolution`——该嵌套类在 CameraX 1.3.x 不存在）；未就绪时回退 4:3 假设；渲染矩形需夹取到 PreviewView 范围内，避免网格线画到遮罩/黑边区；并监听 `viewFinder` 布局变化（`OnGlobalLayoutListener`）同步更新；
+- 捏合缩放使用 **16ms 节流合并**（`zoomPendingTarget` + `postDelayed`）：CameraX `setZoomRatio` 内部带平滑动画，每次 onScale 都直接调用会让动画不断重启、画面追不上手势（感知延迟），节流后每帧最多提交一次；
+- **SVG 转 Android vector 必须等比**：vector 默认将 viewport 拉伸填满容器（SVG 默认 preserveAspectRatio 等比），viewport 宽高比 ≠ 容器宽高比时图形会被压扁/拉长（如 1303:1024 放进 24dp×24dp 会横向压缩成瘦长相机 + 椭圆镜头）；容器高度应按 `height = width * viewportHeight / viewportWidth` 计算；
+- **相册按钮圆角用 `ViewOutlineProvider` 绘制层裁剪**（`setClipToOutline(true)` + `outline.setRoundRect`，**固定 dp 尺寸而非 `view.getWidth()`**——onCreate 阶段未布局宽高为 0，0 尺寸 outline 会把整个按钮裁剪不可见）；不依赖 Glide 变换/alpha 通道（RGB_565 解码下 `RoundedCorners` 透明角变黑，黑色图片上无圆角观感）；配合半透明白圆角背景（`bg_camera_gallery`）保证深色图片圆角轮廓可见；Glide 仅 `override(按钮尺寸).centerCrop()`；
+- 横屏下缩放/EV 徽章（`zoom_label`/`ev_label`）约束为**顶部居中**，禁止约束屏幕右缘（会与右侧快门控制栏重叠被遮挡）；
 - 图片裁剪走 uCrop（`UcropHelper.createThemedOptions()`），裁剪返回用 Activity Result API；
 - **禁止**回退到旧的 `startActivityForResult` / `onActivityResult` 写法。
 

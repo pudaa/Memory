@@ -196,34 +196,10 @@ public class CompositionMenuActivity extends AppCompatActivity {
     }
 
     private void dispatchTakePictureIntent() {
-        // 创建文件用于保存照片
-        File photoFile = null;
-        try {
-            photoFile = createImageFile();
-        } catch (IOException ex) {
-            Toast.makeText(this, "创建图片文件失败", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (photoFile == null)
-            return;
-
-        currentPhotoPath = photoFile.getAbsolutePath();
-
-        // 使用自定义相机（无确认界面，拍照后直接返回）
+        // 不预创建 0 字节临时文件：文件由相机拍照时在内部缓存目录创建并从结果返回，
+        // 避免未拍照即退出时残留空文件被系统相册扫描（部分 ROM 会扫描 Android/data）
         Intent intent = new Intent(this, CameraCaptureActivity.class);
-        intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
         cameraLauncher.launch(intent);
-    }
-
-    private File createImageFile() throws IOException {
-        // 创建一个临时文件名
-        String imageFileName = "JPEG_Composition_" + System.currentTimeMillis() + "_";
-        File storageDir = getExternalFilesDir(null);
-        File image = File.createTempFile(imageFileName, ".jpg", storageDir);
-
-        // 保存文件路径
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
     }
 
     private void startUCropActivity() {

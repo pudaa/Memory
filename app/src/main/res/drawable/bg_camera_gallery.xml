@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 相册按钮圆角背景：半透明白色 + 12dp 圆角。
+     圆角图片（Glide RoundedCorners）的透明角露出此背景，使任何颜色/比例
+     （包括黑色、非 1:1 图片——透明角与纯黑图片融为一体时会看不出圆角）的
+     缩略图都呈现清晰的圆角矩形观感；未加载缩略图时默认图标同样有圆角底。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2EFFFFFF" />
+    <corners android:radius="12dp" />
+</shape>

@@ -521,24 +521,10 @@ public class DictationExecutionActivity extends AppCompatActivity {
     // ── 拍照 OCR ──
 
     private void openCamera() {
-        try {
-            File photoFile = createImageFile();
-            currentPhotoPath = photoFile.getAbsolutePath();
-            cameraImageUri = Uri.fromFile(photoFile);
-
-            // 使用自定义相机（无确认界面，拍照后直接返回）
-            Intent intent = new Intent(this, CameraCaptureActivity.class);
-            intent.putExtra(CameraCaptureActivity.EXTRA_OUTPUT_PATH, currentPhotoPath);
-            cameraLauncher.launch(intent);
-        } catch (IOException e) {
-            Toast.makeText(this, "无法创建照片文件", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private File createImageFile() throws IOException {
-        String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-        File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        return File.createTempFile("dict_" + ts, ".jpg", dir);
+        // 不预创建 0 字节临时文件：文件由相机拍照时在内部缓存目录创建并从结果返回，
+        // 避免未拍照即退出时残留空文件被系统相册扫描（部分 ROM 会扫描 Android/data）
+        Intent intent = new Intent(this, CameraCaptureActivity.class);
+        cameraLauncher.launch(intent);
     }
 
     private void startUCropActivity() {

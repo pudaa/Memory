@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 相机页底部控制栏尺寸（横屏下由 values-land 覆盖） -->
-    <dimen name="camera_bottom_bar_height">120dp</dimen>
-    <dimen name="camera_bottom_bar_margin">32dp</dimen>
+    <!-- 相机页底部控制栏尺寸：渐变遮罩由独立 bottom_scrim 提供（从屏幕最底边开始），
+         此 margin 仅作全面屏手势导航的安全距离，不再承担“渐变缺口”的角色 -->
+    <dimen name="camera_bottom_bar_height">96dp</dimen>
+    <dimen name="camera_bottom_bar_margin">24dp</dimen>
 </resources>

@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 竖屏相机布局：
-     渐变遮罩为独立的全宽 View（top_scrim / bottom_scrim），从屏幕最边缘开始延伸，
-     控制栏无背景、悬浮于遮罩之上——避免旧方案中“渐变只画在栏内 + margin 缺口”导致
-     屏幕底部出现未覆盖区域的问题。 -->
+<!-- 横屏相机布局（layout-land，与代码引用的 camera_capture_layout 同名）：
+     快门/相册控制栏移至屏幕右侧边缘（横持时右手拇指自然位置），
+     顶栏（关闭/网格/比例/闪光灯/切换镜头）移至左侧边缘。
+     注意：控件不做任何 rotation——窗口随 Activity 重建旋转后，控件相对窗口 0°
+     即用户在横持视角下的正立方向（此前传感器/Display 旋转机制已整体移除）。
+     所有控件 id 必须与竖屏布局一致，代码 findViewById 才能复用。 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <!-- 相机预览 - fillCenter 确保所见即所得，不裁切画面 -->
+    <!-- 相机预览 - 填充整个屏幕 -->
     <androidx.camera.view.PreviewView
         android:id="@+id/view_finder"
         android:layout_width="0dp"
@@ -20,7 +22,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 点按对焦覆盖层：拦截预览区域触摸并显示对焦圈动画（位于遮罩/控制栏之下） -->
+    <!-- 点按对焦/捏合缩放覆盖层：拦截预览区域触摸（位于遮罩/控制栏之下） -->
     <FrameLayout
         android:id="@+id/focus_overlay"
         android:layout_width="0dp"
@@ -54,105 +56,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 顶部渐变遮罩：从屏幕最上边开始向下渐隐（提升顶栏辨识度） -->
+    <!-- 左侧渐变遮罩：从屏幕最左缘开始向右渐隐（提升左侧控制栏辨识度） -->
     <View
         android:id="@+id/top_scrim"
-        android:layout_width="0dp"
-        android:layout_height="140dp"
-        android:background="@drawable/bg_scrim_top"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="120dp"
+        android:layout_height="0dp"
+        android:background="@drawable/bg_scrim_start"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 底部渐变遮罩：从屏幕最下边开始向上渐隐（提升底栏辨识度），无 margin 缺口 -->
+    <!-- 右侧渐变遮罩：从屏幕最右缘开始向左渐隐（提升右侧控制栏辨识度） -->
     <View
         android:id="@+id/bottom_scrim"
-        android:layout_width="0dp"
-        android:layout_height="260dp"
-        android:background="@drawable/bg_scrim_bottom"
+        android:layout_width="220dp"
+        android:layout_height="0dp"
+        android:background="@drawable/bg_scrim_end"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 顶部栏（无背景，悬浮于渐变遮罩之上；marginTop 防止贴顶误触/观感差） -->
-    <LinearLayout
-        android:id="@+id/top_bar"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageButton
-            android:id="@+id/btn_close"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="关闭"
-            android:foreground="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerInside"
-            android:src="@android:drawable/ic_menu_close_clear_cancel" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <ImageButton
-            android:id="@+id/btn_grid"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="网格线"
-            android:foreground="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_grid" />
-
-        <TextView
-            android:id="@+id/btn_ratio"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_crop_chip_normal"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            android:text="16:9"
-            android:textColor="@android:color/white"
-            android:textSize="14sp" />
-
-        <ImageButton
-            android:id="@+id/btn_flash"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="闪光灯"
-            android:foreground="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_flash_off"
-            android:visibility="gone" />
-
-        <ImageButton
-            android:id="@+id/btn_switch_camera"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="切换镜头"
-            android:foreground="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_camera_switch" />
-    </LinearLayout>
-
-    <!-- 缩放倍率徽章（捏合/双击缩放时短暂显示，1 秒后淡出；置于顶部不被手指遮挡） -->
+    <!-- 缩放倍率徽章：顶部居中（避免与右侧快门控制栏重叠遮挡） -->
     <TextView
         android:id="@+id/zoom_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="64dp"
         android:background="@drawable/bg_zoom_chip"
         android:paddingHorizontal="10dp"
         android:paddingVertical="3dp"
@@ -162,9 +91,9 @@
         android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/top_bar" />
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 曝光补偿徽章（单指上下滑动调节 EV 时短暂显示） -->
+    <!-- 曝光补偿徽章：位于缩放徽章下方（单指上下滑动调节 EV 时短暂显示） -->
     <TextView
         android:id="@+id/ev_label"
         android:layout_width="wrap_content"
@@ -181,44 +110,115 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/zoom_label" />
 
-    <!-- 底部栏（无背景，悬浮于渐变遮罩之上；marginBottom 仅作全面屏手势安全距离） -->
+    <!-- 左侧控制栏：关闭 / 拍摄比例 / 闪光灯（横屏时显示在屏幕左缘垂直居中，按钮旋转 -90° 竖立可读） -->
+    <LinearLayout
+        android:id="@+id/top_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/btn_close"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="关闭"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:src="@android:drawable/ic_menu_close_clear_cancel" />
+
+        <ImageButton
+            android:id="@+id/btn_grid"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="网格线"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_grid" />
+
+        <TextView
+            android:id="@+id/btn_ratio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_crop_chip_normal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="16:9"
+            android:textColor="@android:color/white"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/btn_flash"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="闪光灯"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_flash_off"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_switch_camera"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="切换镜头"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_camera_switch" />
+    </LinearLayout>
+
+    <!-- 右侧控制栏：快门/相册位于屏幕右缘垂直居中，横持时右手拇指可自然触及 -->
     <LinearLayout
         android:id="@+id/bottom_bar"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/camera_bottom_bar_height"
-        android:layout_marginBottom="@dimen/camera_bottom_bar_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="12dp"
         android:gravity="center"
-        android:orientation="horizontal"
+        android:orientation="vertical"
+        android:padding="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- 相册选择按钮（centerCrop 铺满 + 圆角背景：圆角图片透明角露出半透明底，
-             任何颜色/比例的缩略图都呈圆角矩形观感，与黑色图片也不会融为一体） -->
-        <ImageButton
-            android:id="@+id/btn_gallery"
+        <!-- 占位：保持快门按钮位于右缘垂直居中 -->
+        <View
             android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="40dp"
-            android:background="@drawable/bg_camera_gallery"
-            android:contentDescription="相册"
-            android:foreground="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_menu_gallery" />
+            android:layout_height="48dp" />
 
         <!-- 拍照按钮 -->
         <ImageButton
             android:id="@+id/btn_capture"
             android:layout_width="72dp"
             android:layout_height="72dp"
+            android:layout_marginTop="24dp"
             android:background="@drawable/ic_camera_capture"
             android:contentDescription="拍照" />
 
-        <!-- 占位：保持拍照按钮居中 -->
-        <View
+        <!-- 相册选择按钮：置于快门下方（竖屏时相册在快门左侧，逆时针转 90° 到横屏后
+             左侧元素应转到下方，与竖屏保持旋转连贯；centerCrop 铺满 + 圆角背景） -->
+        <ImageButton
+            android:id="@+id/btn_gallery"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginStart="40dp" />
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_camera_gallery"
+            android:contentDescription="相册"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerCrop"
+            android:src="@android:drawable/ic_menu_gallery" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

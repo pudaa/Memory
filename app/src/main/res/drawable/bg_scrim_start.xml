@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 左侧渐变遮罩（横屏）：从屏幕左缘深色向右渐隐，与竖屏 bg_scrim_top/bottom 同色系，保持横竖屏美术统一 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:startColor="#99000000"
+        android:endColor="#00000000" />
+</shape>
