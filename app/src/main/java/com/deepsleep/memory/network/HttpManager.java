@@ -20,6 +20,7 @@ import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -37,6 +38,14 @@ public class HttpManager {
 
 	/** 最近一次图片上传失败的可读原因（供 UI 层区分并引导用户），成功时清空 */
 	private static volatile String sLastImageUploadError;
+
+	private static HttpResponse executeWithAuth(HttpRequestBase request) throws IOException {
+		String token = com.deepsleep.memory.settings.InnerSettingsManager.getStoredAccessToken();
+		if (token != null && !token.isEmpty()) {
+			request.setHeader("Authorization", "Bearer " + token);
+		}
+		return new DefaultHttpClient().execute(request);
+	}
 
 	/** 获取最近一次图片上传失败的原因描述；无失败/已成功时为 null */
 	public static String getLastImageUploadError() {
@@ -62,7 +71,7 @@ public class HttpManager {
 			HttpGet request = new HttpGet(url);
 
 			// request.addHeader(headerKey, headerValue);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -82,7 +91,7 @@ public class HttpManager {
 		try {
 			HttpGet request = new HttpGet(url);
 			request.addHeader(headerKey, headerValue);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 
@@ -105,7 +114,7 @@ public class HttpManager {
 			HttpGet request = new HttpGet(url);
 			request.addHeader(headerKey, headerValue);
 			request.addHeader(headerKey1, headerValue1);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -129,7 +138,7 @@ public class HttpManager {
 
 			request.addHeader("iconId", iconId);
 			Log.i("HttpManager", "---iconId----" + iconId);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 
 			int statusCode = 0;
 			statusCode = httpResponse.getStatusLine().getStatusCode();
@@ -166,7 +175,7 @@ public class HttpManager {
 		try {
 
 			HttpGet request = new HttpGet(webUri);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 
 			int statusCode = 0;
 			statusCode = httpResponse.getStatusLine().getStatusCode();
@@ -205,7 +214,7 @@ public class HttpManager {
 			request.addHeader(headerKey, headerValue);
 			request.addHeader(headerKey1, headerValue1);
 			request.addHeader(headerKey2, headerValue2);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -229,7 +238,7 @@ public class HttpManager {
 			request.addHeader(headerKey1, headerValue1);
 			request.addHeader(headerKey2, headerValue2);
 			request.addHeader(headerKey3, headerValue3);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			System.out.println(
 					"httpResponse.getStatusLine().getStatusCode()" + httpResponse.getStatusLine().getStatusCode());
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
@@ -257,7 +266,7 @@ public class HttpManager {
 			request.addHeader(headerKey2, headerValue2);
 			request.addHeader(headerKey3, headerValue3);
 			request.addHeader(headerKey4, headerValue4);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -281,7 +290,7 @@ public class HttpManager {
 			StringEntity entity;
 			entity = new StringEntity(param.toString());
 			request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -311,7 +320,7 @@ public class HttpManager {
 			// StringEntity entity;
 			// entity = new StringEntity(param.toString());
 			// request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -344,7 +353,7 @@ public class HttpManager {
 			StringEntity entity;
 			entity = new StringEntity(param.toString(), "UTF-8");
 			request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -373,7 +382,7 @@ public class HttpManager {
 			StringEntity entity;
 			entity = new StringEntity(param.toString(), "UTF-8");
 			request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -396,7 +405,7 @@ public class HttpManager {
 			entity = new StringEntity(param.toString(), "UTF-8");
 			request.setEntity(entity);
 			request.addHeader(headerKey1, headerValue1);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -424,7 +433,7 @@ public class HttpManager {
 			// entity = new StringEntity(param.toString());
 			// request.setEntity(entity);
 			Log.i("UserAPI", "--------------run()--request------------" + request.toString());
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				Log.i("UserAPI", "--------------run()--result------------" + result.toString());
@@ -449,7 +458,7 @@ public class HttpManager {
 			// entity = new StringEntity(param.toString());
 			// request.setEntity(entity);
 			Log.i("UserAPI", "--------------run()--request------------" + request.toString());
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				Log.i("UserAPI", "--------------run()--result------------" + result.toString());
@@ -475,7 +484,7 @@ public class HttpManager {
 			StringEntity entity;
 			// entity = new StringEntity(param.toString());
 			// request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -508,7 +517,7 @@ public class HttpManager {
 			StringEntity entity;
 			// entity = new StringEntity(param.toString());
 			// request.setEntity(entity);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -537,7 +546,7 @@ public class HttpManager {
 	public static String doHttpPost(String url) { //
 		try {
 			HttpPost request = new HttpPost(url);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				Log.i("doHttpPost", "--------------doHttpPost()--result------------" + result);
@@ -577,7 +586,7 @@ public class HttpManager {
 			}
 
 			HttpGet request = new HttpGet(finalUrl);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -609,7 +618,7 @@ public class HttpManager {
 				request.setEntity(entity);
 			}
 
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -629,7 +638,7 @@ public class HttpManager {
 			StringEntity entity = new StringEntity(textBody, "UTF-8");
 			request.setEntity(entity);
 
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				String result = EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 				return result;
@@ -1055,7 +1064,7 @@ public class HttpManager {
 		try {
 			HttpDelete request = new HttpDelete(url);
 			request.addHeader(headerKey, headerValue);
-			HttpResponse httpResponse = new DefaultHttpClient().execute(request);
+			HttpResponse httpResponse = executeWithAuth(request);
 			if (httpResponse.getStatusLine().getStatusCode() == 200) {
 				return EntityUtils.toString(httpResponse.getEntity(), "UTF_8");
 			}

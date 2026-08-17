@@ -211,7 +211,9 @@ public class LoginActivity extends AppCompatActivity {
                         String nickName = responseJson.getString("nickname");
                         String userName = responseJson.getString("username");
                         String avatarUrl = responseJson.getString("avatar_url");
-                        saveLoginStatus(1, userId, nickName, userName, avatarUrl); // 保存登录状态和用户信息
+                         saveLoginStatus(1, userId, nickName, userName, avatarUrl); // 保存登录状态和用户信息
+                         innerSettingsManager.setTokens(responseJson.optString("access_token"),
+                                 responseJson.optString("refresh_token"), responseJson.optString("role", "USER"));
 
                         startMainActivity(userId);
                         Toast.makeText(LoginActivity.this, "登录成功", Toast.LENGTH_SHORT).show();

@@ -16,6 +16,9 @@ public class InnerSettingsManager { // 内部信息记录器
     private static final String KEY_NICK_NAME = "nickName";
     private static final String KEY_USER_NAME = "userName";
     private static final String KEY_AVATAR_URL = "avatarUrl";
+    private static final String KEY_ACCESS_TOKEN = "accessToken";
+    private static final String KEY_REFRESH_TOKEN = "refreshToken";
+    private static final String KEY_ROLE = "role";
 
     // ── 每日收藏（每日一读）──
     private static final String PREF_DAILY = "DailyFavoritePrefs";
@@ -67,6 +70,22 @@ public class InnerSettingsManager { // 内部信息记录器
     }
     public void setAvatarUrl(String avatarUrl) {
         sharedPreferences.edit().putString(KEY_AVATAR_URL, avatarUrl).apply();
+    }
+    public void setTokens(String accessToken, String refreshToken, String role) {
+        sharedPreferences.edit().putString(KEY_ACCESS_TOKEN, accessToken)
+                .putString(KEY_REFRESH_TOKEN, refreshToken).putString(KEY_ROLE, role).apply();
+    }
+    public String getAccessToken() {
+        return sharedPreferences.getString(KEY_ACCESS_TOKEN, "");
+    }
+    public String getRefreshToken() {
+        return sharedPreferences.getString(KEY_REFRESH_TOKEN, "");
+    }
+    public void clearTokens() {
+        sharedPreferences.edit().remove(KEY_ACCESS_TOKEN).remove(KEY_REFRESH_TOKEN).remove(KEY_ROLE).apply();
+    }
+    public static String getStoredAccessToken() {
+        return instance == null ? "" : instance.getAccessToken();
     }
     public void clear() {
         sharedPreferences.edit().clear().apply();
