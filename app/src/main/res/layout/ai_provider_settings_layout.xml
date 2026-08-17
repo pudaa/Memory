@@ -30,6 +30,11 @@
         <EditText android:id="@+id/ai_provider_key" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="API Key" android:inputType="textPassword"/>
         <CheckBox android:id="@+id/ai_provider_consent" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="我同意将 AI 任务数据发送到该 Provider"/>
         <Button android:id="@+id/ai_provider_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="验证并保存"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="按任务选择模型" android:textSize="18sp" android:textStyle="bold"/>
+        <Spinner android:id="@+id/ai_task_type" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <Spinner android:id="@+id/ai_task_primary" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <Spinner android:id="@+id/ai_task_fallback" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+        <Button android:id="@+id/ai_task_route_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="保存任务路由"/>
         <TextView android:id="@+id/ai_provider_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/middle_gray"/>
     </LinearLayout>
 </ScrollView>

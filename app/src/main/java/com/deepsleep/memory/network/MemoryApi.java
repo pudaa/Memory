@@ -18,6 +18,9 @@ public interface MemoryApi {
     @POST("api/ai/providers/mine")
     Call<ResponseBody> saveMyAiProvider(@Body RequestBody body);
 
+    @POST("api/ai/providers/routes")
+    Call<ResponseBody> saveTaskRoute(@Body RequestBody body);
+
     @POST("auth/refresh")
     Call<ResponseBody> refresh(@Header("refreshToken") String refreshToken);
 }

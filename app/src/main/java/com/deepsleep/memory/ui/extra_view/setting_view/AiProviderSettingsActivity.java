@@ -38,6 +38,11 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
     private Spinner modelSpinner;
     private TextView status;
     private final List<String> models = new ArrayList<>();
+    private Spinner taskTypeSpinner;
+    private Spinner primarySpinner;
+    private Spinner fallbackSpinner;
+    private final List<Long> providerIds = new ArrayList<>();
+    private final List<String> providerNames = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,12 +56,53 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
         consent = findViewById(R.id.ai_provider_consent);
         modelSpinner = findViewById(R.id.ai_provider_model);
         status = findViewById(R.id.ai_provider_status);
+        taskTypeSpinner = findViewById(R.id.ai_task_type);
+        primarySpinner = findViewById(R.id.ai_task_primary);
+        fallbackSpinner = findViewById(R.id.ai_task_fallback);
 
         name.setText("OpenCode Zen");
         protocol.setText("OPENAI_COMPATIBLE");
         baseUrl.setText("https://opencode.ai/zen/v1");
         findViewById(R.id.ai_provider_save).setOnClickListener(v -> saveProvider());
+        findViewById(R.id.ai_task_route_save).setOnClickListener(v -> saveTaskRoute());
+        taskTypeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"ESSAY_CORRECTION", "ARTICLE_GENERATION", "CHAT_CONVERSATION",
+                        "CONVERSATION_EVALUATION", "DICTATION_CONTEXT", "DEFINITION_SCORING"}));
+        loadMyProviders();
         loadCatalog();
+    }
+
+    private void loadMyProviders() {
+        MemoryApiClient.get(this).getMyAiProviders().enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                if (!response.isSuccessful() || response.body() == null) return;
+                try {
+                    JSONArray values = new JSONObject(response.body().string()).optJSONArray("providers");
+                    if (values == null) return;
+                    for (int i = 0; i < values.length(); i++) {
+                        JSONObject item = values.getJSONObject(i);
+                        providerIds.add(item.getLong("id"));
+                        providerNames.add(item.optString("name") + " / " + item.optString("modelCode"));
+                    }
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(AiProviderSettingsActivity.this,
+                            android.R.layout.simple_spinner_dropdown_item, providerNames);
+                    primarySpinner.setAdapter(adapter);
+                    List<String> fallbackNames = new ArrayList<>();
+                    fallbackNames.add("不设置备用 Provider");
+                    fallbackNames.addAll(providerNames);
+                    fallbackSpinner.setAdapter(new ArrayAdapter<>(AiProviderSettingsActivity.this,
+                            android.R.layout.simple_spinner_dropdown_item, fallbackNames));
+                } catch (Exception ignored) {
+                    status.setText("用户 Provider 解析失败");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                status.setText("无法加载已保存的 Provider");
+            }
+        });
     }
 
     private void loadCatalog() {
@@ -129,6 +175,36 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             status.setText("请填写完整配置");
+        }
+    }
+
+    private void saveTaskRoute() {
+        if (providerIds.isEmpty() || primarySpinner.getSelectedItemPosition() < 0) {
+            status.setText("请先保存至少一个 Provider");
+            return;
+        }
+        try {
+            JSONObject body = new JSONObject();
+            body.put("taskType", String.valueOf(taskTypeSpinner.getSelectedItem()));
+            body.put("primaryProviderId", providerIds.get(primarySpinner.getSelectedItemPosition()));
+            int fallbackPosition = fallbackSpinner.getSelectedItemPosition();
+            if (fallbackPosition > 0 && fallbackPosition - 1 < providerIds.size()) {
+                body.put("fallbackProviderId", providerIds.get(fallbackPosition - 1));
+            }
+            RequestBody requestBody = RequestBody.create(MediaType.parse("application/json"), body.toString());
+            MemoryApiClient.get(this).saveTaskRoute(requestBody).enqueue(new Callback<ResponseBody>() {
+                @Override
+                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                    status.setText(response.isSuccessful() ? "任务路由保存成功" : "任务路由保存失败");
+                }
+
+                @Override
+                public void onFailure(Call<ResponseBody> call, Throwable t) {
+                    status.setText("任务路由保存失败：" + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            status.setText("任务路由参数无效");
         }
     }
 }
