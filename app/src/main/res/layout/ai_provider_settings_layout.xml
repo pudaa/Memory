@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/theme_surface">
@@ -7,34 +8,68 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingBottom="32dp">
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/ai_provider_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
+            app:navigationIcon="@drawable/back"
+            app:title="AI 服务配置"
+            app:titleTextColor="?attr/colorOnSurface" />
         <TextView
-            android:id="@+id/ai_provider_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="AI 服务配置"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/theme_text_primary"/>
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
             android:text="API Key 只会加密后保存在服务端，不会显示在客户端。"
-            android:textColor="@color/middle_gray"/>
-        <EditText android:id="@+id/ai_provider_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Provider 名称"/>
-        <EditText android:id="@+id/ai_provider_protocol" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="协议：OPENAI_COMPATIBLE / ANTHROPIC / OLLAMA"/>
-        <EditText android:id="@+id/ai_provider_base_url" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Base URL" android:inputType="textUri"/>
-        <Spinner android:id="@+id/ai_provider_model" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
-        <EditText android:id="@+id/ai_provider_model_custom" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="自定义模型名（可覆盖上方列表）"/>
-        <EditText android:id="@+id/ai_provider_key" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="API Key" android:inputType="textPassword"/>
-        <CheckBox android:id="@+id/ai_provider_consent" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="我同意将 AI 任务数据发送到该 Provider"/>
-        <Button android:id="@+id/ai_provider_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="验证并保存"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="按任务选择模型" android:textSize="18sp" android:textStyle="bold"/>
-        <Spinner android:id="@+id/ai_task_type" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-        <Spinner android:id="@+id/ai_task_primary" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-        <Spinner android:id="@+id/ai_task_fallback" android:layout_width="match_parent" android:layout_height="wrap_content"/>
-        <Button android:id="@+id/ai_task_route_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="保存任务路由"/>
-        <TextView android:id="@+id/ai_provider_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/middle_gray"/>
+            android:textColor="?attr/colorOnSurfaceVariant" />
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Provider 名称">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/ai_provider_name" android:layout_width="match_parent" android:layout_height="wrap_content" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="协议">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/ai_provider_protocol" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textCapCharacters" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="Base URL">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/ai_provider_base_url" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <Spinner android:id="@+id/ai_provider_model" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="自定义模型名（可选）">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/ai_provider_model_custom" android:layout_width="match_parent" android:layout_height="wrap_content" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="API Key" app:endIconMode="password_toggle">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/ai_provider_key" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textPassword" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.checkbox.MaterialCheckBox android:id="@+id/ai_provider_consent" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="我同意将 AI 任务数据发送给该 Provider" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/ai_provider_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="验证并保存" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="按任务选择模型" android:textSize="18sp" android:textStyle="bold" android:textColor="?attr/colorOnSurface" />
+                <Spinner android:id="@+id/ai_task_type" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+                <Spinner android:id="@+id/ai_task_primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+                <Spinner android:id="@+id/ai_task_fallback" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/ai_task_route_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="保存任务路由" style="@style/Widget.Material3.Button.TonalButton" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <TextView android:id="@+id/ai_provider_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="20dp" android:layout_marginTop="12dp" android:layout_marginEnd="20dp" android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 </ScrollView>

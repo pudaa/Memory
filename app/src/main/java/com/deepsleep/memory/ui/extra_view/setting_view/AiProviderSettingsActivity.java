@@ -48,6 +48,8 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.ai_provider_settings_layout);
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.ai_provider_toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
         name = findViewById(R.id.ai_provider_name);
         protocol = findViewById(R.id.ai_provider_protocol);
         baseUrl = findViewById(R.id.ai_provider_base_url);
