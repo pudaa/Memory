@@ -97,6 +97,10 @@
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
+                android:name=".ui.extra_view.setting_view.AiProviderSettingsActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
                 android:name=".ui.extra_view.word_search_view.SearchingActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>

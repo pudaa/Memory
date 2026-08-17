@@ -370,6 +370,21 @@
                 </LinearLayout>
 
                 <!-- 提示文字 -->
+                <TextView
+                    android:id="@+id/option_ai_provider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:padding="16dp"
+                    android:text="AI 服务与模型"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/theme_text_primary"
+                    android:background="@drawable/custom_setting_item"
+                    android:clickable="true"
+                    android:focusable="true"/>
+
+                <!-- 提示文字 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

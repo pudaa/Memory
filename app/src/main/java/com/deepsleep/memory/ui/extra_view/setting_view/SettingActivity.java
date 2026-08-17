@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.R;
@@ -140,6 +141,9 @@ public class SettingActivity extends AppCompatActivity {
         tvThemeMode = findViewById(R.id.tv_theme_mode);
         updateThemeModeDisplay();
         tvThemeMode.setOnClickListener(v -> cycleThemeMode());
+
+        findViewById(R.id.option_ai_provider).setOnClickListener(v ->
+                startActivity(new Intent(this, AiProviderSettingsActivity.class)));
 
         initView();
     }

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/theme_surface">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+        <TextView
+            android:id="@+id/ai_provider_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="AI 服务配置"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/theme_text_primary"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="API Key 只会加密后保存在服务端，不会显示在客户端。"
+            android:textColor="@color/middle_gray"/>
+        <EditText android:id="@+id/ai_provider_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Provider 名称"/>
+        <EditText android:id="@+id/ai_provider_protocol" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="协议：OPENAI_COMPATIBLE / ANTHROPIC / OLLAMA"/>
+        <EditText android:id="@+id/ai_provider_base_url" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Base URL" android:inputType="textUri"/>
+        <Spinner android:id="@+id/ai_provider_model" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
+        <EditText android:id="@+id/ai_provider_model_custom" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="自定义模型名（可覆盖上方列表）"/>
+        <EditText android:id="@+id/ai_provider_key" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="API Key" android:inputType="textPassword"/>
+        <CheckBox android:id="@+id/ai_provider_consent" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="我同意将 AI 任务数据发送到该 Provider"/>
+        <Button android:id="@+id/ai_provider_save" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="验证并保存"/>
+        <TextView android:id="@+id/ai_provider_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/middle_gray"/>
+    </LinearLayout>
+</ScrollView>
