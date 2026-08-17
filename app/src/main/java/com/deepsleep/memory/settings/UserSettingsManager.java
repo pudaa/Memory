@@ -20,6 +20,7 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public static final String KEY_THEME_MODE = "theme_mode"; // 主题模式: 0跟随系统 / 1浅色 / 2深色
     public static final String KEY_CAMERA_ASPECT_RATIO = "camera_aspect_ratio_index"; // 自定义相机拍摄比例索引
     public static final String KEY_CAMERA_GRID_ENABLED = "camera_grid_enabled"; // 自定义相机网格线开关
+    public static final String KEY_CROP_AUTO_FIT = "crop_auto_fit"; // 裁剪页"自动适配"开关（旋转/缩放时自动放大图片保证裁剪框不超出图片）
     // 默认值
     private static final boolean DEFAULT_IS_SLIDE_BACK = true;
     private static final String DEFAULT_STUDY_MODE = "choice"; // 默认选择题模式
@@ -28,6 +29,7 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     private static final int DEFAULT_THEME_MODE = 0; // 默认跟随系统
     private static final int DEFAULT_CAMERA_ASPECT_RATIO = 1; // 默认 16:9
     private static final boolean DEFAULT_CAMERA_GRID_ENABLED = false; // 默认关闭网格线
+    private static final boolean DEFAULT_CROP_AUTO_FIT = true; // 默认开启自动适配
     private static UserSettingsManager instance;
     private final SharedPreferences sharedPreferences;
     private final List<OnSettingsChangedListener> listeners = new ArrayList<>();
@@ -140,6 +142,16 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     /** 记录自定义相机网格线开关状态（持久化，下次进入保持） */
     public void setCameraGridEnabled(boolean enabled) {
         sharedPreferences.edit().putBoolean(KEY_CAMERA_GRID_ENABLED, enabled).apply();
+    }
+
+    /** 获取裁剪页"自动适配"开关（默认开启：旋转/缩放时自动放大图片保证裁剪框不超出图片） */
+    public boolean isCropAutoFitEnabled() {
+        return sharedPreferences.getBoolean(KEY_CROP_AUTO_FIT, DEFAULT_CROP_AUTO_FIT);
+    }
+
+    /** 记录裁剪页"自动适配"开关状态（持久化，下次进入保持） */
+    public void setCropAutoFitEnabled(boolean enabled) {
+        sharedPreferences.edit().putBoolean(KEY_CROP_AUTO_FIT, enabled).apply();
     }
 
     /** 导出用户级设置（用于同步到服务端）：滑动方向/主题/字号 */

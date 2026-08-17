@@ -269,18 +269,109 @@ class CropImageView @JvmOverloads constructor(
     mCropOverlayView!!.setMaxCropResultSize(maxCropResultWidth, maxCropResultHeight)
   }
 
-  /** 【定制】设置图片缩放级别（1f = 完整可见，上限 maxZoom），配合缩放滚轮放大查看细节。 */
+  /** 【定制】裁剪"自动适配"：开启时旋转/缩放自动放大图片保证裁剪框不超出图片（内切），
+   * 关闭时自由缩放（裁剪框可超出图片，超出部分裁剪结果填充黑色）。 */
+  var cropAutoFit: Boolean = true
+    set(enabled) {
+      field = enabled
+      mCropOverlayView?.clipToImageBounds = enabled
+    }
+
+  /** 【定制】设置图片缩放级别（1f = 完整可见，上限 maxZoom）。
+   * 独立缩放：只缩放图片矩阵，裁剪框保持屏幕坐标不变；自动适配开启时，
+   * 图片缩放下限由“覆盖当前裁剪框”动态计算，不能缩小到裁剪框露出图片外。 */
   fun setZoom(zoom: Float) {
-    val z = zoom.coerceIn(1f, mMaxZoom.toFloat())
-    if (z != mZoom) {
-      mZoom = z
+    if (originalBitmap == null) return
+    val requestedZoom = zoom.coerceIn(1f, mMaxZoom.toFloat())
+    if (cropAutoFit) {
+      applyImageCoveringCropWindow(requestedZoom)
+    } else {
+      mZoom = requestedZoom
       applyImageMatrix(
         width = width.toFloat(),
         height = height.toFloat(),
         center = true,
         animate = false,
+        keepCropWindow = true,
       )
     }
+  }
+
+  /**
+   * 在不改变裁剪框的前提下，把图片放大到至少覆盖裁剪框。
+   * 先以 mZoom=1 得到当前旋转状态下的 contain 图片尺寸，再计算必要倍率，
+   * 最后取用户要求倍率与必要倍率的较大值，避免“缩小图片”破坏内切。
+   */
+  private fun applyImageCoveringCropWindow(requestedZoom: Float) {
+    val requested = requestedZoom.coerceIn(1f, mMaxZoom.toFloat())
+    mZoom = 1f
+    // 先以无额外缩放的居中状态建立基准矩阵，避免历史 offset 影响 cover 计算。
+    mZoomOffsetX = 0f
+    mZoomOffsetY = 0f
+    applyImageMatrix(
+      width = width.toFloat(),
+      height = height.toFloat(),
+      center = true,
+      animate = false,
+      keepCropWindow = true,
+    )
+    val requiredZoom = calculateCoverZoomAtUnit()
+    mZoom = max(requested, requiredZoom).coerceIn(1f, mMaxZoom.toFloat())
+    android.util.Log.d("CropDebug", "applyCover requested=$requested required=$requiredZoom final=$mZoom")
+    applyImageMatrix(
+      width = width.toFloat(),
+      height = height.toFloat(),
+      center = true,
+      animate = false,
+      keepCropWindow = true,
+    )
+  }
+
+  /**
+   * 基于旋转后图片的真实四边形计算 cover 倍率。
+   * 外接矩形宽高不足以判断旋转图片是否覆盖裁剪框，必须把裁剪框四个角反变换到
+   * 图片原始坐标系，确保四个角都落在 bitmap 内部，才能保证裁剪框内没有黑角。
+   */
+  private fun calculateCoverZoomAtUnit(): Float {
+    val bitmap = originalBitmap ?: return 1f
+    val baseMatrix = Matrix(mImageMatrix)
+    val inverse = Matrix()
+    if (!baseMatrix.invert(inverse)) return 1f
+
+    val crop = mCropOverlayView!!.cropWindowRect
+    val centerX = BitmapUtils.getRectCenterX(mImagePoints)
+    val centerY = BitmapUtils.getRectCenterY(mImagePoints)
+    val corners = floatArrayOf(
+      crop.left, crop.top,
+      crop.right, crop.top,
+      crop.right, crop.bottom,
+      crop.left, crop.bottom,
+    )
+
+    fun fits(zoom: Float): Boolean {
+      for (i in 0 until 4) {
+        val point = floatArrayOf(
+          centerX + (corners[i * 2] - centerX) / zoom,
+          centerY + (corners[i * 2 + 1] - centerY) / zoom,
+        )
+        inverse.mapPoints(point)
+        if (point[0] < -1f || point[1] < -1f ||
+          point[0] > bitmap.width + 1f || point[1] > bitmap.height + 1f
+        ) {
+          return false
+        }
+      }
+      return true
+    }
+
+    var low = 1f
+    var high = mMaxZoom.toFloat()
+    if (!fits(high)) return high
+    repeat(24) {
+      val middle = (low + high) / 2f
+      if (fits(middle)) high = middle else low = middle
+    }
+    return high.coerceAtLeast(1f)
   }
 
   /** 【定制】当前图片缩放级别。 */
@@ -636,6 +727,7 @@ class CropImageView @JvmOverloads constructor(
           aspectRatioY = mCropOverlayView.aspectRatioY,
           flipHorizontally = mFlipHorizontally,
           flipVertically = mFlipVertically,
+          fillBlack = !cropAutoFit,
         ).bitmap
       }
 
@@ -782,6 +874,29 @@ class CropImageView @JvmOverloads constructor(
    *
    * [degrees] Integer specifying the number of degrees to rotate.
    */
+  /** 【定制】微调旋转：直接设置旋转角度（不触发 90° 步进的 cover 放大逻辑），
+   * 保持当前缩放与裁剪框不变，用于 -45°~45° 的细微校正。 */
+  fun setFineRotation(degrees: Int) {
+    if (originalBitmap != null) {
+      val norm = ((degrees % 360) + 360) % 360
+      if (mDegreesRotated != norm) {
+        val requestedZoom = mZoom
+        mDegreesRotated = norm
+        if (cropAutoFit) {
+          applyImageCoveringCropWindow(requestedZoom)
+        } else {
+          applyImageMatrix(
+            width = width.toFloat(),
+            height = height.toFloat(),
+            center = true,
+            animate = false,
+            keepCropWindow = true,
+          )
+        }
+      }
+    }
+  }
+
   fun rotateImage(degrees: Int) {
     if (originalBitmap != null) {
       // Force degrees to be a non-zero value between 0 and 360 (inclusive)
@@ -796,68 +911,28 @@ class CropImageView @JvmOverloads constructor(
           (newDegrees in 46..134 || newDegrees in 216..304)
         )
 
-      BitmapUtils.RECT.set(mCropOverlayView.cropWindowRect)
-      var halfWidth =
-        (if (flipAxes) BitmapUtils.RECT.height() else BitmapUtils.RECT.width()) / 2f
-      var halfHeight =
-        (if (flipAxes) BitmapUtils.RECT.width() else BitmapUtils.RECT.height()) / 2f
-
       if (flipAxes) {
         val isFlippedHorizontally = mFlipHorizontally
         mFlipHorizontally = mFlipVertically
         mFlipVertically = isFlippedHorizontally
       }
-      mImageMatrix.invert(mImageInverseMatrix)
-      BitmapUtils.POINTS[0] = BitmapUtils.RECT.centerX()
-      BitmapUtils.POINTS[1] = BitmapUtils.RECT.centerY()
-      BitmapUtils.POINTS[2] = 0f
-      BitmapUtils.POINTS[3] = 0f
-      BitmapUtils.POINTS[4] = 1f
-      BitmapUtils.POINTS[5] = 0f
-      mImageInverseMatrix.mapPoints(BitmapUtils.POINTS)
       // This is valid because degrees is not negative.
       mDegreesRotated = (mDegreesRotated + newDegrees) % 360
-      applyImageMatrix(
-        width = width.toFloat(),
-        height = height.toFloat(),
-        center = true,
-        animate = false,
-      )
-      // adjust the zoom so the crop window size remains the same even after image scale change
-      mImageMatrix.mapPoints(BitmapUtils.POINTS2, BitmapUtils.POINTS)
-      // 【定制】旋转后重置缩放级别（mZoom=1），图片保持完整可见（contain），
-      // 不再执行原库"保持裁剪框屏幕尺寸不变"的放大补偿（该补偿会导致旋转后图片被放大 1~2 倍）。
-      mZoom = 1f
-      applyImageMatrix(
-        width = width.toFloat(),
-        height = height.toFloat(),
-        center = true,
-        animate = false,
-      )
-      mImageMatrix.mapPoints(BitmapUtils.POINTS2, BitmapUtils.POINTS)
-      // adjust the width/height by the changes in scaling to the image
-      val change = sqrt(
-        (BitmapUtils.POINTS2[4] - BitmapUtils.POINTS2[2]).toDouble().pow(2.0) +
-          (BitmapUtils.POINTS2[5] - BitmapUtils.POINTS2[3]).toDouble().pow(2.0),
-      )
-      halfWidth *= change.toFloat()
-      halfHeight *= change.toFloat()
-      // calculate the new crop window rectangle to center in the same location and have proper
-      // width/height
-      BitmapUtils.RECT[BitmapUtils.POINTS2[0] - halfWidth, BitmapUtils.POINTS2[1] - halfHeight, BitmapUtils.POINTS2[0] + halfWidth] =
-        BitmapUtils.POINTS2[1] + halfHeight
-      mCropOverlayView.resetCropOverlayView()
-      mCropOverlayView.cropWindowRect = BitmapUtils.RECT
-      applyImageMatrix(
-        width = width.toFloat(),
-        height = height.toFloat(),
-        center = true,
-        animate = false,
-      )
+      val requestedZoom = mZoom
+      if (cropAutoFit) {
+        // 裁剪框保持当前屏幕尺寸和位置，不在旋转时交换/缩小；图片自动覆盖它。
+        applyImageCoveringCropWindow(requestedZoom)
+      } else {
+        // 关闭自动适配：只旋转图片，裁剪框保持不变，允许用户自由处理图片外区域。
+        applyImageMatrix(
+          width = width.toFloat(),
+          height = height.toFloat(),
+          center = true,
+          animate = false,
+          keepCropWindow = true,
+        )
+      }
       handleCropWindowChanged(inProgress = false, animate = false)
-      // make sure the crop window rectangle is within the cropping image bounds after all the
-      // changes
-      mCropOverlayView.fixCurrentCropWindowRect()
     }
   }
 
@@ -1281,21 +1356,10 @@ class CropImageView @JvmOverloads constructor(
     val width = width
     val height = height
     if (originalBitmap != null && width > 0 && height > 0) {
-      val cropRect = mCropOverlayView!!.cropWindowRect
-      if (inProgress) {
-        if (cropRect.left < 0 || cropRect.top < 0 || cropRect.right > width || cropRect.bottom > height) {
-          applyImageMatrix(
-            width = width.toFloat(),
-            height = height.toFloat(),
-            center = false,
-            animate = false,
-          )
-        }
-      }
-      // 【定制】移除原库"手势结束后自动缩放吸附"逻辑：
-      // 原逻辑在 crop 窗口小于视图 50% 时强制放大图片至 64%、大于 65% 时强制缩回，
-      // 导致旋转后图片被放大 1~2 倍、用户捏合手势被回弹、比例切换内容被挤出。
-      // 现在图片始终以完整可见（contain）比例显示，缩放级别由手势/操作稳定控制。
+      // 【定制】移除"裁剪框拖出屏幕时平移图片补偿"逻辑（原库 inProgress 分支调用
+      // applyImageMatrix(center=false) 会调整 zoom offset 平移图片）：
+      // 该逻辑导致裁剪框拖动到屏幕边缘时图片跟着平移、无法恢复（iOS 模型应图片固定、
+      // 裁剪框由 CropOverlayView 限制在图片∩屏幕内）。
       if (mOnSetCropWindowChangeListener != null && !inProgress) {
         mOnSetCropWindowChangeListener!!.onCropWindowChanged()
       }
@@ -1307,12 +1371,20 @@ class CropImageView @JvmOverloads constructor(
    * [width] the width of the image view
    * [height] the height of the image view
    */
-  private fun applyImageMatrix(width: Float, height: Float, center: Boolean, animate: Boolean) {
+  private fun applyImageMatrix(width: Float, height: Float, center: Boolean, animate: Boolean, keepCropWindow: Boolean = false) {
     val bitmap = originalBitmap
     if (bitmap != null && width > 0 && height > 0) {
-      mImageMatrix.invert(mImageInverseMatrix)
-      val cropRect = mCropOverlayView!!.cropWindowRect
-      mImageInverseMatrix.mapRect(cropRect)
+      // 裁剪框矩形：默认锚定图片内容（先映射到图片坐标，缩放后写回）；
+      // 独立缩放（keepCropWindow，iOS 裁剪模型）时裁剪框保持屏幕坐标不变，
+      // 图片独立缩放平移，裁剪框大小不受影响。
+      val cropRect: RectF
+      if (keepCropWindow) {
+        cropRect = RectF(mCropOverlayView!!.cropWindowRect)
+      } else {
+        mImageMatrix.invert(mImageInverseMatrix)
+        cropRect = mCropOverlayView!!.cropWindowRect
+        mImageInverseMatrix.mapRect(cropRect)
+      }
       mImageMatrix.reset()
       // move the image to the center of the image view first, so we can manipulate it from there
       mImageMatrix.postTranslate(
@@ -1360,7 +1432,9 @@ class CropImageView @JvmOverloads constructor(
         BitmapUtils.getRectCenterY(mImagePoints),
       )
       mapImagePointsByImageMatrix()
-      mImageMatrix.mapRect(cropRect)
+      if (!keepCropWindow) {
+        mImageMatrix.mapRect(cropRect)
+      }
 
       if (mScaleType == ScaleType.CENTER_CROP && center && !animate) {
         mZoomOffsetX = 0f
@@ -1411,8 +1485,10 @@ class CropImageView @JvmOverloads constructor(
       }
       // apply to zoom offset translate and update the crop rectangle to offset correctly
       mImageMatrix.postTranslate(mZoomOffsetX * scaleX, mZoomOffsetY * scaleY)
-      cropRect.offset(mZoomOffsetX * scaleX, mZoomOffsetY * scaleY)
-      mCropOverlayView.cropWindowRect = cropRect
+      if (!keepCropWindow) {
+        cropRect.offset(mZoomOffsetX * scaleX, mZoomOffsetY * scaleY)
+        mCropOverlayView.cropWindowRect = cropRect
+      }
       mapImagePointsByImageMatrix()
       mCropOverlayView.invalidate()
       // set matrix to apply

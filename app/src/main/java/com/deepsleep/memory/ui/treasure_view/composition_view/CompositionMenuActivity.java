@@ -205,7 +205,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
     private void startUCropActivity() {
         Uri sourceUri = Uri.fromFile(new File(currentPhotoPath));
 
-        // 启动自建裁剪页（预设比例已内置：自由/原始/1:1/3:2/4:3/16:9/16:10/A4，最大输出 2048）
+        // 启动自建裁剪页（预设比例已内置：自由/原始/1:1/3:2/4:3/16:9/16:10/A4，最大输出 1280）
         Intent intent = new Intent(this, ThemeCropActivity.class);
         intent.putExtra(ThemeCropActivity.EXTRA_SOURCE_URI, sourceUri);
         cropLauncher.launch(intent);

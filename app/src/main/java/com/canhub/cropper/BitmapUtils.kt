@@ -23,6 +23,7 @@ import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -152,6 +153,7 @@ internal object BitmapUtils {
     aspectRatioY: Int,
     flipHorizontally: Boolean,
     flipVertically: Boolean,
+    fillBlack: Boolean = false,
   ): BitmapSampled {
     var scale = 1
     while (true) {
@@ -166,6 +168,7 @@ internal object BitmapUtils {
           scale = 1 / scale.toFloat(),
           flipHorizontally = flipHorizontally,
           flipVertically = flipVertically,
+          fillBlack = fillBlack,
         )
         return BitmapSampled(cropBitmap, scale)
       } catch (e: OutOfMemoryError) {
@@ -195,7 +198,18 @@ internal object BitmapUtils {
     scale: Float,
     flipHorizontally: Boolean,
     flipVertically: Boolean,
+    fillBlack: Boolean = false,
   ): Bitmap {
+    // 【定制】不内切（fillBlack）：裁剪框超出图片时，裁剪结果保持裁剪框尺寸、超出部分填充黑色
+    if (fillBlack && degreesRotated % 90 == 0) {
+      val rawLeft = getRectLeft(cropPoints)
+      val rawTop = getRectTop(cropPoints)
+      val rawRight = getRectRight(cropPoints)
+      val rawBottom = getRectBottom(cropPoints)
+      if (rawLeft < 0 || rawTop < 0 || rawRight > bitmap.width || rawBottom > bitmap.height) {
+        return cropWithBlackFill(bitmap, cropPoints, degreesRotated, scale, flipHorizontally, flipVertically)
+      }
+    }
     // get the rectangle in original image that contains the required cropped area (larger for non-
     // rectangular crop)
     val rect = getRectFromPoints(
@@ -238,6 +252,76 @@ internal object BitmapUtils {
         fixAspectRatio,
         aspectRatioX,
         aspectRatioY,
+      )
+    }
+    return result
+  }
+
+  /** 【定制】裁剪框超出图片时的裁剪：保持裁剪框完整尺寸，超出图片部分填充黑色（不内切场景）。 */
+  private fun cropWithBlackFill(
+    bitmap: Bitmap,
+    cropPoints: FloatArray,
+    degreesRotated: Int,
+    scale: Float,
+    flipHorizontally: Boolean,
+    flipVertically: Boolean,
+  ): Bitmap {
+    // 完整裁剪框（未 clamp，可含负坐标/超出）
+    val fullRect = RectF(
+      getRectLeft(cropPoints),
+      getRectTop(cropPoints),
+      getRectRight(cropPoints),
+      getRectBottom(cropPoints),
+    )
+    // 图片交集（clamp 到图片边界）
+    val innerRectF = RectF(
+      max(0f, fullRect.left),
+      max(0f, fullRect.top),
+      min(bitmap.width.toFloat(), fullRect.right),
+      min(bitmap.height.toFloat(), fullRect.bottom),
+    )
+    val matrix = Matrix()
+    matrix.setRotate(degreesRotated.toFloat(), bitmap.width / 2f, bitmap.height / 2f)
+    matrix.postScale(
+      if (flipHorizontally) -scale else scale,
+      if (flipVertically) -scale else scale,
+    )
+    // 裁剪图片交集部分（旋转后）
+    val innerRect = Rect(
+      innerRectF.left.roundToInt(),
+      innerRectF.top.roundToInt(),
+      innerRectF.right.roundToInt(),
+      innerRectF.bottom.roundToInt(),
+    )
+    val innerBitmap = if (innerRect.width() > 0 && innerRect.height() > 0) {
+      Bitmap.createBitmap(
+        bitmap,
+        innerRect.left,
+        innerRect.top,
+        innerRect.width(),
+        innerRect.height(),
+        matrix,
+        true,
+      )
+    } else {
+      null
+    }
+    // 完整裁剪框与交集旋转后的位置（用于计算偏移）
+    val fullMapped = RectF()
+    matrix.mapRect(fullMapped, fullRect)
+    val innerMapped = RectF()
+    matrix.mapRect(innerMapped, innerRectF)
+    val resultW = max(1, ceil(fullMapped.width()).toInt())
+    val resultH = max(1, ceil(fullMapped.height()).toInt())
+    val result = Bitmap.createBitmap(resultW, resultH, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(result)
+    canvas.drawColor(android.graphics.Color.BLACK)
+    if (innerBitmap != null) {
+      canvas.drawBitmap(
+        innerBitmap,
+        innerMapped.left - fullMapped.left,
+        innerMapped.top - fullMapped.top,
+        null,
       )
     }
     return result

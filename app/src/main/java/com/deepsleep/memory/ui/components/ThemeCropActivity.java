@@ -5,7 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
-import android.widget.SeekBar;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,6 +17,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.canhub.cropper.CropImageView;
 import com.deepsleep.memory.R;
+import com.deepsleep.memory.settings.UserSettingsManager;
 
 import java.io.File;
 import java.util.Locale;
@@ -25,8 +26,12 @@ import java.util.Locale;
  * 自建裁剪 Activity（基于 CanHub Android-Image-Cropper 的 CropImageView，替代原
  * UCropActivity）。
  * <p>
- * 提供：主题化配色、预设裁剪比例（自由/原始/1:1/3:2/4:3/16:9/16:10/A4）、旋转、水平翻转。 相比 UCrop 的 cover
- * 回弹行为，可在此页面进行后续深度定制（如切换比例时允许图片完整可见）。
+ * 提供：主题化配色、预设裁剪比例（自由/原始/1:1/3:2/4:3/16:9/16:10/A4）、旋转、水平翻转。
+ * 相比 UCrop 的 cover 回弹行为，可在此页面进行后续深度定制（如切换比例时允许图片完整可见）。
+ * <p>
+ * 交互（iOS 相机裁剪页风格）：底部为圆形 Tab 行（滑动/点击切换 旋转/缩放/比例，点击当前圆
+ * 触发重置）+ 滚轮式微调控件（横向刻度滚轮，特殊值亮色 + 经过震动 + 松手吸附回正）；
+ * 裁剪框外以模糊背景图呈现，优雅区分裁剪区与被裁剪区。
  * <p>
  * 输入：{@link #EXTRA_SOURCE_URI}（待裁剪图片 Uri） 输出：RESULT_OK +
  * {@link #EXTRA_OUTPUT_URI}（裁剪结果文件 Uri）；取消则 RESULT_CANCELED。
@@ -39,16 +44,18 @@ public class ThemeCropActivity extends AppCompatActivity {
     /** 比例预设：{0,0}=自由 {-1,-1}=原始（按图片原始比例） */
     private static final int[][] RATIOS = { { 0, 0 }, { -1, -1 }, { 1, 1 }, { 3, 2 }, { 4, 3 }, { 16, 9 }, { 16, 10 },
             { 210, 297 } };
+    private static final String[] RATIO_LABELS = { "自由", "原始", "1:1", "3:2", "4:3", "16:9", "16:10", "A4" };
 
     private CropImageView cropImageView;
-    private TextView[] ratioChips;
-    private int selectedRatioIndex = 0;
-    private SeekBar fineRotateSeek;
-    private TextView fineRotateAngle;
-    private SeekBar zoomSeek;
-    private TextView zoomText;
-    /** 微调旋转滑块是否正在拖动（拖拽中不同步滑块位置，避免抖动） */
-    private boolean isFineRotateTouching = false;
+    private CircularTabsView circularTabs;
+    private WheelSliderView wheelSlider;
+
+    /** 当前属性模型 */
+    private int selectedTab = 0; // 0=旋转 1=缩放 2=比例
+    private float rotateAngle = 0f; // -45° ~ +45° 微调
+    private float zoomValue = 1f; // 1.0x ~ 4.0x
+    private int ratioIndex = 0; // 比例预设索引
+    private boolean wheelTouching = false; // 滚轮拖动中（旋转松手才应用）
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -63,9 +70,11 @@ public class ThemeCropActivity extends AppCompatActivity {
         setContentView(R.layout.theme_crop_layout);
 
         cropImageView = findViewById(R.id.crop_image_view);
+        circularTabs = findViewById(R.id.circular_tabs);
+        wheelSlider = findViewById(R.id.wheel_slider);
         Uri sourceUri = getIntent().getParcelableExtra(EXTRA_SOURCE_URI);
 
-        // 应用主题配置（网格/边框/圆角颜色、压缩质量、输出上限等）
+        // 应用主题配置（网格/边框/圆角颜色、压缩质量、输出上限等；框外为暗色遮罩）
         cropImageView.setImageCropOptions(UcropHelper.createThemedCropOptions(this));
         if (sourceUri != null) {
             cropImageView.setImageUriAsync(sourceUri);
@@ -99,137 +108,212 @@ public class ThemeCropActivity extends AppCompatActivity {
         });
         findViewById(R.id.btn_crop_done).setOnClickListener(v -> doCrop());
 
+        // "自动适配"开关：开启后旋转/缩放自动放大图片保证裁剪框不超出图片（默认开，持久化）
+        TextView btnAutoFit = findViewById(R.id.btn_crop_auto_fit);
+        boolean autoFit = UserSettingsManager.getInstance(this).isCropAutoFitEnabled();
+        cropImageView.setCropAutoFit(autoFit);
+        btnAutoFit.setAlpha(autoFit ? 1f : 0.45f);
+        btnAutoFit.setOnClickListener(v -> {
+            boolean enabled = !UserSettingsManager.getInstance(this).isCropAutoFitEnabled();
+            UserSettingsManager.getInstance(this).setCropAutoFitEnabled(enabled);
+            cropImageView.setCropAutoFit(enabled);
+            if (enabled) {
+                // 开启后立即按当前倍率重新计算 cover 下限，避免要等下一次旋转/缩放才生效
+                cropImageView.setZoom(cropImageView.getZoom());
+            }
+            syncZoomValue();
+            btnAutoFit.setAlpha(enabled ? 1f : 0.45f);
+        });
+
+        // 90° 旋转 / 翻转（保留在顶部工具栏，滚轮负责微调）
         findViewById(R.id.btn_rotate_left).setOnClickListener(v -> {
             cropImageView.rotateImage(-90);
-            syncFineRotateAngle();
+            syncRotateAngle();
         });
         findViewById(R.id.btn_rotate_right).setOnClickListener(v -> {
             cropImageView.rotateImage(90);
-            syncFineRotateAngle();
+            syncRotateAngle();
         });
         findViewById(R.id.btn_flip).setOnClickListener(v -> cropImageView.flipImageHorizontally());
 
-        // 微调旋转滑块：-45° ~ +45°，小幅度校正拍摄倾斜（拖动中仅显示角度，松手后应用）
-        fineRotateSeek = findViewById(R.id.fine_rotate_seek);
-        fineRotateAngle = findViewById(R.id.fine_rotate_angle);
-        fineRotateSeek.setMax(900); // 每 10 单位 = 1°，450 为 0°
-        fineRotateSeek.setProgress(450);
-        fineRotateSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        // 圆形 Tab：滑动/点击切换属性；点击当前圆触发重置
+        circularTabs.setListener(new CircularTabsView.OnTabListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fineRotateAngle != null) {
-                    int deg = (progress - 450) / 10;
-                    fineRotateAngle.setText(deg == 0 ? "0°" : (deg > 0 ? "+" + deg + "°" : deg + "°"));
+            public void onTabSelected(int index) {
+                selectedTab = index;
+                configureWheelForTab(index);
+                updateCircularTabs();
+            }
+
+            @Override
+            public void onTabReselect(int index) {
+                resetProperty(index);
+            }
+        });
+        circularTabs.selectTab(0);
+        initTabCircles();
+
+        // 滚轮：拖动实时更新圆环；松手应用（旋转）或吸附（缩放/比例已实时）
+        wheelSlider.setOnValueChangeListener(new WheelSliderView.OnValueChangeListener() {
+            @Override
+            public void onValueChanged(float value) {
+                wheelTouching = true;
+                switch (selectedTab) {
+                case 0:
+                    // 旋转：拖动中实时应用，用户即时看到旋转效果（松手吸附后再精确落位）
+                    rotateAngle = value;
+                    applyFineRotate();
+                    updateCircularTabs();
+                    break;
+                case 1:
+                    cropImageView.setZoom(value);
+                    // 自动适配可能把请求值抬高到 cover 所需倍率，界面必须显示真实倍率
+                    zoomValue = cropImageView.getZoom();
+                    if (Math.abs(zoomValue - value) > 0.001f) {
+                        wheelSlider.setValue(zoomValue);
+                    }
+                    updateCircularTabs();
+                    break;
+                case 2:
+                    ratioIndex = Math.round(value);
+                    updateCircularTabs();
+                    break;
                 }
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                isFineRotateTouching = true;
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                isFineRotateTouching = false;
-                applyFineRotate();
-            }
-        });
-
-        // 缩放滚轮：1.0x ~ 4.0x，放大查看细节（图片始终完整可见，缩放后拖动裁剪框可平移选区）
-        zoomSeek = findViewById(R.id.zoom_seek);
-        zoomText = findViewById(R.id.zoom_text);
-        zoomSeek.setMax(300); // 对应 1.0x ~ 4.0x
-        zoomSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                cropImageView.setZoom(1f + progress / 100f);
-                if (zoomText != null) {
-                    zoomText.setText(String.format(Locale.US, "%.1fx", 1f + progress / 100f));
+            public void onValueChangeEnd(float value) {
+                wheelTouching = false;
+                switch (selectedTab) {
+                case 0:
+                    rotateAngle = value;
+                    applyFineRotate();
+                    break;
+                case 2:
+                    ratioIndex = Math.round(value);
+                    applyRatio(ratioIndex);
+                    break;
                 }
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
         });
-
-        // 重置：恢复旋转角度、缩放、裁剪框与比例
-        findViewById(R.id.btn_crop_reset).setOnClickListener(v -> resetAll());
-
-        // 初始化比例 chips
-        ratioChips = new TextView[] { findViewById(R.id.chip_free), findViewById(R.id.chip_original),
-                findViewById(R.id.chip_1_1), findViewById(R.id.chip_3_2), findViewById(R.id.chip_4_3),
-                findViewById(R.id.chip_16_9), findViewById(R.id.chip_16_10), findViewById(R.id.chip_a4) };
-        for (int i = 0; i < ratioChips.length; i++) {
-            final int idx = i;
-            ratioChips[i].setOnClickListener(v -> applyRatio(idx));
-        }
+        configureWheelForTab(0);
         applyRatio(0);
     }
 
-    /** 执行裁剪：输出到应用缓存目录（结果限制在 2048 内），完成后回调 onCropImageComplete */
+    /** 初始化三个圆环组件（值文本初始为空，由 updateCircularTabs 填充） */
+    private void initTabCircles() {
+        updateCircularTabs();
+    }
+
+    /** 按当前 Tab 配置滚轮（范围/步进/特殊值/当前值） */
+    private void configureWheelForTab(int tab) {
+        switch (tab) {
+        case 0: // 旋转微调 -45°~45°，特殊值 0°
+            wheelSlider.setRange(-45f, 45f);
+            wheelSlider.setSteps(1f, 5f);
+            wheelSlider.setSpecialValue(0f);
+            wheelSlider.setValue(rotateAngle);
+            break;
+        case 1: // 缩放 1.0x~4.0x，特殊值 1.0x
+            wheelSlider.setRange(1f, 4f);
+            wheelSlider.setSteps(0.05f, 0.25f);
+            wheelSlider.setSpecialValue(1f);
+            wheelSlider.setValue(zoomValue);
+            break;
+        case 2: // 比例 8 档离散，特殊值为当前档位
+            wheelSlider.setRange(0f, RATIOS.length - 1f);
+            wheelSlider.setSteps(1f, 1f);
+            wheelSlider.setSpecialValue(ratioIndex);
+            wheelSlider.setValue(ratioIndex);
+            break;
+        }
+    }
+
+    /** 更新三个圆环的数值与进度（旋转=角度占比/方向，缩放=倍率占比，比例=索引占比） */
+    private void updateCircularTabs() {
+        // 旋转
+        CircularValueView rotateCircle = circularTabs.getTab(0);
+        rotateCircle.setProgress(Math.abs(rotateAngle) / 45f);
+        rotateCircle.setDirection(rotateAngle >= 0f);
+        rotateCircle.setValueText(formatAngle(rotateAngle));
+        // 缩放
+        CircularValueView zoomCircle = circularTabs.getTab(1);
+        zoomCircle.setProgress((zoomValue - 1f) / 3f);
+        zoomCircle.setDirection(true);
+        zoomCircle.setValueText(String.format(Locale.US, "%.1fx", zoomValue));
+        // 比例
+        CircularValueView ratioCircle = circularTabs.getTab(2);
+        ratioCircle.setProgress(ratioIndex / (float) (RATIOS.length - 1));
+        ratioCircle.setDirection(true);
+        ratioCircle.setValueText(RATIO_LABELS[ratioIndex]);
+    }
+
+    private String formatAngle(float value) {
+        int deg = Math.round(value);
+        return deg == 0 ? "0°" : (deg > 0 ? "+" + deg + "°" : deg + "°");
+    }
+
+    /** 重置指定属性为初始值（点击正中圆触发） */
+    private void resetProperty(int tab) {
+        switch (tab) {
+        case 0:
+            rotateAngle = 0f;
+            applyFineRotate();
+            break;
+        case 1:
+            cropImageView.setZoom(1f);
+            zoomValue = cropImageView.getZoom();
+            break;
+        case 2:
+            ratioIndex = 0;
+            applyRatio(0);
+            break;
+        }
+        configureWheelForTab(tab);
+        updateCircularTabs();
+    }
+
+    /** 执行裁剪：输出到应用缓存目录（结果限制在 1280 内），完成后回调 onCropImageComplete */
     private void doCrop() {
         File outFile = new File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
-        // JPEG 质量 85：近无损、对 OCR 影响极小，但可显著减小上传体积（384KB→~250KB）
+        // JPEG 质量 85 + 最长边 1280：PaddleOCR 实测（三场景）精度无损，体积较 2048 约减半
         cropImageView.croppedImageAsync(Bitmap.CompressFormat.JPEG, 85, UcropHelper.MAX_CROP_RESULT_SIZE,
                 UcropHelper.MAX_CROP_RESULT_SIZE, CropImageView.RequestSizeOptions.RESIZE_INSIDE,
                 Uri.fromFile(outFile));
     }
 
-    /** 应用微调旋转滑块的角度（-45° ~ +45°，取模 0~359 后设置） */
+    /** 应用微调旋转角度（-45° ~ +45°，直接设置，不触发 90° cover 放大逻辑） */
     private void applyFineRotate() {
-        if (fineRotateSeek == null || cropImageView == null)
+        if (cropImageView == null)
             return;
-        int deg = (fineRotateSeek.getProgress() - 450) / 10;
+        int deg = Math.round(rotateAngle);
         int norm = ((deg % 360) + 360) % 360;
-        // Kotlin var 属性在 Java 中必须用 setter 访问（不能直接字段赋值）
-        cropImageView.setRotatedDegrees(norm);
-        syncFineRotateAngle();
+        cropImageView.setFineRotation(norm);
+        syncZoomValue();
     }
 
-    /** 将当前旋转角度同步到微调滑块与角度文本（90° 按钮操作后调用） */
-    private void syncFineRotateAngle() {
-        if (fineRotateSeek == null || fineRotateAngle == null || isFineRotateTouching || cropImageView == null)
+    /** 90° 旋转按钮后：保持当前微调角度（不受 90° 步进影响），同步圆环 */
+    private void syncRotateAngle() {
+        // 滚轮微调值不变（90° 旋转与微调独立叠加），仅确保圆环显示正确
+        syncZoomValue();
+        updateCircularTabs();
+    }
+
+    /** 同步 CropImageView 实际倍率到圆环/滚轮状态，覆盖自动适配产生的倍率提升。 */
+    private void syncZoomValue() {
+        if (cropImageView == null)
             return;
-        int cur = ((cropImageView.getRotatedDegrees() % 360) + 360) % 360;
-        int display = cur;
-        if (display > 180)
-            display -= 360; // 映射到 -180° ~ 180°
-        // 仅在 -45° ~ 45° 范围内同步滑块（超出视为已旋转 90°，回中并显示实际角度）
-        if (display >= -45 && display <= 45) {
-            fineRotateSeek.setProgress(450 + display * 10);
-        } else {
-            fineRotateSeek.setProgress(450);
+        zoomValue = cropImageView.getZoom();
+        if (selectedTab == 1 && wheelSlider != null) {
+            wheelSlider.setValue(zoomValue);
         }
-        fineRotateAngle.setText(display == 0 ? "0°" : (display > 0 ? "+" + display + "°" : display + "°"));
-    }
-
-    /** 重置：旋转角度、缩放、裁剪框与比例全部恢复初始状态 */
-    private void resetAll() {
-        // 重置图片变换（缩放/旋转/翻转）与裁剪框
-        cropImageView.resetCropRect();
-        // 同步滑块到初始值
-        if (fineRotateSeek != null) {
-            fineRotateSeek.setProgress(450);
-            fineRotateAngle.setText("0°");
-        }
-        if (zoomSeek != null) {
-            zoomSeek.setProgress(0);
-            if (zoomText != null)
-                zoomText.setText("1.0x");
-        }
-        // 重置为自由比例
-        applyRatio(0);
+        updateCircularTabs();
     }
 
     /** 应用裁剪比例预设 */
     private void applyRatio(int index) {
-        selectedRatioIndex = index;
-        updateChipUi();
+        ratioIndex = index;
+        updateCircularTabs();
         int[] ratio = RATIOS[index];
         int x = ratio[0], y = ratio[1];
         if (x <= 0) {
@@ -245,13 +329,6 @@ public class ThemeCropActivity extends AppCompatActivity {
             }
         } else {
             cropImageView.setAspectRatio(x, y);
-        }
-    }
-
-    private void updateChipUi() {
-        for (int i = 0; i < ratioChips.length; i++) {
-            ratioChips[i].setBackgroundResource(
-                    i == selectedRatioIndex ? R.drawable.bg_crop_chip_selected : R.drawable.bg_crop_chip_normal);
         }
     }
 }

@@ -1,26 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自建裁剪页（CanHub CropImageView）：顶部工具栏 + 裁剪视图 + 底部比例/旋转控制 -->
+<!-- 自建裁剪页（CanHub CropImageView）：
+     顶部工具栏 + 裁剪视图（下层为高斯模糊背景图，裁剪框外优雅呈现模糊图像）+
+     圆形 Tab 行（滑动/点击切换属性）+ 滚轮式微调控件（iOS 裁剪页风格） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
     android:orientation="vertical">
 
-    <!-- 顶部工具栏（纯黑，操作按钮与"完成"并排，减少底部占用） -->
+    <!-- 顶部工具栏（marginTop 留出安全间距，避免贴顶误触） -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="52dp"
-        android:background="@android:color/black"
+        android:layout_marginTop="12dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="4dp">
+        android:paddingHorizontal="8dp">
 
         <TextView
             android:id="@+id/btn_crop_back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:text="取消"
             android:textColor="@android:color/white"
             android:textSize="15sp" />
@@ -31,258 +33,89 @@
             android:layout_weight="1" />
 
         <TextView
+            android:id="@+id/btn_crop_auto_fit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp"
+            android:text="自动适配"
+            android:textColor="@android:color/white"
+            android:textSize="13sp" />
+
+        <TextView
             android:id="@+id/btn_rotate_left"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp"
             android:text="左旋"
-            android:textColor="@android:color/white"
-            android:textSize="15sp" />
+            android:textColor="#99FFFFFF"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/btn_rotate_right"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp"
             android:text="右旋"
-            android:textColor="@android:color/white"
-            android:textSize="15sp" />
+            android:textColor="#99FFFFFF"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/btn_flip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp"
             android:text="翻转"
-            android:textColor="@android:color/white"
-            android:textSize="15sp" />
+            android:textColor="#99FFFFFF"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/btn_crop_done"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:text="完成"
             android:textColor="@android:color/white"
             android:textSize="15sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- 裁剪视图（占满剩余空间） -->
-    <com.canhub.cropper.CropImageView
-        android:id="@+id/crop_image_view"
+    <!-- 裁剪区域（左右留白 24dp：避免拖动靠近屏幕边缘的裁剪句柄时误触发系统返回手势） -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginHorizontal="24dp"
         android:layout_weight="1"
-        android:background="@android:color/black" />
+        android:background="@android:color/black">
 
-    <!-- 底部控制栏 -->
-    <LinearLayout
+        <!-- 裁剪视图（背景透明；框外遮罩由 CropImageOptions.backgroundColor 提供） -->
+        <com.canhub.cropper.CropImageView
+            android:id="@+id/crop_image_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent" />
+    </FrameLayout>
+
+    <!-- 圆形 Tab 行（滑动/点击切换：旋转 / 缩放 / 比例） -->
+    <com.deepsleep.memory.ui.components.CircularTabsView
+        android:id="@+id/circular_tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/black"
-        android:orientation="vertical"
-        android:paddingBottom="16dp">
+        android:layout_marginTop="12dp" />
 
-        <!-- 微调旋转滑块（-45° ~ +45°，小幅度校正拍摄倾斜） -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="8dp">
+    <!-- 滚轮式微调控件（横向刻度滚轮） -->
+    <com.deepsleep.memory.ui.components.WheelSliderView
+        android:id="@+id/wheel_slider"
+        android:layout_width="match_parent"
+        android:layout_height="76dp"
+        android:layout_marginTop="8dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="旋转"
-                android:textColor="#66FFFFFF"
-                android:textSize="12sp" />
-
-            <SeekBar
-                android:id="@+id/fine_rotate_seek"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/fine_rotate_angle"
-                android:layout_width="44dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="0°"
-                android:textColor="@android:color/white"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- 缩放滚轮（1x ~ 4x，放大查看细节） -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="缩放"
-                android:textColor="#66FFFFFF"
-                android:textSize="12sp" />
-
-            <SeekBar
-                android:id="@+id/zoom_seek"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/zoom_text"
-                android:layout_width="44dp"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="1.0x"
-                android:textColor="@android:color/white"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- 裁剪比例预设 + 重置 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <HorizontalScrollView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="8dp">
-
-                <TextView
-                    android:id="@+id/chip_free"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="自由"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_original"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="原始"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_1_1"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="1:1"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_3_2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="3:2"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_4_3"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="4:3"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_16_9"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="16:9"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_16_10"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="16:10"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/chip_a4"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="9dp"
-                    android:text="A4"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-                </LinearLayout>
-            </HorizontalScrollView>
-
-            <TextView
-                android:id="@+id/btn_crop_reset"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_crop_chip_normal"
-                android:gravity="center"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="9dp"
-                android:text="重置"
-                android:textColor="@android:color/white"
-                android:textSize="13sp" />
-        </LinearLayout>
-    </LinearLayout>
+    <!-- 底部安全间距（防误触全面屏手势） -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="20dp" />
 </LinearLayout>

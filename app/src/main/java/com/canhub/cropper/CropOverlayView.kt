@@ -562,6 +562,10 @@ internal class CropOverlayView @JvmOverloads constructor(
   }
 
   /** Fix the given rect to fit into bitmap rect and follow min, max and aspect ratio rules. */
+  /** 【定制】裁剪框是否限制在图片边界内（内切）。关闭时裁剪框仅限制在屏幕内，可拖出图片
+   * （超出图片部分裁剪结果填充黑色）。 */
+  var clipToImageBounds: Boolean = true
+
   private fun fixCropWindowRectByRules(rect: RectF) {
     if (rect.width() < mCropWindowHandler.getMinCropWidth()) {
       val adj = (mCropWindowHandler.getMinCropWidth() - rect.width()) / 2
@@ -589,7 +593,13 @@ internal class CropOverlayView @JvmOverloads constructor(
 
     calculateBounds(rect)
 
-    if (mCalcBounds.width() > 0 && mCalcBounds.height() > 0) {
+    if (!clipToImageBounds) {
+      // 【定制】不内切：裁剪框仅限制在屏幕内（可拖出图片，超出部分裁剪结果填充黑色）
+      if (rect.left < 0f) rect.left = 0f
+      if (rect.top < 0f) rect.top = 0f
+      if (rect.right > width.toFloat()) rect.right = width.toFloat()
+      if (rect.bottom > height.toFloat()) rect.bottom = height.toFloat()
+    } else if (mCalcBounds.width() > 0 && mCalcBounds.height() > 0) {
       val leftLimit = max(mCalcBounds.left, 0f)
       val topLimit = max(mCalcBounds.top, 0f)
       val rightLimit = min(mCalcBounds.right, width.toFloat())

@@ -1,8 +1,6 @@
 package com.deepsleep.memory.ui.treasure_view.dictation_view;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,7 +35,6 @@ import com.deepsleep.memory.ui.components.ThemeCropActivity;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -533,7 +530,7 @@ public class DictationExecutionActivity extends AppCompatActivity {
 
         Uri sourceUri = Uri.fromFile(new File(currentPhotoPath));
 
-        // 启动自建裁剪页（听写默认自由比例，最大输出 2048）
+        // 启动自建裁剪页（听写默认自由比例，最大输出 1280）
         Intent intent = new Intent(this, ThemeCropActivity.class);
         intent.putExtra(ThemeCropActivity.EXTRA_SOURCE_URI, sourceUri);
         cropLauncher.launch(intent);
@@ -546,21 +543,20 @@ public class DictationExecutionActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                InputStream is = getContentResolver().openInputStream(imageUri);
-                Bitmap bitmap = BitmapFactory.decodeStream(is);
-                if (is != null)
-                    is.close();
-
-                // 压缩后上传
-                File compressFile = new File(getCacheDir(), "dict_ocr.jpg");
-                FileOutputStream fos = new FileOutputStream(compressFile);
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos);
-                fos.close();
-                bitmap.recycle();
-
+                // 直接上传裁剪页输出（与作文端一致：JPEG 质量 85 / 最长边 1280），避免二次解码重编码
                 String url = ApiConstants.getBaseUrl() + "/composition/extractText";
-                Log.i("DictationOCR", "上传 OCR 图片 → " + url + "  文件大小: " + compressFile.length() + " bytes");
-                String result = HttpManager.doHttpPostWithImageUri(url, Uri.fromFile(compressFile),
+                long fileSize = 0;
+                InputStream sizeStream = getContentResolver().openInputStream(imageUri);
+                if (sizeStream != null) {
+                    try {
+                        long avail = sizeStream.available();
+                        fileSize = avail > 0 ? avail : 0;
+                    } finally {
+                        sizeStream.close();
+                    }
+                }
+                Log.i("DictationOCR", "上传 OCR 图片 → " + url + "  文件大小: " + fileSize + " bytes");
+                String result = HttpManager.doHttpPostWithImageUri(url, imageUri,
                         DictationExecutionActivity.this);
                 Log.i("DictationOCR", "OCR 返回: " + (result != null ? result : "null（请求失败）"));
 
@@ -570,8 +566,6 @@ public class DictationExecutionActivity extends AppCompatActivity {
                 } else {
                     handler.sendEmptyMessage(MSG_OCR_FAILED);
                 }
-
-                compressFile.delete();
             } catch (Exception e) {
                 e.printStackTrace();
                 handler.sendEmptyMessage(MSG_OCR_FAILED);

@@ -91,7 +91,12 @@
 - **SVG 转 Android vector 必须等比**：vector 默认将 viewport 拉伸填满容器（SVG 默认 preserveAspectRatio 等比），viewport 宽高比 ≠ 容器宽高比时图形会被压扁/拉长（如 1303:1024 放进 24dp×24dp 会横向压缩成瘦长相机 + 椭圆镜头）；容器高度应按 `height = width * viewportHeight / viewportWidth` 计算；
 - **相册按钮圆角用 `ViewOutlineProvider` 绘制层裁剪**（`setClipToOutline(true)` + `outline.setRoundRect`，**固定 dp 尺寸而非 `view.getWidth()`**——onCreate 阶段未布局宽高为 0，0 尺寸 outline 会把整个按钮裁剪不可见）；不依赖 Glide 变换/alpha 通道（RGB_565 解码下 `RoundedCorners` 透明角变黑，黑色图片上无圆角观感）；配合半透明白圆角背景（`bg_camera_gallery`）保证深色图片圆角轮廓可见；Glide 仅 `override(按钮尺寸).centerCrop()`；
 - 横屏下缩放/EV 徽章（`zoom_label`/`ev_label`）约束为**顶部居中**，禁止约束屏幕右缘（会与右侧快门控制栏重叠被遮挡）；
+- 裁剪页的 `crop_auto_fit` 持久化于 `UserSettingsManager`（UI 文案使用“自动适配”）：开启时旋转/缩放通过放大图片保证裁剪框内切，不缩小裁剪框；关闭时裁剪框可在屏幕内超出图片，结果超出部分填黑；
+- 裁剪页缩放必须使用独立图片矩阵（`keepCropWindow`），禁止缩放时通过图片平移或重设裁剪框来补偿；旋转/微调后的 cover 倍率必须基于旋转图片四边形计算，不能只用外接矩形；
+- 裁剪框拖动期间禁止 `applyImageMatrix(center=false)` 平移图片，避免拖动边缘时图片与裁剪框一起失控；边缘句柄触摸容差控制在 12dp 左右，裁剪视图左右保留至少 24dp 系统返回手势安全区；
 - 图片裁剪走 uCrop（`UcropHelper.createThemedOptions()`），裁剪返回用 Activity Result API；
+- **裁剪输出统一 JPEG 质量 85 / 最长边 1280**（`UcropHelper.MAX_CROP_RESULT_SIZE`）：依据 PaddleOCR 实测基准——服务端检测阶段内部缩放到 `limit_side_len=960`（MemoryServerTTS `config/ocr.yaml`），1280 覆盖上限并保留余量；三场景（手写/简单/复杂作文）A/B 实测 2048→1280 体积约减半、识别精度无损（conf ≥ 0.99）；
+- **OCR 上传禁止二次解码重编码**：作文端（`CompositionMenuActivity`）与听写端（`DictationExecutionActivity.uploadForOcr`）均直接上传裁剪页输出 URI（`HttpManager.doHttpPostWithImageUri` 流式原样上传），不得再 `Bitmap.compress` 一次（曾存在听写端二次压缩 q80，已移除）；
 - **禁止**回退到旧的 `startActivityForResult` / `onActivityResult` 写法。
 
 ---
