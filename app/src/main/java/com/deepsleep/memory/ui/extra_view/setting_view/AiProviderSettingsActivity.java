@@ -48,8 +48,7 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.ai_provider_settings_layout);
-        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.ai_provider_toolbar);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        findViewById(R.id.ai_provider_back).setOnClickListener(v -> finish());
         name = findViewById(R.id.ai_provider_name);
         protocol = findViewById(R.id.ai_provider_protocol);
         baseUrl = findViewById(R.id.ai_provider_base_url);
@@ -67,9 +66,8 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
         baseUrl.setText("https://opencode.ai/zen/v1");
         findViewById(R.id.ai_provider_save).setOnClickListener(v -> saveProvider());
         findViewById(R.id.ai_task_route_save).setOnClickListener(v -> saveTaskRoute());
-        taskTypeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"ESSAY_CORRECTION", "ARTICLE_GENERATION", "CHAT_CONVERSATION",
-                        "CONVERSATION_EVALUATION", "DICTATION_CONTEXT", "DEFINITION_SCORING"}));
+        taskTypeSpinner.setAdapter(createSpinnerAdapter(new String[]{"ESSAY_CORRECTION", "ARTICLE_GENERATION", "CHAT_CONVERSATION",
+                "CONVERSATION_EVALUATION", "DICTATION_CONTEXT", "DEFINITION_SCORING"}));
         loadMyProviders();
         loadCatalog();
     }
@@ -87,14 +85,12 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
                         providerIds.add(item.getLong("id"));
                         providerNames.add(item.optString("name") + " / " + item.optString("modelCode"));
                     }
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(AiProviderSettingsActivity.this,
-                            android.R.layout.simple_spinner_dropdown_item, providerNames);
+                    ArrayAdapter<String> adapter = createSpinnerAdapter(providerNames);
                     primarySpinner.setAdapter(adapter);
                     List<String> fallbackNames = new ArrayList<>();
                     fallbackNames.add("不设置备用 Provider");
                     fallbackNames.addAll(providerNames);
-                    fallbackSpinner.setAdapter(new ArrayAdapter<>(AiProviderSettingsActivity.this,
-                            android.R.layout.simple_spinner_dropdown_item, fallbackNames));
+                    fallbackSpinner.setAdapter(createSpinnerAdapter(fallbackNames));
                 } catch (Exception ignored) {
                     status.setText("用户 Provider 解析失败");
                 }
@@ -126,8 +122,7 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
                             }
                         }
                     }
-                    modelSpinner.setAdapter(new ArrayAdapter<>(AiProviderSettingsActivity.this,
-                            android.R.layout.simple_spinner_dropdown_item, models));
+                    modelSpinner.setAdapter(createSpinnerAdapter(models));
                 } catch (Exception e) {
                     status.setText("模型目录解析失败，可手动填写模型名");
                 }
@@ -138,6 +133,16 @@ public class AiProviderSettingsActivity extends AppCompatActivity {
                 status.setText("无法连接模型目录，可手动填写模型名");
             }
         });
+    }
+
+    private ArrayAdapter<String> createSpinnerAdapter(String[] values) {
+        return createSpinnerAdapter(java.util.Arrays.asList(values));
+    }
+
+    private ArrayAdapter<String> createSpinnerAdapter(List<String> values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_spinner_theme, values);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_theme);
+        return adapter;
     }
 
     private void saveProvider() {
