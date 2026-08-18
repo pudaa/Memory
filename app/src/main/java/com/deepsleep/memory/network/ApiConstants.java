@@ -1,13 +1,17 @@
 package com.deepsleep.memory.network;
 
+import com.deepsleep.memory.BuildConfig;
+
 public class ApiConstants {
     public enum Environment { DEV, TEST, PROD }
 
     private static Environment currentEnv = Environment.DEV;
 
-    private static final String DEV_BASE_URL = "http://192.168.102.14:8080";  // 开发环境IP
-    private static final String TEST_BASE_URL = "http://frp-fit.com:60966";  // 测试环境
-    private static final String PROD_BASE_URL = "http://116.62.6.15:8080"; // 生产环境
+    // Base URLs are injected at build time from local.properties (see app/build.gradle).
+    // The public repo only ships placeholder values; real endpoints stay local.
+    private static final String DEV_BASE_URL = BuildConfig.DEV_BASE_URL;
+    private static final String TEST_BASE_URL = BuildConfig.TEST_BASE_URL;
+    private static final String PROD_BASE_URL = BuildConfig.PROD_BASE_URL;
 
 
     public static String getBaseUrl() {

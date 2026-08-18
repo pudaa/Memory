@@ -1270,9 +1270,11 @@ ViewPager2 承载 4 个 Fragment，分别从不同来源查询：
 ```java
 public enum Environment { DEV, TEST, PROD }
 
-// DEV:  "http://192.168.102.14:8080"      — 开发机直连
-// TEST: "http://frp-fit.com:60966"         — frp 端口转发（外网可访问）
-// PROD: "http://116.62.6.15:8080"          — 生产服务器
+// 地址由 local.properties 注入 BuildConfig（见 app/build.gradle）：
+//   BACKEND_DEV_URL  — 开发机直连
+//   BACKEND_TEST_URL — frp 端口转发（外网可访问）
+//   BACKEND_PROD_URL — 生产服务器
+// 公共仓库仅含占位符，真实地址不提交到版本库。
 
 ApiConstants.setEnvironment(Environment.TEST); // GetDataByThread 构造函数默认
 ```

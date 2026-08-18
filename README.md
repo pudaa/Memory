@@ -47,7 +47,7 @@
 | 层次 | 技术选型 |
 |------|----------|
 | **UI 框架** | AndroidX AppCompat, Material Design, ConstraintLayout |
-| **网络请求** | Apache HttpClient (自定义 HttpManager 封装) |
+| **网络请求** | Apache HttpClient (自定义 HttpManager 封装) + Retrofit/OkHttp (认证网络层) |
 | **图片加载** | Glide 4.12.0 |
 | **图片裁剪** | uCrop 2.2.8 (Yalantis) |
 | **Markdown** | Markwon 4.6.2 |
@@ -183,21 +183,25 @@ cd Memory
 
 ### API 环境切换
 
-项目支持 **DEV / TEST / PROD** 三套环境，默认使用 TEST 环境：
+项目支持 **DEV / TEST / PROD** 三套环境，后端地址在**构建时**从本地 `local.properties` 注入（不会提交到版本库）：
+
+1. 在项目根目录 `local.properties` 中配置后端地址：
+
+   ```
+   BACKEND_DEV_URL=http://your-dev-host:8080
+   BACKEND_TEST_URL=http://your-test-host:port
+   BACKEND_PROD_URL=http://your-prod-host:8080
+   ```
+
+2. `app/build.gradle` 读取这些属性并注入到 `BuildConfig`，运行时通过 `ApiConstants` 统一读取。
 
 ```java
-// 在 GetDataByThread 构造函数中默认设置
+// 默认 DEV，切换环境
 ApiConstants.setEnvironment(ApiConstants.Environment.TEST);
-
-// 切换到生产环境
 ApiConstants.setEnvironment(ApiConstants.Environment.PROD);
 ```
 
-| 环境 | 地址 |
-|------|------|
-| **DEV** | `http://192.168.102.14:8080` |
-| **TEST** | `http://frp-fit.com:60966` |
-| **PROD** | `http://116.62.6.15:8080` |
+> ⚠️ `local.properties` 已被 `.gitignore` 忽略，请勿将真实后端地址提交到公共仓库。未配置时构建使用占位符地址。
 
 ### 权限说明
 

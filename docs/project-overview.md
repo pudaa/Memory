@@ -124,7 +124,8 @@ Activity/Fragment → UserSettingsManager / InnerSettingsManager / DailyStateMan
 .\gradlew.bat connectedAndroidTest  # 仪器化测试
 ```
 
-- 默认环境：`GetDataByThread` 构造设为 **TEST**（`http://frp-pet.com:60966`）；PROD 为 `http://116.62.6.15:8080`。
+- 默认环境：`GetDataByThread` 构造设为 **TEST**。
+- 后端地址在构建时从本地 `local.properties` 注入（`BACKEND_DEV_URL` / `BACKEND_TEST_URL` / `BACKEND_PROD_URL`），经 `app/build.gradle` 写入 `BuildConfig`，由 `ApiConstants` 统一读取；真实地址不提交到版本库。
 - 发布前务必通过 `ApiConstants.setEnvironment()` 确认环境。
 
 ## 9. 文档导航

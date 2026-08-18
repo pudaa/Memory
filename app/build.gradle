@@ -3,9 +3,30 @@ plugins {
     id 'org.jetbrains.kotlin.android' version '2.0.21'
 }
 
+// Read backend base URLs from local.properties (not committed to VCS).
+// Fall back to placeholders so the public repo builds without secrets.
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+def backendDevUrl = localProps.getProperty("BACKEND_DEV_URL", "http://YOUR_DEV_HOST:8080")
+def backendTestUrl = localProps.getProperty("BACKEND_TEST_URL", "http://YOUR_TEST_HOST:port")
+def backendProdUrl = localProps.getProperty("BACKEND_PROD_URL", "http://YOUR_PROD_HOST:8080")
+
+// Hosts for the generated network_security_config.xml (cleartext HTTP allowlist).
+def backendHosts = [backendDevUrl, backendTestUrl, backendProdUrl].collect { u ->
+    try { new URI(u).host } catch (Exception ignored) { null }
+}.findAll { it != null }
+def networkSecurityDir = file("$buildDir/generated/res")
+
 android {
     namespace 'com.deepsleep.memory'
     compileSdk 34
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         applicationId "com.deepsleep.memory"
@@ -13,6 +34,10 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        buildConfigField "String", "DEV_BASE_URL", "\"${backendDevUrl}\""
+        buildConfigField "String", "TEST_BASE_URL", "\"${backendTestUrl}\""
+        buildConfigField "String", "PROD_BASE_URL", "\"${backendProdUrl}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,4 +96,45 @@ dependencies {
     implementation "androidx.camera:camera-camera2:${camerax_version}"
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"
     implementation "androidx.camera:camera-view:${camerax_version}"
+}
+
+// Generate network_security_config.xml from local.properties hosts so the
+// public repo ships no real backend domains. Cleartext HTTP is only allowed
+// for the configured backend hosts.
+abstract class GenerateNetworkSecurityConfigTask extends DefaultTask {
+    @Input
+    abstract Property<String> getBackendHostsCsv()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDir()
+
+    @TaskAction
+    void generate() {
+        def hosts = backendHostsCsv.get().split(',').findAll { it }
+        def domains = hosts.collect { "<domain includeSubdomains=\"true\">${it}</domain>" }.join("\n        ")
+        def xml = """<?xml version="1.0" encoding="UTF-8" ?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        ${domains}
+    </domain-config>
+</network-security-config>
+"""
+        def xmlDir = new File(outputDir.get().asFile, "xml")
+        xmlDir.mkdirs()
+        new File(xmlDir, "network_security_config.xml").text = xml
+    }
+}
+
+def generateNetworkSecurityConfig = tasks.register('generateNetworkSecurityConfig', GenerateNetworkSecurityConfigTask) {
+    backendHostsCsv.set(backendHosts.join(','))
+    outputDir.set(networkSecurityDir)
+}
+
+// Register the generated res folder per-variant (AGP wires task dependencies).
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.res?.addGeneratedSourceDirectory(generateNetworkSecurityConfig) { task ->
+            task.outputDir
+        }
+    }
 }

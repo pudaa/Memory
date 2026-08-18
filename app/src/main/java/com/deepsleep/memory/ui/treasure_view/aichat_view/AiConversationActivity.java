@@ -624,7 +624,7 @@ public class AiConversationActivity extends AppCompatActivity {
         if (rawUrl.contains("localhost")) {
             String baseUrl = ApiConstants.getBaseUrl();
             // 从 http://localhost:8080/tts-audio/xxx.wav →
-            // http://192.168.102.14:8080/tts-audio/xxx.wav
+            // http://<当前环境主机>:8080/tts-audio/xxx.wav
             return rawUrl.replaceFirst("https?://localhost(:\\d+)?", baseUrl);
         }
         return rawUrl;
