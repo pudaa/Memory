@@ -760,9 +760,27 @@ public class DailyReadingFragment extends Fragment {
         highFrequencyWordsContainer.removeAllViews();
         for (int i = 0; i < highFrequencyWords.length(); i++) {
             try {
-                JSONObject item = highFrequencyWords.getJSONObject(i);
-                String word = item.getString("word");
-                String explanation = item.getString("explanation");
+                String word;
+                String explanation;
+                Object raw = highFrequencyWords.get(i);
+                if (raw instanceof JSONObject) {
+                    JSONObject item = (JSONObject) raw;
+                    word = item.optString("word", "");
+                    explanation = item.optString("explanation", "");
+                } else {
+                    // 容错：LLM 可能把整项输出成 "word: explanation" 字符串，提取单词与释义使其仍可交互
+                    String[] parts = splitWordExplanation(String.valueOf(raw));
+                    word = parts[0];
+                    explanation = parts[1];
+                }
+                if (word.isEmpty()) {
+                    continue;
+                }
+                // 去重：explanation 开头可能重复单词本身（如 "word: word：释义"）
+                explanation = stripLeadingWord(word, explanation);
+                if (explanation.isEmpty()) {
+                    continue;
+                }
 
                 TextView wordView = new TextView(requireContext());
                 markwon.setMarkdown(wordView, "**" + word + "**" + ": " + explanation);
@@ -783,6 +801,53 @@ public class DailyReadingFragment extends Fragment {
                 Log.e("article", "解析高频单词失败", e);
             }
         }
+    }
+
+    /**
+     * 拆分 "word: explanation" / "word：explanation" 形式的字符串项。
+     */
+    private String[] splitWordExplanation(String text) {
+        if (text == null) {
+            text = "";
+        }
+        text = text.trim();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == ':' || c == '：') {
+                String w = text.substring(0, i).trim();
+                if (w.isEmpty()) {
+                    return new String[] { text, "" };
+                }
+                return new String[] { w, text.substring(i + 1).trim() };
+            }
+        }
+        return new String[] { text, "" };
+    }
+
+    /**
+     * 去除释义开头重复的单词本身（如 "conscientious：有责任心的…" → "有责任心的…"）。
+     */
+    private String stripLeadingWord(String word, String explanation) {
+        if (word == null || word.isEmpty() || explanation == null) {
+            return explanation;
+        }
+        String e = explanation.trim();
+        String lowerE = e.toLowerCase();
+        String lowerW = word.toLowerCase();
+        while (!e.isEmpty() && lowerE.startsWith(lowerW)) {
+            String rest = e.substring(word.length()).trim();
+            if (rest.isEmpty()) {
+                break;
+            }
+            char c = rest.charAt(0);
+            if (c == ':' || c == '：' || c == '-' || c == '—' || c == ' ') {
+                e = rest.substring(1).trim();
+                lowerE = e.toLowerCase();
+            } else {
+                break;
+            }
+        }
+        return e;
     }
 
     // ==================== 重试逻辑 ====================
