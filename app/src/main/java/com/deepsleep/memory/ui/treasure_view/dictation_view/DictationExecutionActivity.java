@@ -26,8 +26,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.ApiConstants;
-import com.deepsleep.memory.network.HttpManager;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.CameraCaptureActivity;
 import com.deepsleep.memory.ui.components.ThemeCropActivity;
@@ -36,7 +36,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -541,36 +540,10 @@ public class DictationExecutionActivity extends AppCompatActivity {
             return;
         Toast.makeText(this, "正在识别...", Toast.LENGTH_SHORT).show();
 
-        new Thread(() -> {
-            try {
-                // 直接上传裁剪页输出（与作文端一致：JPEG 质量 85 / 最长边 1280），避免二次解码重编码
-                String url = ApiConstants.getBaseUrl() + "/composition/extractText";
-                long fileSize = 0;
-                InputStream sizeStream = getContentResolver().openInputStream(imageUri);
-                if (sizeStream != null) {
-                    try {
-                        long avail = sizeStream.available();
-                        fileSize = avail > 0 ? avail : 0;
-                    } finally {
-                        sizeStream.close();
-                    }
-                }
-                Log.i("DictationOCR", "上传 OCR 图片 → " + url + "  文件大小: " + fileSize + " bytes");
-                String result = HttpManager.doHttpPostWithImageUri(url, imageUri,
-                        DictationExecutionActivity.this);
-                Log.i("DictationOCR", "OCR 返回: " + (result != null ? result : "null（请求失败）"));
-
-                if (result != null) {
-                    android.os.Message msg = handler.obtainMessage(MSG_OCR_SUCCESS, result);
-                    handler.sendMessage(msg);
-                } else {
-                    handler.sendEmptyMessage(MSG_OCR_FAILED);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                handler.sendEmptyMessage(MSG_OCR_FAILED);
-            }
-        }).start();
+        // 新栈：CompositionApi.extractText 经 ApiBridge（multipart 流式上传，字段 image 与历史一致）
+        ApiBridge.enqueue(MemoryApiClient.composition().extractText(
+                ApiBridge.filePart(this, imageUri, "image", "cropped_image.jpg", "image/jpeg")),
+                handler, MSG_OCR_SUCCESS, MSG_OCR_FAILED, "DictationOCR");
     }
 
     /**

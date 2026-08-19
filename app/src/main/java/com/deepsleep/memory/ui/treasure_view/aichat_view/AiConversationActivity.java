@@ -34,8 +34,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.MemAudioRecord;
+import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.ApiConstants;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -48,13 +49,10 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-
-import com.deepsleep.memory.network.HttpManager;
+import java.util.Map;
 
 public class AiConversationActivity extends AppCompatActivity {
     private static final String TAG = "AiConversation";
@@ -241,8 +239,8 @@ public class AiConversationActivity extends AppCompatActivity {
 
     private void checkLastSession() {
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/last");
-        api.getLastConversation(mainHandler, MSG_LAST_SUCCESS, MSG_FAIL, String.valueOf(mUserId));
+        ApiBridge.enqueue(MemoryApiClient.conversation().last(String.valueOf(mUserId)), mainHandler, MSG_LAST_SUCCESS,
+                MSG_FAIL, "ConvLast");
     }
 
     private void startNewSession() {
@@ -250,13 +248,13 @@ public class AiConversationActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
         mSessionId = null;
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/start");
-        api.startConversation(mainHandler, MSG_SESSION_SUCCESS, MSG_FAIL, String.valueOf(mUserId));
+        ApiBridge.enqueue(MemoryApiClient.conversation().start(String.valueOf(mUserId)), mainHandler,
+                MSG_SESSION_SUCCESS, MSG_FAIL, "ConversationStart");
     }
 
     private void loadSessions() {
-        GetDataByThread api = new GetDataByThread("/conversation/sessions");
-        api.getConversationSessions(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.conversation().sessions(String.valueOf(mUserId)),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == 1) {
@@ -276,7 +274,7 @@ public class AiConversationActivity extends AppCompatActivity {
                     }
                 }
             }
-        }, 1, -1, String.valueOf(mUserId));
+        }, 1, -1, "ConvSessions");
     }
 
     private void switchToSession(String sessionId) {
@@ -286,13 +284,13 @@ public class AiConversationActivity extends AppCompatActivity {
         messageList.clear();
         adapter.notifyDataSetChanged();
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/history");
-        api.getConversationHistory(mainHandler, MSG_HISTORY_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId);
+        ApiBridge.enqueue(MemoryApiClient.conversation().history(String.valueOf(mUserId), mSessionId), mainHandler,
+                MSG_HISTORY_SUCCESS, MSG_FAIL, "ConversationHistory");
     }
 
     private void deleteSession(String sessionId, int position) {
-        GetDataByThread api = new GetDataByThread("/conversation/delete");
-        api.deleteConversation(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.conversation().delete(String.valueOf(mUserId), sessionId),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == 1) {
@@ -311,7 +309,7 @@ public class AiConversationActivity extends AppCompatActivity {
                     Toast.makeText(AiConversationActivity.this, "删除失败", Toast.LENGTH_SHORT).show();
                 }
             }
-        }, 1, 2, String.valueOf(mUserId), sessionId);
+        }, 1, 2, "ConvDelete");
     }
 
     /** 新会话：显示 AI 欢迎语 + 请求 TTS 欢迎音频 */
@@ -321,8 +319,30 @@ public class AiConversationActivity extends AppCompatActivity {
         adapter.notifyItemInserted(0);
         rvConversation.scrollToPosition(0);
         // 请求 TTS 音频
-        GetDataByThread tts = new GetDataByThread("/tts/synthesize");
-        tts.synthesizeTts(mainHandler, MSG_TTS_SUCCESS, MSG_FAIL, WELCOME_TEXT, this);
+        requestTts(WELCOME_TEXT);
+    }
+
+    private void requestTts(String text) {
+        ApiConstants.execute(() -> {
+            try {
+                JSONObject j = new JSONObject();
+                j.put("text", text);
+                j.put("language", "en");
+                String wav = MemoryApiClient.downloadWav(ApiConstants.getFullUrl("/tts/synthesize"), j,
+                        AiConversationActivity.this);
+                if (wav != null) {
+                    Message m = Message.obtain();
+                    m.what = MSG_TTS_SUCCESS;
+                    m.obj = wav;
+                    mainHandler.sendMessage(m);
+                } else {
+                    mainHandler.sendEmptyMessage(MSG_FAIL);
+                }
+            } catch (Exception e) {
+                Log.e("TtsSynthesize", "Error: " + e.getMessage());
+                mainHandler.sendEmptyMessage(MSG_FAIL);
+            }
+        });
     }
 
     private void setupRecyclerView() {
@@ -353,15 +373,15 @@ public class AiConversationActivity extends AppCompatActivity {
 
     private void startConversationSession() {
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/start");
-        api.startConversation(mainHandler, MSG_SESSION_SUCCESS, MSG_FAIL, String.valueOf(mUserId));
+        ApiBridge.enqueue(MemoryApiClient.conversation().start(String.valueOf(mUserId)), mainHandler,
+                MSG_SESSION_SUCCESS, MSG_FAIL, "ConversationStart");
     }
 
     private void loadConversationHistory() {
         if (mSessionId == null)
             return;
-        GetDataByThread api = new GetDataByThread("/conversation/history");
-        api.getConversationHistory(mainHandler, MSG_HISTORY_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId);
+        ApiBridge.enqueue(MemoryApiClient.conversation().history(String.valueOf(mUserId), mSessionId), mainHandler,
+                MSG_HISTORY_SUCCESS, MSG_FAIL, "ConversationHistory");
     }
 
     // ==================== 消息发送 ====================
@@ -398,56 +418,49 @@ public class AiConversationActivity extends AppCompatActivity {
     /**
      * 通过 SSE 流式发送消息并接收 AI 回复。
      * SSE 事件类型：chunk（文本块）、eval（评估）、done（完成）、error（错误）
+     * 基于共享 OkHttp 连接池（MemoryApiClient.postStream），在共享网络线程池上执行。
      */
     private void sendStreamingMessage(String content, AiMessage aiMsg) {
-        new Thread(() -> {
-            HttpURLConnection conn = null;
+        ApiConstants.execute(() -> {
             try {
-                String urlStr = ApiConstants.getBaseUrl() + "/conversation/stream";
-                URL url = new URL(urlStr);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("userId", String.valueOf(mUserId));
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(120000);
-                conn.setDoOutput(true);
+                String urlStr = ApiConstants.getFullUrl("/conversation/stream");
+                Map<String, String> headers = new HashMap<>();
+                headers.put("userId", String.valueOf(mUserId));
+                Map<String, String> form = new HashMap<>();
+                form.put("sessionId", mSessionId);
+                form.put("text", content);
 
-                String params = "sessionId=" + URLEncoder.encode(mSessionId, "UTF-8")
-                        + "&text=" + URLEncoder.encode(content, "UTF-8");
-                conn.getOutputStream().write(params.getBytes("UTF-8"));
+                try (okhttp3.Response resp = MemoryApiClient.postStream(urlStr, headers, form)) {
+                    if (resp.code() != 200) {
+                        runOnUiThread(() -> {
+                            aiMsg.setStreaming(false);
+                            aiMsg.setContent("服务器错误: " + resp.code());
+                            int pos = messageList.indexOf(aiMsg);
+                            if (pos >= 0) adapter.notifyItemChanged(pos);
+                        });
+                        return;
+                    }
 
-                int responseCode = conn.getResponseCode();
-                if (responseCode != 200) {
-                    runOnUiThread(() -> {
-                        aiMsg.setStreaming(false);
-                        aiMsg.setContent("服务器错误: " + responseCode);
-                        int pos = messageList.indexOf(aiMsg);
-                        if (pos >= 0) adapter.notifyItemChanged(pos);
-                    });
-                    return;
-                }
+                    BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(resp.body().byteStream(), "UTF-8"));
+                    String line;
+                    String eventType = "";
+                    StringBuilder data = new StringBuilder();
 
-                BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream(), "UTF-8"));
-                String line;
-                String eventType = "";
-                StringBuilder data = new StringBuilder();
-
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("event:")) {
-                        eventType = line.substring(6).trim();
-                    } else if (line.startsWith("data:")) {
-                        data.append(line.substring(5).trim());
-                    } else if (line.isEmpty() && !eventType.isEmpty()) {
-                        String finalEventType = eventType;
-                        String finalData = data.toString();
-                        runOnUiThread(() -> handleSseEvent(finalEventType, finalData, aiMsg));
-                        eventType = "";
-                        data.setLength(0);
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("event:")) {
+                            eventType = line.substring(6).trim();
+                        } else if (line.startsWith("data:")) {
+                            data.append(line.substring(5).trim());
+                        } else if (line.isEmpty() && !eventType.isEmpty()) {
+                            String finalEventType = eventType;
+                            String finalData = data.toString();
+                            runOnUiThread(() -> handleSseEvent(finalEventType, finalData, aiMsg));
+                            eventType = "";
+                            data.setLength(0);
+                        }
                     }
                 }
-                reader.close();
             } catch (Exception e) {
                 Log.e(TAG, "SSE 流式连接失败", e);
                 runOnUiThread(() -> {
@@ -458,10 +471,8 @@ public class AiConversationActivity extends AppCompatActivity {
                     int pos = messageList.indexOf(aiMsg);
                     if (pos >= 0) adapter.notifyItemChanged(pos);
                 });
-            } finally {
-                if (conn != null) conn.disconnect();
             }
-        }).start();
+        });
     }
 
     /**
@@ -605,9 +616,9 @@ public class AiConversationActivity extends AppCompatActivity {
     private void sendAudioToServer(String filePath) {
         progressBar.setVisibility(View.VISIBLE);
         Uri audioUri = Uri.parse("file://" + filePath);
-        GetDataByThread api = new GetDataByThread("/conversation/message");
-        api.sendConversationAudio(mainHandler, MSG_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId, audioUri,
-                this);
+        ApiBridge.enqueue(MemoryApiClient.conversation().sendAudio(String.valueOf(mUserId),
+                ApiBridge.formPart(mSessionId), ApiBridge.filePart(this, audioUri, "audio", "recording.wav", "audio/wav")),
+                mainHandler, MSG_SUCCESS, MSG_FAIL, "ConversationAudio");
     }
 
     // ==================== 响应解析 ====================
@@ -817,7 +828,7 @@ public class AiConversationActivity extends AppCompatActivity {
      * 启动音频轮询，异步获取 TTS 音频 URL
      */
     private void startAudioPolling(long messageId, int listPosition) {
-        new Thread(() -> {
+        ApiConstants.execute(() -> {
             int attempts = 0;
             while (attempts < MAX_POLL_ATTEMPTS) {
                 try {
@@ -827,8 +838,8 @@ public class AiConversationActivity extends AppCompatActivity {
                 }
                 attempts++;
 
-                String url = ApiConstants.getBaseUrl() + "/conversation/audio/" + messageId;
-                String result = HttpManager.doHttpGetNoPara(url);
+                String url = ApiConstants.getFullUrl("/conversation/audio/" + messageId);
+                String result = MemoryApiClient.doHttpGetNoPara(url);
                 if (result == null)
                     continue;
 
@@ -858,7 +869,7 @@ public class AiConversationActivity extends AppCompatActivity {
                     adapter.notifyItemChanged(listPosition);
                 }
             });
-        }).start();
+        });
     }
 
     // ==================== 辅助方法 ====================
@@ -920,8 +931,8 @@ public class AiConversationActivity extends AppCompatActivity {
             return;
 
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/start-scenario");
-        api.startScenario(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.conversation().startScenario(String.valueOf(mUserId), mSessionId, scenarioId),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 progressBar.setVisibility(View.GONE);
@@ -939,9 +950,7 @@ public class AiConversationActivity extends AppCompatActivity {
                             rvConversation.scrollToPosition(messageList.size() - 1);
 
                             // 请求开场白 TTS
-                            GetDataByThread tts = new GetDataByThread("/tts/synthesize");
-                            tts.synthesizeTts(mainHandler, MSG_TTS_SUCCESS, MSG_FAIL, openingLine,
-                                    AiConversationActivity.this);
+                            requestTts(openingLine);
                         } else {
                             showError(root.optString("message", "启动场景失败"));
                         }
@@ -952,7 +961,7 @@ public class AiConversationActivity extends AppCompatActivity {
                     showError("启动场景失败");
                 }
             }
-        }, 1, -1, String.valueOf(mUserId), mSessionId, scenarioId);
+        }, 1, -1, "StartScenario");
     }
 
     private void showCustomScenarioDialog() {
@@ -990,8 +999,9 @@ public class AiConversationActivity extends AppCompatActivity {
 
         // 发送到服务器
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/message");
-        api.sendConversationText(mainHandler, MSG_SUCCESS, MSG_FAIL, String.valueOf(mUserId), mSessionId, prompt);
+        ApiBridge.enqueue(MemoryApiClient.conversation().sendText(String.valueOf(mUserId),
+                ApiBridge.formPart(mSessionId), ApiBridge.formPart(prompt)), mainHandler, MSG_SUCCESS, MSG_FAIL,
+                "ConversationMsg");
     }
 
     private void updateModeLabel(String text) {
@@ -1006,8 +1016,8 @@ public class AiConversationActivity extends AppCompatActivity {
             return;
 
         progressBar.setVisibility(View.VISIBLE);
-        GetDataByThread api = new GetDataByThread("/conversation/" + mSessionId + "/mode");
-        api.switchMode(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.conversation().switchMode(String.valueOf(mUserId), mSessionId, "FREE_CHAT"),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 progressBar.setVisibility(View.GONE);
@@ -1022,7 +1032,7 @@ public class AiConversationActivity extends AppCompatActivity {
                 adapter.notifyItemInserted(messageList.size() - 1);
                 rvConversation.scrollToPosition(messageList.size() - 1);
             }
-        }, 1, -1, String.valueOf(mUserId), mSessionId, "FREE_CHAT");
+        }, 1, -1, "SwitchMode");
     }
 
     // ==================== 对话总结 ====================

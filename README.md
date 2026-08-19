@@ -34,9 +34,8 @@
 │           UI 层 (Activity/Fragment)              │
 │  WordLearning  Dictation  Composition  ...    │
 ├──────────────────────────────────────────┤
-│        GetDataByThread (异步请求封装)            │
-│                    │                              │
-│            HttpManager (Apache HttpClient)        │
+│  MemoryApiClient + ApiBridge (统一网络入口) │
+│  OkHttp 单一共享连接池 + Handler 回调         │
 ├──────────────────────────────────────────┤
 │              后端 API 服务                        │
 └──────────────────────────────────────────┘
@@ -47,7 +46,7 @@
 | 层次 | 技术选型 |
 |------|----------|
 | **UI 框架** | AndroidX AppCompat, Material Design, ConstraintLayout |
-| **网络请求** | Apache HttpClient (自定义 HttpManager 封装) + Retrofit/OkHttp (认证网络层) |
+| **网络请求** | OkHttp (MemoryApiClient 唯一入口 + 单一共享连接池) + Retrofit (域接口) + ApiBridge (Handler 桥接) |
 | **图片加载** | Glide 4.12.0 |
 | **图片裁剪** | uCrop 2.2.8 (Yalantis) |
 | **Markdown** | Markwon 4.6.2 |
@@ -63,11 +62,9 @@
 ```
 用户操作 → Activity/Fragment
               ↓
-         GetDataByThread (后台线程)
+         ApiBridge.enqueue(MemoryApiClient.域().xxx(...), handler, ok, fail, tag)
               ↓
-         HttpManager (Apache HttpClient)
-              ↓
-            后端 API 服务
+         后端 API 服务
               ↓
          JSON 响应 → Handler.handleMessage() → UI 更新
 ```
@@ -100,11 +97,11 @@ Memory/
             │   ├── raw/            # 词库 JSON
             │   └── xml/            # XML 配置
             └── java/com/deepsleep/memory/
-                ├── network/        # 网络通信层
-                │   ├── ApiConstants.java    # 环境切换
-                │   ├── HttpManager.java     # HTTP 客户端
-                │   ├── GetDataByThread.java # API 封装
-                │   └── CozeAPI.java        # AI 对接
+                ├── network/        # 网络通信层（MemoryApiClient 唯一入口 + 单一共享 OkHttp 连接池）
+                │   ├── ApiConstants.java      # 环境切换 + getFullUrl + 共享线程池
+                │   ├── MemoryApiClient.java   # 唯一入口：Retrofit 域接口工厂 + 底层专用能力（postStream/downloadWav 等）
+                │   ├── ApiBridge.java         # Retrofit Call → Handler 桥接（enqueue / filePart 流式）
+                │   └── MemoryApi.java + 域接口 (AuthApi 等)  # Retrofit 声明式接口
                 ├── settings/       # 设置管理
                 │   ├── UserSettingsManager.java
                 │   └── InnerSettingsManager.java

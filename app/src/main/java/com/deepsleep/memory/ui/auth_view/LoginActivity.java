@@ -22,7 +22,8 @@ import com.deepsleep.memory.R;
 
 import android.content.Intent;
 import com.deepsleep.memory.ui.init_view.BookSelectActivity;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -89,8 +90,7 @@ public class LoginActivity extends AppCompatActivity {
         tilPhone.setError(null);
         tilPassword.setError(null);
 
-        GetDataByThread getDataByThread = new GetDataByThread("/auth/login");
-        getDataByThread.login(myHandler, msg_success, msg_failed, phone, password);
+        ApiBridge.enqueue(MemoryApiClient.auth().login(phone, password), myHandler, msg_success, msg_failed, "Login");
     }
 
     private void saveLoginStatus(int isLoggedIn, int userId, String nickName, String userName, String avatarUrl) {
@@ -113,8 +113,7 @@ public class LoginActivity extends AppCompatActivity {
             finish();
         } else {
             // 有退出登录过后的话，会对用户信息进行一次检查
-            GetDataByThread getDataByThread = new GetDataByThread("/auth/getCurrentPlan");
-            getDataByThread.getPlan(new Handler(Looper.getMainLooper()) {
+            ApiBridge.enqueue(MemoryApiClient.auth().getCurrentPlan(String.valueOf(userId)), new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     super.handleMessage(msg);
@@ -153,14 +152,13 @@ public class LoginActivity extends AppCompatActivity {
                         break;
                     }
                 }
-            }, msg_success, msg_failed, String.valueOf(userId));
+            }, msg_success, msg_failed, "GetPlan");
         }
     }
 
     /** 从服务端拉取用户级设置并应用到本地（跨设备/跨账号恢复本人偏好） */
     private void syncUserSettingsFromServer(int userId) {
-        GetDataByThread api = new GetDataByThread("/auth/getUserSettings");
-        api.getUserSettings(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.auth().getUserSettings(String.valueOf(userId)), new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what != msg_success)
@@ -177,7 +175,7 @@ public class LoginActivity extends AppCompatActivity {
                     Log.e("LoginActivity", "解析用户设置失败", e);
                 }
             }
-        }, msg_success, msg_failed, String.valueOf(userId));
+        }, msg_success, msg_failed, "GetUserSettings");
     }
 
     private void startRegisterActivity() {

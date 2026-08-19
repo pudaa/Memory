@@ -68,7 +68,7 @@ graph TB
         TESSERACT["Tesseract OCR<br/>+ OpenCV 预处理"]
     end
 
-    APP -->|"HTTP (Apache HttpClient)"| API
+    APP -->|"HTTP (OkHttp 单一连接池)"| API
     APP -.->|"音频直传"| API
     API --> FSRS
     API --> AI_ROUTE
@@ -228,7 +228,7 @@ graph TB
         TESS["Tesseract OCR<br/>+ OpenCV 预处理"]
     end
 
-    UI_LAYER -->|"HTTP + Multipart<br/>Apache HttpClient"| CTRL
+    UI_LAYER -->|"HTTP + Multipart<br/>OkHttp"| CTRL
     CTRL --> SVC
     SVC --> FSRS_ENGINE
     SVC --> LLM
@@ -249,8 +249,8 @@ graph TB
 | 设计决策 | 选择 | 理由 |
 |---------|------|------|
 | UI 容器 | Activity + Fragment | Android 原生导航方案，兼容性好 |
-| 异步模型 | Handler + Message | 项目一致性，避免引入 RxJava/Coroutines |
-| 网络层 | Apache HttpClient | 刻意保持兼容，项目约定 |
+| 异步模型 | Handler + Message（`ApiConstants.execute` 共享线程池） | 项目一致性，避免引入 RxJava/Coroutines |
+| 网络层 | OkHttp（`MemoryApiClient` 唯一入口 + Retrofit 域接口 + `ApiBridge` 桥接） | 单一共享连接池（`MemoryApiClient.client()`）、超时/重试统一 |
 | 持久化 | SharedPreferences | 轻量配置存储，无需 Room 的重量级 |
 | 图片加载 | Glide 4.12 | 成熟稳定，支持 circleCrop 等变换 |
 | JSON 解析 | org.json 手动解析 | 项目约定，不使用 Gson/Moshi |
@@ -330,9 +330,10 @@ d:\Codes\Memory\
             │   └── xml/               # XML 配置 (file_paths)
             └── java/com/deepsleep/memory/
                 ├── network/           # 网络通信层
-                │   ├── ApiConstants.java      # 环境切换 (DEV/TEST/PROD)
-                │   ├── HttpManager.java       # 底层 HTTP (20+ 方法)
-                │   └── GetDataByThread.java   # 高层 API (60+ 业务方法)
+                │   ├── ApiConstants.java      # 环境切换 (DEV/TEST/PROD) + getFullUrl + 共享线程池
+                │   ├── MemoryApiClient.java   # 唯一入口：Retrofit 域接口工厂 + 底层专用能力（单一共享连接池）
+                │   ├── ApiBridge.java         # Handler/Message 桥接（enqueue）
+                │   └── MemoryApi.java + 域接口 (AuthApi 等)  # Retrofit 声明式接口
                 ├── settings/          # 设置管理
                 │   ├── UserSettingsManager.java  # 用户偏好单例 + 观察者
                 │   └── InnerSettingsManager.java # 账户级数据管理
@@ -403,7 +404,7 @@ sequenceDiagram
 |------|------|
 | `LoginActivity.java` | 登录主界面，表单验证，密码找回 |
 | `RegisterActivity.java` | 注册界面，自动生成 5 位随机昵称 |
-| `GetDataByThread.java` | 封装 `/auth/login`、`/auth/register` API |
+| `MemoryApiClient.java`（`auth()` 域） | 封装 `/auth/login`、`/auth/register` 等 API |
 | `InnerSettingsManager.java` | 持久化登录态、用户信息（SharedPreferences） |
 
 ### 5.3 技术实现
@@ -443,7 +444,8 @@ class MyHandler extends Handler {
 }
 ```
 
-**设计考量**：项目刻意保持使用已废弃的 `android.os.Handler` + `Message` 模式，而非现代方案（Retrofit + LiveData），原因是保持与项目既有代码风格的一致性，同时避免引入新的依赖。
+**设计考量**：项目刻意保持使用 `android.os.Handler` + `Message` 模式做 UI 回调（而非 LiveData/协程），
+原因是在保证网络底层现代化（OkHttp）的同时维持 UI 层回调风格一致性，避免全量重写 UI 层。
 
 #### 5.3.3 头像管理
 
@@ -1261,9 +1263,28 @@ ViewPager2 承载 4 个 Fragment，分别从不同来源查询：
 
 ## 17. 网络通信层
 
-### 17.1 三层网络架构
+### 17.1 网络层架构（2026-08 已收敛为 MemoryApiClient 单栈）
 
-项目使用 `ApiConstants`（环境配置）→ `HttpManager`（底层 HTTP）→ `GetDataByThread`（业务 API 封装）三层网络架构。
+```text
+ApiConstants（环境中间件：DEV/TEST/PROD + getFullUrl 拼接 + 共享网络线程池 execute）
+        │
+        └── MemoryApiClient（网络层唯一入口）
+              ├── Retrofit 域接口工厂：auth()/learning()/composition()/conversation()/
+              │      evaluation()/pronunciation()（AuthApi / LearningApi / CompositionApi /
+              │      ConversationApi / EvaluationApi / PronunciationApi）
+              ├── ApiBridge（Retrofit Call → 项目统一 Handler+Message 桥接：
+              │       2xx 且非空体 → sendMessage(ok, body)；网络层失败/空体按 1s、2s 指数退避重试后 fail）
+              └── 底层专用能力（Retrofit 不便表达，原 HttpManager 迁移，2026-08 阶段4合并）：
+                     postStream(SSE) / downloadWav(TTS) / doHttpGetNoPara / streamingPart(流式文件体)
+```
+
+- **单一共享连接池**：`MemoryApiClient.client()` 持有唯一的 `OkHttpClient`（连接 15s / 读写 120s /
+  `retryOnConnectionFailure(true)`），所有域接口与底层专用能力共用同一连接池与 Dispatcher；
+- **公共返回语义**（与历史一致）：仅 HTTP 200 返回响应体，其他状态码/异常返回 null，由调用方判空；
+  Authorization: Bearer 由 `MemoryApiClient` 按请求附带（multipart 上传除外，与旧版一致）；
+- **异步统一**：网络任务经 `ApiConstants.execute()`（共享网络线程池 `memory-net-*`）或 Retrofit enqueue
+  （OkHttp 自带线程池），不再散落 `new Thread`；
+- **SSE 流式**：`MemoryApiClient.postStream()` 基于共享 OkHttp 返回可流式读取的 Response（AI 对话流式回复）。
 
 ### 17.2 环境切换
 
@@ -1276,29 +1297,76 @@ public enum Environment { DEV, TEST, PROD }
 //   BACKEND_PROD_URL — 生产服务器
 // 公共仓库仅含占位符，真实地址不提交到版本库。
 
-ApiConstants.setEnvironment(Environment.TEST); // GetDataByThread 构造函数默认
+ApiConstants.setEnvironment(Environment.TEST); // 默认 TEST（ApiConstants 默认值）
 ```
 
-### 17.3 HttpManager 方法矩阵
+- 默认环境 **TEST**（`ApiConstants` 默认值，与历史有效行为一致）；
+- **运行期切换立即生效**：URL 在调用时经 `getFullUrl()` 解析；`MemoryApiClient` 每次
+  `get()` 比对 baseUrl，变化时自动重建 Retrofit（DCL 单例）；
+- **URL 拼接唯一入口**：`ApiConstants.getFullUrl(path)`，禁止手写 `getBaseUrl() + "/xxx"`。
 
-**GET 请求**（参数作为 HTTP Header 发送）：
+### 17.3 MemoryApiClient 底层专用能力（原 HttpManager 迁移）
+
+> 阶段 3（2026-08）业务请求已全部迁移至 Retrofit 域接口（经 `ApiBridge`）；
+> 阶段 4（2026-08）完成合并，`HttpManager` / `GetDataByThread` 已彻底删除，
+> 下列 Retrofit 不便表达的专用能力全部收敛到 `MemoryApiClient`：
 
 ```java
-doHttpGetNoPara(url)                                    // 无参
-doHttpGetOneHeader(url, key, value)                     // 1 个 Header (如 userId)
-doHttpGetTwoHeader(url, k1, v1, k2, v2)                // 2 个 Header (如 phone + password)
-// ... 最多 5 个 header 参数
+postStream(url, headers, form)                            // SSE 流式（AI 对话）
+downloadWav(url, json, context)                           // TTS：POST JSON → 存 wav 文件，返回路径
+streamingPart(context, uri, mime)                         // multipart 流式文件体（ApiBridge.filePart 复用）
+doHttpGetNoPara(url)                                      // 遗留：AiConversationActivity 音频轮询
+getLastImageUploadError()                                 // 图片上传失败原因（无调用方，恒返回 null）
 ```
 
-**POST 请求**：
+- 超时：连接 15s / 读写 120s（覆盖 OCR 90s 场景）；上传保持"流式"（contentLength 预读 + 边读边写）。
 
-```java
-doHttpPost(url, JSONObject)                              // 纯 JSON Body
-doHttpPost(url, key, value, JSONObject)                  // JSON Body + 1 Header
-doHttpPostWithImageUri(url, uri, context)                // 图片上传 (OCR)
-doHttpPostWithImageAndParams(url, uri, params, context)   // 图片 + 表单参数
-doHttpPostWithAudioAndText(url, audioUri, text, context)  // 音频 + 文本 (发音评价)
-```
+### 17.4 阶段 3 迁移记录（GetDataByThread → Retrofit 域接口）
+
+- **GetDataByThread 全部公开方法**改为固定端点的域接口调用（经 `ApiBridge.enqueue` 桥接，
+  响应语义与历史一致：2xx 非空体 → ok/body，网络层失败 1s、2s 指数退避重试后 fail），
+  **公开签名不变，UI 调用方零改动**；构造传入的 path 不再决定实际端点（`urlPath`/`getUrl_path()`
+  仅保留给 UserHomeFragment 用 Glide 加载头像）。
+- **语义错配调用点已修正**（历史「构造路径 ≠ 方法语义」的隐患）：
+  - `WordLearningFragment.loadTodayTask`：`getPlan()` 改调新方法 `getTodayTask()`
+    （GET /learning/getTodayTask，原实现实际打到该路径但语义叫 getPlan）；
+  - `PlanListActivity`：`getPlanDetails()` 改调 `getUserAllLearningPlans()`
+    （GET /learning/getUserAllLearningPlans，原实现想拉全部计划却调了详情方法）；
+  - `DailyReadingFragment` 生成文章分支：新增 `generateArticle()`（GET /composition/generateArticle），
+    按模式分发；每日一读仍走 `getDailyReading()`。
+- **顺带修复隐藏 bug**：`AiConversationActivity.exitCurrentMode` 用的 `switchMode` 旧实现存在
+  **双路径拼接**（构造 `/conversation/{sid}/mode` + 方法内 `url + "/" + sid + "/mode?mode="` →
+  实际请求 `/conversation/{sid}/mode/{sid}/mode?...`，生产上大概率 404）；
+  迁移到 `ConversationApi.switchMode`（POST /conversation/{sid}/mode?mode=…）后路径正确。
+- **直连调用点迁移**：`DictationApiHelper` 六个方法全部委托 `LearningApi` 听写子域；
+  `DailyReadingFragment` 收藏/收藏列表/详情/阅读计数/删除 5 处直连改走 `CompositionApi`；
+  `DictationExecutionActivity.uploadForOcr` 改走 `CompositionApi.extractText`
+  （multipart 流式，字段 `image` 与图片质量策略不变）。
+- **依赖收敛**：`MemoryApiClient` 的 `api`（MemoryApi）入口保留（AI 配置域兼容），
+  业务域统一从 `auth()/learning()/composition()/conversation()/evaluation()/pronunciation()` 获取。
+- **迁移后端点级校验修正（2026-08 对真实后端全量探测发现 2 处路径错配）**：
+  - `uploadWordStudyLog`：方法名被误当路径写成 `POST /learning/uploadWordStudyLog`（404），
+    历史 wire 实为后端 `POST /learning/updateWordStudyLog`，已修正（该方法为兼容层保留的死方法，无 UI 调用点）；
+  - `recommendedTopics`：写成 `GET /conversation/topics`（404），后端实为
+    `GET /conversation/topics/recommended`，已修正；
+  - 全量端点探测其余路由均与后端一致（`switchMode` 端到端验证：start→switchMode→sessions 全链路 200）。
+
+### 17.5 阶段 4 完成记录（2026-08：两旧类彻底删除，网络层收敛为 MemoryApiClient 单栈）
+
+- **合并**：`HttpManager` 全部底层能力（`client()` / `postStream` / `downloadWav`（原 doHttpPostDownloadWav）/
+  `doHttpGetNoPara` / `streamingPart` / `getLastImageUploadError` 等）迁入 `MemoryApiClient`，后者自持
+  `sClient` 单一共享连接池，不再依赖旧类；`doHttpPost`（已废弃 aiConversation）无 UI 调用方，直接删除。
+- **API 收敛**：`ApiBridge.filePart` 改走 `MemoryApiClient.streamingPart`。
+- **UI 调用点现代化（20 文件）**：`new GetDataByThread(path).xxx(handler, ok, fail, args...)` 全部改为
+  `ApiBridge.enqueue(MemoryApiClient.域().xxx(args...), handler, ok, fail, tag)`；GetDataByThread 内部组装的
+  JSONObject 内联到调用点（try/catch JSONException，失败 `sendEmptyMessage(fail)`/Toast+return）；语义/消息码/重试不变。
+- **getUrl_path() 替代**：UserHomeFragment 头像 Glide 加载由 `new GetDataByThread(path).getUrl_path()` 改为
+  `ApiConstants.getFullUrl(path)`。
+- **AI 对话直连点**：`AiConversationActivity` 的 `HttpManager.postStream` → `MemoryApiClient.postStream`、
+  `HttpManager.doHttpGetNoPara` → `MemoryApiClient.doHttpGetNoPara`、TTS 合成 `synthesizeTts` → 内联
+  `ApiConstants.execute + MemoryApiClient.downloadWav`（新增私有 `requestTts(String)`）。
+- **删除**：`GetDataByThread.java` + `HttpManager.java`（grep 确认代码层零引用，仅文档/Javadoc 历史提及）。
+- 附带修正：`sendAudioToServer` 误删 `Uri audioUri` 定义已恢复。
 
 ### 17.4 API 端点完整清单
 
@@ -1487,6 +1555,8 @@ public class UserSettingsManager {
 | `MPAndroidChart` | 3.1.0 | 图表绘制（PhilJay） | 饼图/折线图/柱状图 |
 | `Material Dialogs` | 3.3.0 | 对话框组件（afollestad） | 输入弹窗、确认对话框 |
 | `nice-spinner` | 1.3.1 | 下拉选择器（arcadefire） | 比原生 Spinner 更美观 |
+| `OkHttp + logging-interceptor` | 4.12.0 | 底层 HTTP（统一连接池） | 替代 Apache HttpClient（已移除 libs 内 httpclient 4.2.5 等旧 jar） |
+| `Retrofit + converter-scalars` | 2.11.0 | 新栈声明式接口 | MemoryApiClient / MemoryApi |
 | `JUnit` | 4.13.2 | 单元测试 | Java 标准测试框架 |
 | `Espresso` | 3.5.1 | UI 自动化测试 | Google 官方 Android UI 测试框架 |
 

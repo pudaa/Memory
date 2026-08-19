@@ -16,7 +16,8 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONObject;
 
@@ -97,8 +98,8 @@ public class RegisterActivity extends AppCompatActivity {
         String nickname = String.format(Locale.getDefault(), "%05d", generateRandomNumber(5));
         String avatarUrl = "default_avatar_url";
         Log.d("RegisterActivity", nickname);
-        GetDataByThread getDataByThread = new GetDataByThread("/auth/register");
-        getDataByThread.register(myHandler, msg_success, msg_failed, phone, password, nickname, avatarUrl);
+        ApiBridge.enqueue(MemoryApiClient.auth().register(phone, password, nickname, avatarUrl), myHandler, msg_success,
+                msg_failed, "Register");
     }
 
     private int generateRandomNumber(int length) {

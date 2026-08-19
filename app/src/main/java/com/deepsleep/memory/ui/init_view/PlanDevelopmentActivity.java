@@ -14,7 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.TextCustomNumberPicker;
 import org.json.JSONArray;
@@ -326,8 +327,8 @@ public class PlanDevelopmentActivity extends AppCompatActivity {
             com.deepsleep.memory.settings.UserSettingsManager.getInstance(PlanDevelopmentActivity.this)
                     .setStudyMode(studyMode);
 
-            GetDataByThread getDataByThread = new GetDataByThread("/learning/planUpload");
-            getDataByThread.planUpload(myHandler, msg_success, msg_failed, planData);
+            ApiBridge.enqueue(MemoryApiClient.learning().planUpload(ApiBridge.jsonBody(planData)), myHandler, msg_success,
+                    msg_failed, "PlanUpload");
         } catch (Exception e) {
             e.printStackTrace();
         }

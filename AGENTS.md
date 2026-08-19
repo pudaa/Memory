@@ -14,7 +14,7 @@
 
 1. **动手前**先读 `docs/project-overview.md` 的「已有基础设施清单」，并 `grep` 代码库确认没有现成实现；
 2. **持久化一律走 settings 管理器**（`UserSettingsManager` / `InnerSettingsManager` / `DailyStateManager`），禁止在 Activity/Fragment 中直接 `getSharedPreferences()`；
-3. **网络一律走** `HttpManager` / `GetDataByThread`，禁止引入 OkHttp / Retrofit；
+3. **网络一律走 `network/` 包**（`MemoryApiClient` 统一入口 + `ApiBridge` 桥接 + 各域 Retrofit 接口；原 `HttpManager` / `GetDataByThread` 已于 2026-08 合并删除），底层统一 OkHttp 连接池（`MemoryApiClient.client()`）；禁止在 UI 层直接 new OkHttpClient / 裸 HttpURLConnection；
 4. 改动某模块前评估对其他模块的影响（网络层、设置层、词库层、`MainActivity` 导航、工具类）；
 5. 涉及跨模块能力时，**扩展已有管理器/工具类**，不要新建散落实现；
 6. 改动核心架构 / 新增持久化键 / 新增 API 时，同步更新 `docs/` 相关文档。
@@ -28,14 +28,14 @@ Memory is an Android language learning application with features for vocabulary 
 - **Main Activity**: `MainActivity.java` implements a 4-tab bottom navigation (Word Learning, Treasure Box, Daily Reading, User Home) using Fragments with slide animations
 - **Package Organization**: 
   - `ui/` - Activities and Fragments organized by feature (auth_view, treasure_view, etc.)
-  - `network/` - API communication (HttpManager, GetDataByThread, CozeAPI)
+  - `network/` - API communication (MemoryApiClient 统一入口, ApiBridge 桥接, 域接口)
   - `handle_utils/` - Utilities for audio, images, and data processing
   - `settings/` - User preferences and configuration
 
 ### Data Flow
-- **Networking**: Custom `HttpManager` class using Apache HttpClient (deprecated) for all HTTP requests
-- **Async Operations**: `GetDataByThread` creates background threads with Handler callbacks for API responses
-- **AI Integration**: `CozeAPI` handles chat-based AI interactions for content generation
+- **Networking**: `network/` 包统一基于 **OkHttp**（`MemoryApiClient` 为唯一入口，持有单一共享连接池 `client()`），HTTP 请求一律经 `ApiBridge.enqueue(MemoryApiClient.域().xxx(...), handler, ok, fail, tag)` 桥接
+- **Async Operations**: 网络任务在共享线程池（`ApiConstants.execute`）上执行，Handler/Message 回调返回 API 响应（2xx 非空体 → `sendMessage(ok, body)`；网络失败 → 指数退避重试 1s/2s 后 `sendEmptyMessage(fail)`）
+- **AI Integration**: AI 内容生成（作文批改、文章生成、听写/对话生成、评估分析）由后端 MemoryServer 提供，客户端经 `CompositionApi`/`ConversationApi`/`LearningApi`/`EvaluationApi` 域接口调用
 
 ## Critical Developer Workflows
 
@@ -52,9 +52,10 @@ Memory is an Android language learning application with features for vocabulary 
 ```
 
 ### Environment Configuration
-- **API Environments**: Controlled via `ApiConstants.setEnvironment()` (DEV/TEST/PROD)
-- **Default Environment**: `GetDataByThread` constructor sets TEST environment
-- **URLs**: `http://frp-pet.com:60966` (TEST), `http://116.62.6.15:8080` (PROD)
+- **API Environments**: Controlled via `ApiConstants.setEnvironment()` (DEV/TEST/PROD)；默认 **TEST**
+- **URL 拼接**: 一律走 `ApiConstants.getFullUrl(path)`，禁止手写 `getBaseUrl() + "/xxx"`
+- **运行期切换**: `setEnvironment()` 后旧栈按调用时解析 URL、新栈 `MemoryApiClient` 自动重建 Retrofit，立即生效
+- **URLs**: 实际地址由 `local.properties` 注入 BuildConfig（`BACKEND_DEV_URL`/`BACKEND_TEST_URL`/`BACKEND_PROD_URL`），运行时以 `ApiConstants` 为准；当前 TEST=`frp-fit.com:60966`、PROD=`116.62.6.15:8080`
 
 ### Testing
 - **Unit Tests**: `app/src/test/` (JUnit 4.13.2)
@@ -64,15 +65,23 @@ Memory is an Android language learning application with features for vocabulary 
 ## Project-Specific Patterns & Conventions
 
 ### Networking Pattern
-**Always use the custom networking stack instead of modern libraries:**
+**所有 HTTP 请求统一走 `network/` 包（底层 OkHttp，单一共享连接池），禁止在 UI 层自建客户端：**
 ```java
-// WRONG - Don't use OkHttp or Retrofit
+// WRONG - 禁止在 UI 层直接 new OkHttpClient / 裸 HttpURLConnection
 OkHttpClient client = new OkHttpClient();
 
-// CORRECT - Use HttpManager via GetDataByThread
-GetDataByThread api = new GetDataByThread("/user/login");
-api.login(handler, SUCCESS_MSG, FAIL_MSG, phone, password);
+// CORRECT - 业务请求统一走 ApiBridge + MemoryApiClient（域接口），
+//          Handler/Message 回调保持旧语义（2xx 非空体 → ok，网络失败重试后 → fail）
+ApiBridge.enqueue(MemoryApiClient.auth().login(ApiBridge.formPart(phone), ApiBridge.formPart(password)),
+        handler, SUCCESS_MSG, FAIL_MSG, "Login");
+
+// CORRECT - 底层直连（SSE/TTS/下载/上传 等）走 MemoryApiClient 静态底层方法，URL 用 ApiConstants.getFullUrl(path)
+String url = ApiConstants.getFullUrl("/conversation/stream");
+MemoryApiClient.postStream(url, headers, form);
 ```
+- **URL 拼接**：一律 `ApiConstants.getFullUrl(path)`；禁止 `getBaseUrl() + "/xxx"`
+- **异步执行**：网络任务一律 `ApiConstants.execute(runnable)`（共享线程池），禁止 `new Thread`
+- **环境切换**：`ApiConstants.setEnvironment()` 立即全局生效（默认 TEST）
 
 **Handler-based async callbacks:**
 ```java
@@ -97,7 +106,7 @@ Handler handler = new Handler(Looper.getMainLooper()) {
 **Custom utilities for media processing:**
 - `BitmapManager` for image decoding/loading
 - `AudioPlayer` and `MemAudioRecord` for audio playback/recording
-- Multipart uploads via `HttpManager.doHttpPostWithImageUri()`
+- Multipart uploads via `ApiBridge.filePart()`（流式文件体，经 Retrofit 域接口上传）
 
 ### JSON Processing
 **Manual JSONObject parsing (no Gson/Moshi):**
@@ -160,22 +169,22 @@ int userId = InnerSettingsManager.getInstance(context).getUserId();
 - `app/src/main/AndroidManifest.xml` - 15+ activities, file provider config
 - `settings/UserSettingsManager.java` - 用户偏好单例 + 观察者
 - `settings/InnerSettingsManager.java` - 应用内部信息记录器（集中持久化入口）
-- `network/ApiConstants.java` - Environment switching
-- `network/HttpManager.java` - 20+ HTTP methods
-- `network/GetDataByThread.java` - 60+ business API methods + Handler callbacks
+- `network/ApiConstants.java` - 环境中间件: DEV/TEST/PROD + URL 拼接 + 共享网络线程池
+- `network/MemoryApiClient.java` - 网络层唯一入口：持有单一共享 OkHttpClient `client()`（连接 15s/读写 120s），含 Retrofit 域接口工厂（auth/learning/composition/conversation/evaluation/pronunciation）+ 底层专用能力（postStream SSE / downloadWav TTS / doHttpGetNoPara / streamingPart 流式文件体），环境切换自动重建
+- `network/ApiBridge.java` - Handler/Message 桥接层：enqueue 语义与历史一致，multipart 上传经 filePart 流式文件体
+- `network/MemoryApi.java` / 域接口（AuthApi 等）- Retrofit 声明式接口
 - `ui/MainActivity.java` - Tab navigation implementation
 - `handle_utils/BitmapManager.java` - Image processing utilities
 
 ## Common Pitfalls
 - **No text emojis in UI strings** - Never use unicode emoji characters (📊📈📝🔍 etc.) in `setText()`, layout XML `android:text`, or any user-facing strings. They render inconsistently across Android versions and break visual consistency. Use proper `ImageView` with drawable icons or Material icon fonts instead.
-- **Don't update Apache HttpClient** - Despite deprecation warnings, maintain compatibility
-- **Environment hardcoded** - Remember to switch between TEST/PROD for API calls
+- **网络层只认 OkHttp** - 已统一为 OkHttp 单一连接池（`MemoryApiClient.client()` 唯一持有），不要再引入 Apache HttpClient / HttpURLConnection 直连
+- **URL 拼接统一走 ApiConstants.getFullUrl()** - 禁止 `getBaseUrl() + "/xxx"` 手拼，维护时混淆
+- **不要 new Thread 做网络** - 统一 `ApiConstants.execute()`（共享网络线程池）
+- **Environment hardcoded** - Remember to switch between TEST/PROD for API calls (default TEST; 运行时 setEnvironment 立即生效)
 - **Threading model** - Use Handler/Message pattern, avoid AsyncTask (deprecated)
 - **Dependencies** - Stick to specified versions, avoid auto-updating without testing
 
 ## AI Integration
-**Coze API for content generation:**
-- Bot-based chat interface for question answering
-- Streaming responses with status polling
-- Reference: `CozeAPI.java` for async AI request handling</content>
+AI 能力（内容生成、批改、评估）统一由后端 MemoryServer 提供，客户端经 Retrofit 域接口（`CompositionApi`/`ConversationApi`/`LearningApi`/`EvaluationApi`）调用，底层复用共享 OkHttp 连接池；客户端不再直连第三方 AI 平台（`CozeAPI` 已删除，勿再引入直连方案）。</content>
 <parameter name="filePath">D:\Codes\Memory\AGENTS.md

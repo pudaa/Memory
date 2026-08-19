@@ -16,7 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -44,8 +45,7 @@ public class WeakWordsFragment extends Fragment {
     }
 
     private void getSampleData() {
-        GetDataByThread getDataByThread = new GetDataByThread("/learning/getWeakWords");
-        getDataByThread.fetchWeakWords(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.learning().getWeakWords(String.valueOf(userId)), new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == msg_success) {
@@ -86,6 +86,6 @@ public class WeakWordsFragment extends Fragment {
                     Log.i("weakWords", "获取失败");
                 }
             }
-        },msg_success,msg_failed,String.valueOf(userId));
+        }, msg_success, msg_failed, null);
     }
 }

@@ -24,7 +24,7 @@
 **禁止（红线）：**
 
 - ❌ 为了一个功能新建一个 `SharedPreferences` 调用点 —— 必须走 settings 管理器（见 §2.2）；
-- ❌ 新写一套 HTTP 请求封装 —— 必须走 `HttpManager` / `GetDataByThread`；
+- ❌ 新写一套 HTTP 请求封装 —— 必须走 `MemoryApiClient`（唯一入口）经 `ApiBridge` 桥接；
 - ❌ 新写 JSON 解析工具 —— 使用 `org.json` 手动解析（项目约定）；
 - ❌ 新写图片 / 音频 / 日期等工具 —— 先查 `handle_utils/` 是否已有实现；
 - ❌ 改动某模块时破坏其他模块依赖的接口或数据结构，除非同步更新所有调用方。
@@ -39,7 +39,7 @@
 |----|------|------|
 | **UI 层**（Activity / Fragment） | 界面渲染、用户交互、数据展示 | 直接访问 SharedPreferences；直接发起裸 HTTP |
 | **逻辑/数据层**（Manager / Utils） | 业务状态、持久化、通用能力 | 持有 Activity 长引用（防泄漏）；耦合 UI |
-| **网络层**（`HttpManager` / `GetDataByThread`） | 全部 HTTP 通信 | 被 UI 层绕过 |
+| **网络层**（`MemoryApiClient` + `ApiBridge`） | 全部 HTTP 通信 | 被 UI 层绕过 |
 | **设置层**（`settings/` 包） | 全部持久化配置的统一入口 | 被 UI 层绕过 |
 
 ### 2.2 持久化铁律（settings 管理器）
@@ -65,10 +65,14 @@
 
 ### 2.3 网络层铁律
 
-- 所有 HTTP 请求必须走 `HttpManager`（底层）+ `GetDataByThread`（业务方法）；
-- **禁止**引入 OkHttp / Retrofit / Volley；保持 Apache HttpClient 兼容（虽有弃用警告，但为项目约定）；
+- 所有 HTTP 请求必须走 `network/` 包：`MemoryApiClient`（唯一入口，持有单一共享 OkHttp 连接池 `client()`）+ `ApiBridge`（Handler 桥接）+ 各域 Retrofit 接口；
+  原 `HttpManager` / `GetDataByThread` 已于 2026-08 合并删除，勿再引用；
+- **禁止**在 UI 层直接 `new OkHttpClient` / 裸 `HttpURLConnection`；不再允许引入 Apache HttpClient（已移除）；
+- URL 拼接一律走 `ApiConstants.getFullUrl(path)`，禁止手写 `getBaseUrl() + "/xxx"`；
+- 网络异步统一走 `ApiConstants.execute()`（共享网络线程池），禁止散落 `new Thread`；
 - 异步回调统一用 `Handler(Looper.getMainLooper())` + `Message`；
-- 自定义 Handler 子类必须调用 `super(Looper.getMainLooper())`（无参构造在非 Looper 线程会崩溃）。
+- 自定义 Handler 子类必须调用 `super(Looper.getMainLooper())`（无参构造在非 Looper 线程会崩溃）；
+- 环境切换统一 `ApiConstants.setEnvironment()`（默认 TEST），运行期切换立即生效。
 
 ### 2.4 异步与线程
 
@@ -96,7 +100,7 @@
 - 裁剪框拖动期间禁止 `applyImageMatrix(center=false)` 平移图片，避免拖动边缘时图片与裁剪框一起失控；边缘句柄触摸容差控制在 12dp 左右，裁剪视图左右保留至少 24dp 系统返回手势安全区；
 - 图片裁剪走 uCrop（`UcropHelper.createThemedOptions()`），裁剪返回用 Activity Result API；
 - **裁剪输出统一 JPEG 质量 85 / 最长边 1280**（`UcropHelper.MAX_CROP_RESULT_SIZE`）：依据 PaddleOCR 实测基准——服务端检测阶段内部缩放到 `limit_side_len=960`（MemoryServerTTS `config/ocr.yaml`），1280 覆盖上限并保留余量；三场景（手写/简单/复杂作文）A/B 实测 2048→1280 体积约减半、识别精度无损（conf ≥ 0.99）；
-- **OCR 上传禁止二次解码重编码**：作文端（`CompositionMenuActivity`）与听写端（`DictationExecutionActivity.uploadForOcr`）均直接上传裁剪页输出 URI（`HttpManager.doHttpPostWithImageUri` 流式原样上传），不得再 `Bitmap.compress` 一次（曾存在听写端二次压缩 q80，已移除）；
+- **OCR 上传禁止二次解码重编码**：作文端（`CompositionMenuActivity`）与听写端（`DictationExecutionActivity.uploadForOcr`）均直接上传裁剪页输出 URI（`CompositionApi.extractText` 经 `ApiBridge.filePart` 流式原样上传，字段 `image`），不得再 `Bitmap.compress` 一次（曾存在听写端二次压缩 q80，已移除）；
 - **禁止**回退到旧的 `startActivityForResult` / `onActivityResult` 写法。
 
 ---
@@ -245,5 +249,5 @@
 ## 8. 环境与安全
 
 - API 环境切换统一走 `ApiConstants.setEnvironment()`（DEV / TEST / PROD）；
-- 默认环境由 `GetDataByThread` 构造设置为 TEST，正式发布前确认切换；
+- 默认环境为 TEST（`ApiConstants` 默认值），发布前确认切换；
 - 密钥（如 Coze `ACCESS_TOKEN`）不要硬编码进文档 / 注释 / 提交，注意安全。

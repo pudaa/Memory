@@ -19,7 +19,8 @@ import android.widget.*;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
 import com.deepsleep.memory.handle_utils.MemAudioRecord;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -302,8 +303,9 @@ public class WordPhraseListAdapter extends BaseAdapter {
                 }
             };
 
-            GetDataByThread getDataTask = new GetDataByThread("/pronunciation/correct");
-            getDataTask.correctPronunciation(pronunciationHandler, 1, 0, fileUri, referenceText, context);
+            ApiBridge.enqueue(MemoryApiClient.pronunciation().correct(ApiBridge.formPart(referenceText),
+                    ApiBridge.filePart(context, fileUri, "audio", "audio.wav", "audio/wav")), pronunciationHandler, 1, 0,
+                    "CorrectPronunciation");
         } catch (Exception e) {
             e.printStackTrace();
             // Toast.makeText(context, "无法读取录音文件", Toast.LENGTH_SHORT).show();

@@ -25,10 +25,10 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
-import com.deepsleep.memory.network.CozeAPI;
-import com.deepsleep.memory.network.ApiConstants;
-import com.deepsleep.memory.network.GetDataByThread;
-import com.deepsleep.memory.network.HttpManager;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.UserSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -47,10 +47,6 @@ import java.util.Date;
 import java.util.Locale;
 
 public class DailyReadingFragment extends Fragment {
-    String ACCESS_TOKEN = "pat_IIANC6ApULu0iK2AkEj8IxcZSEyROShxpOWUP0pHXRv4EnpSqKHnY9WuCDvAnHHa";
-    String BOT_ID = "7486395931509178405";
-
-    CozeAPI cozeAPI = new CozeAPI(ACCESS_TOKEN, BOT_ID);
     private TextView markdownTitleView;
     private TextView markdownContentView;
     private TextView tvTitleBar;
@@ -104,7 +100,8 @@ public class DailyReadingFragment extends Fragment {
     private boolean isRetrying = false;
     private Handler retryHandler = new Handler(Looper.getMainLooper());
     private Runnable retryRunnable;
-    private static final int MAX_RETRY_COUNT = 5;
+    // 20 次 x 3s = 60s 轮询窗口，覆盖 AI 生成文章耗时（通常 20-60s）
+    private static final int MAX_RETRY_COUNT = 20;
     private static final long RETRY_DELAY_MS = 3000;
     private int retryCount = 0;
 
@@ -224,13 +221,18 @@ public class DailyReadingFragment extends Fragment {
             }
         }
 
-        GetDataByThread getDataByThread;
         if ("dailyReading".equals(mode)) { // 每日一读模式
-            getDataByThread = new GetDataByThread("/composition/dailyReading");
+            ApiBridge.enqueue(MemoryApiClient.composition().dailyReading(String.valueOf(userId)), buildArticleHandler(),
+                    msg_success, msg_failed, "DailyReading");
         } else { // 生成文章模式
-            getDataByThread = new GetDataByThread("/composition/generateArticle");
+            ApiBridge.enqueue(MemoryApiClient.composition().generateArticle(String.valueOf(userId)), buildArticleHandler(),
+                    msg_success, msg_failed, "GenerateArticle");
         }
-        getDataByThread.getDailyReading(new Handler(Looper.getMainLooper()) {
+    }
+
+    /** 文章加载共用 Handler（每日一读 / 生成文章两种模式：成功/失败行为一致） */
+    private Handler buildArticleHandler() {
+        return new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
 
@@ -249,9 +251,15 @@ public class DailyReadingFragment extends Fragment {
                         String title = articleJson.getString("title");
                         String content = articleJson.getString("content");
 
-                        // 解析并显示文章
-                        JSONArray sentenceAnalysisArray = articleJson.getJSONArray("sentenceAnalysis");
-                        JSONArray highFrequencyWordsArray = articleJson.getJSONArray("highFrequencyWords");
+                        // 解析并显示文章（sentenceAnalysis/highFrequencyWords 后端可能为 null，显示时降级为空数组）
+                        JSONArray sentenceAnalysisArray = articleJson.optJSONArray("sentenceAnalysis");
+                        JSONArray highFrequencyWordsArray = articleJson.optJSONArray("highFrequencyWords");
+                        if (sentenceAnalysisArray == null) {
+                            sentenceAnalysisArray = new JSONArray();
+                        }
+                        if (highFrequencyWordsArray == null) {
+                            highFrequencyWordsArray = new JSONArray();
+                        }
 
                         displayArticle(title, content, sentenceAnalysisArray, highFrequencyWordsArray);
 
@@ -260,12 +268,18 @@ public class DailyReadingFragment extends Fragment {
                             restoreDailyFavoriteState(title);
                         }
 
-                        // 检查是否为降级文章
+                        // 复原设计：后端返回模板文章（isFallback=true）时，前端显示后继续轮询，
+                        // 等待后端真正的“每日一读”生成完成并同步（命中缓存后 isFallback=false 即停止）
                         boolean isFallback = articleJson.optBoolean("isFallback", false);
                         if (isFallback) {
                             Log.i("article", "检测到通用文章，启动轮询");
-                            if (!isRetrying) {
+                            // 本轮请求已返回，重置标志以允许安排下一轮轮询
+                            // （修复：此前 isRetrying 从未在 fallback 响应后重置，导致第一次重试后就停止轮询）
+                            isRetrying = false;
+                            if (retryCount < MAX_RETRY_COUNT) {
                                 scheduleRetry();
+                            } else {
+                                Log.i("article", "已达最大重试次数，停止轮询");
                             }
                         } else {
                             Log.i("article", "已获取个性化文章，取消轮询");
@@ -289,7 +303,7 @@ public class DailyReadingFragment extends Fragment {
                     }
                 }
             }
-        }, msg_success, msg_failed, String.valueOf(userId));
+        };
     }
 
     private void startWaveAnimation(TextView textView) {
@@ -339,8 +353,16 @@ public class DailyReadingFragment extends Fragment {
                 settings.put("readerFontSize", currentFontSize);
             } catch (JSONException ignored) {
             }
-            GetDataByThread api = new GetDataByThread("/auth/updateUserSettings");
-            api.updateUserSettings(new Handler(Looper.getMainLooper()) {
+            JSONObject body = new JSONObject();
+            try {
+                body.put("userId", userId);
+                body.put("settings", settings);
+            } catch (JSONException e) {
+                pendingFontSync = null;
+                return;
+            }
+            ApiBridge.enqueue(MemoryApiClient.auth().updateUserSettings(ApiBridge.jsonBody(body)),
+                    new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     if (msg.what != msg_success && isAdded()) {
@@ -348,7 +370,7 @@ public class DailyReadingFragment extends Fragment {
                     }
                     pendingFontSync = null;
                 }
-            }, msg_success, msg_failed, userId, settings);
+            }, msg_success, msg_failed, "UpdateUserSettings");
         };
         fontSyncHandler.postDelayed(pendingFontSync, 800);
     }
@@ -390,41 +412,47 @@ public class DailyReadingFragment extends Fragment {
         updateFavoriteIcon();
 
         if (isFavorited) {
-            // 收藏
-            new Thread(() -> {
-                try {
-                    JSONObject body = new JSONObject();
-                    body.put("title", currentArticleTitle);
-                    body.put("content", currentArticleContent);
-                    body.put("sentenceAnalysis", currentSentenceAnalysis);
-                    body.put("highFrequencyWords", currentHighFrequencyWords);
-                    body.put("wordList", "");
-                    body.put("note", "");
-                    String resp = HttpManager.doHttpPostWithJson(
-                            ApiConstants.getFullUrl("/composition/dailyReading/favorite"), body, "userId",
-                            String.valueOf(userId));
-                    if (resp != null) {
-                        JSONObject result = new JSONObject(resp);
-                        if (result.has("favoriteId")) {
-                            currentFavoriteId = result.getLong("favoriteId");
-                            saveDailyFavoriteState(currentFavoriteId);
+            // 收藏（新栈：CompositionApi.favoriteArticle 经 ApiBridge）
+            try {
+                JSONObject body = new JSONObject();
+                body.put("title", currentArticleTitle);
+                body.put("content", currentArticleContent);
+                body.put("sentenceAnalysis", currentSentenceAnalysis);
+                body.put("highFrequencyWords", currentHighFrequencyWords);
+                body.put("wordList", "");
+                body.put("note", "");
+                ApiBridge.enqueue(MemoryApiClient.composition().favoriteArticle(String.valueOf(userId),
+                        ApiBridge.jsonBody(body)), new Handler(Looper.getMainLooper()) {
+                    @Override
+                    public void handleMessage(@NonNull Message msg) {
+                        if (msg.what == msg_success) {
+                            try {
+                                JSONObject result = new JSONObject((String) msg.obj);
+                                if (result.has("favoriteId")) {
+                                    currentFavoriteId = result.getLong("favoriteId");
+                                    saveDailyFavoriteState(currentFavoriteId);
+                                }
+                            } catch (Exception e) {
+                                Log.e("article", "收藏响应解析失败", e);
+                            }
+                        } else {
+                            Log.e("article", "收藏请求失败");
                         }
                     }
-                } catch (Exception e) {
-                    Log.e("article", "收藏请求失败", e);
-                }
-            }).start();
+                }, msg_success, msg_failed, "FavoriteArticle");
+            } catch (Exception e) {
+                Log.e("article", "收藏请求构造失败", e);
+            }
         } else {
-            // 取消收藏
+            // 取消收藏（新栈：CompositionApi.deleteFavorite 经 ApiBridge，静默）
             if (currentFavoriteId > 0) {
-                new Thread(() -> {
-                    try {
-                        HttpManager.doHttpDelete(ApiConstants.getFullUrl("/composition/favorites/" + currentFavoriteId),
-                                "userId", String.valueOf(userId));
-                    } catch (Exception e) {
-                        Log.e("article", "取消收藏失败", e);
-                    }
-                }).start();
+                ApiBridge.enqueue(MemoryApiClient.composition().deleteFavorite(currentFavoriteId, String.valueOf(userId)),
+                        new Handler(Looper.getMainLooper()) {
+                            @Override
+                            public void handleMessage(@NonNull Message msg) {
+                                // 静默：乐观更新在前
+                            }
+                        }, msg_success, msg_failed, "UnfavoriteArticle");
             }
             clearDailyFavoriteState();
             currentFavoriteId = -1;
@@ -471,65 +499,65 @@ public class DailyReadingFragment extends Fragment {
     }
 
     private void loadFavoritesList() {
-        new Thread(() -> {
-            try {
-                String resp = HttpManager.doHttpGetOneHeader(ApiConstants.getFullUrl("/composition/favorites"),
-                        "userId", String.valueOf(userId));
-                JSONArray favorites = new JSONArray(resp);
+        ApiBridge.enqueue(MemoryApiClient.composition().favorites(String.valueOf(userId)),
+                new Handler(Looper.getMainLooper()) {
+                    @Override
+                    public void handleMessage(@NonNull Message msg) {
+                        if (msg.what == msg_success) {
+                            try {
+                                JSONArray favorites = new JSONArray((String) msg.obj);
 
-                favoriteIds.clear();
-                favoriteTitles.clear();
-                List<String> displayItems = new ArrayList<>();
-                for (int i = 0; i < favorites.length(); i++) {
-                    JSONObject fav = favorites.getJSONObject(i);
-                    favoriteIds.add(fav.getLong("id"));
-                    String title = fav.getString("articleTitle");
-                    favoriteTitles.add(title);
-                    displayItems.add(title);
-                }
+                                favoriteIds.clear();
+                                favoriteTitles.clear();
+                                List<String> displayItems = new ArrayList<>();
+                                for (int i = 0; i < favorites.length(); i++) {
+                                    JSONObject fav = favorites.getJSONObject(i);
+                                    favoriteIds.add(fav.getLong("id"));
+                                    String title = fav.getString("articleTitle");
+                                    favoriteTitles.add(title);
+                                    displayItems.add(title);
+                                }
 
-                requireActivity().runOnUiThread(() -> {
-                    favoritesLoading.setVisibility(View.GONE);
+                                favoritesLoading.setVisibility(View.GONE);
 
-                    if (favoriteTitles.isEmpty()) {
-                        favoritesEmptyView.setVisibility(View.VISIBLE);
-                        return;
-                    }
+                                if (favoriteTitles.isEmpty()) {
+                                    favoritesEmptyView.setVisibility(View.VISIBLE);
+                                    return;
+                                }
 
-                    favoritesListView.setVisibility(View.VISIBLE);
-                    ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(),
-                            android.R.layout.simple_list_item_1, android.R.id.text1, displayItems) {
-                        @Override
-                        public View getView(int pos, View convertView, ViewGroup parent) {
-                            View view = super.getView(pos, convertView, parent);
-                            TextView text = view.findViewById(android.R.id.text1);
-                            text.setText(favoriteTitles.get(pos));
-                            text.setTextSize(15);
-                            text.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
-                            text.setPadding(24, 16, 24, 16);
-                            return view;
+                                favoritesListView.setVisibility(View.VISIBLE);
+                                ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(),
+                                        android.R.layout.simple_list_item_1, android.R.id.text1, displayItems) {
+                                    @Override
+                                    public View getView(int pos, View convertView, ViewGroup parent) {
+                                        View view = super.getView(pos, convertView, parent);
+                                        TextView text = view.findViewById(android.R.id.text1);
+                                        text.setText(favoriteTitles.get(pos));
+                                        text.setTextSize(15);
+                                        text.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
+                                        text.setPadding(24, 16, 24, 16);
+                                        return view;
+                                    }
+                                };
+                                favoritesListView.setAdapter(adapter);
+                                favoritesListView.setOnItemClickListener((parent, v, pos, id) -> {
+                                    closeFavoritesDrawer();
+                                    loadFavoriteArticle(favoriteIds.get(pos));
+                                });
+                                favoritesListView.setOnItemLongClickListener((parent, v, pos, id) -> {
+                                    closeFavoritesDrawer();
+                                    showDeleteConfirmDialog(favoriteIds.get(pos), favoriteTitles.get(pos));
+                                    return true;
+                                });
+                            } catch (Exception e) {
+                                Log.e("article", "加载收藏列表失败", e);
+                                favoritesLoading.setVisibility(View.GONE);
+                                favoritesEmptyView.setText("加载失败");
+                                favoritesEmptyView.setVisibility(View.VISIBLE);
+                            }
                         }
-                    };
-                    favoritesListView.setAdapter(adapter);
-                    favoritesListView.setOnItemClickListener((parent, v, pos, id) -> {
-                        closeFavoritesDrawer();
-                        loadFavoriteArticle(favoriteIds.get(pos));
-                    });
-                    favoritesListView.setOnItemLongClickListener((parent, v, pos, id) -> {
-                        closeFavoritesDrawer();
-                        showDeleteConfirmDialog(favoriteIds.get(pos), favoriteTitles.get(pos));
-                        return true;
-                    });
-                });
-            } catch (Exception e) {
-                Log.e("article", "加载收藏列表失败", e);
-                requireActivity().runOnUiThread(() -> {
-                    favoritesLoading.setVisibility(View.GONE);
-                    favoritesEmptyView.setText("加载失败");
-                    favoritesEmptyView.setVisibility(View.VISIBLE);
-                });
-            }
-        }).start();
+                    }
+                }, msg_success, msg_failed, "FavList");
     }
 
     // ==================== 加载收藏文章 ====================
@@ -537,51 +565,59 @@ public class DailyReadingFragment extends Fragment {
     private void loadFavoriteArticle(long favoriteId) {
         showLoadingState();
 
-        new Thread(() -> {
-            try {
-                String resp = HttpManager.doHttpGetOneHeader(
-                        ApiConstants.getFullUrl("/composition/favorites/" + favoriteId), "userId",
-                        String.valueOf(userId));
-                JSONObject fav = new JSONObject(resp);
+        ApiBridge.enqueue(MemoryApiClient.composition().favoriteDetail(favoriteId, String.valueOf(userId)),
+                new Handler(Looper.getMainLooper()) {
+                    @Override
+                    public void handleMessage(@NonNull Message msg) {
+                        if (msg.what == msg_success) {
+                            try {
+                                JSONObject fav = new JSONObject((String) msg.obj);
 
-                String title = fav.getString("articleTitle");
-                String content = fav.getString("articleContent");
+                                String title = fav.getString("articleTitle");
+                                String content = fav.getString("articleContent");
 
-                // 解析 sentenceAnalysis 和 highFrequencyWords (JSON 字符串)
-                JSONArray sentenceAnalysis = new JSONArray();
-                JSONArray highFrequencyWords = new JSONArray();
-                if (fav.has("sentenceAnalysis") && !fav.isNull("sentenceAnalysis")) {
-                    String saStr = fav.getString("sentenceAnalysis");
-                    if (saStr != null && !saStr.isEmpty()) {
-                        sentenceAnalysis = new JSONArray(saStr);
+                                // 解析 sentenceAnalysis 和 highFrequencyWords (JSON 字符串)
+                                JSONArray sentenceAnalysis = new JSONArray();
+                                JSONArray highFrequencyWords = new JSONArray();
+                                if (fav.has("sentenceAnalysis") && !fav.isNull("sentenceAnalysis")) {
+                                    String saStr = fav.getString("sentenceAnalysis");
+                                    if (saStr != null && !saStr.isEmpty()) {
+                                        sentenceAnalysis = new JSONArray(saStr);
+                                    }
+                                }
+                                if (fav.has("highFrequencyWords") && !fav.isNull("highFrequencyWords")) {
+                                    String hfwStr = fav.getString("highFrequencyWords");
+                                    if (hfwStr != null && !hfwStr.isEmpty()) {
+                                        highFrequencyWords = new JSONArray(hfwStr);
+                                    }
+                                }
+
+                                // 阅读计数（fire-and-forget，新栈经 ApiBridge，静默）
+                                ApiBridge.enqueue(MemoryApiClient.composition().favoriteView(favoriteId),
+                                        new Handler(Looper.getMainLooper()) {
+                                            @Override
+                                            public void handleMessage(@NonNull Message msg) {
+                                                // 静默
+                                            }
+                                        }, msg_success, msg_failed, "FavoriteView");
+
+                                displayArticle(title, content, sentenceAnalysis, highFrequencyWords);
+                                currentFavoriteId = favoriteId;
+                                isViewingFavorite = true;
+                                isFavorited = true;
+                                updateModeUI();
+                            } catch (Exception e) {
+                                Log.e("article", "加载收藏文章失败", e);
+                                Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                                returnToTodayReading();
+                            }
+                        } else {
+                            Log.e("article", "加载收藏文章失败");
+                            Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                            returnToTodayReading();
+                        }
                     }
-                }
-                if (fav.has("highFrequencyWords") && !fav.isNull("highFrequencyWords")) {
-                    String hfwStr = fav.getString("highFrequencyWords");
-                    if (hfwStr != null && !hfwStr.isEmpty()) {
-                        highFrequencyWords = new JSONArray(hfwStr);
-                    }
-                }
-
-                HttpManager.doHttpPost(ApiConstants.getFullUrl("/composition/favorites/" + favoriteId + "/view"));
-
-                final JSONArray saFinal = sentenceAnalysis;
-                final JSONArray hfwFinal = highFrequencyWords;
-                requireActivity().runOnUiThread(() -> { // 回到主线程更新UI
-                    displayArticle(title, content, saFinal, hfwFinal);
-                    currentFavoriteId = favoriteId;
-                    isViewingFavorite = true;
-                    isFavorited = true;
-                    updateModeUI();
-                });
-            } catch (Exception e) {
-                Log.e("article", "加载收藏文章失败", e);
-                requireActivity().runOnUiThread(() -> {
-                    Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
-                    returnToTodayReading();
-                });
-            }
-        }).start();
+                }, msg_success, msg_failed, "FavDetail");
     }
 
     // ==================== 删除收藏 ====================
@@ -589,14 +625,13 @@ public class DailyReadingFragment extends Fragment {
     private void showDeleteConfirmDialog(long favoriteId, String title) {
         new MaterialAlertDialogBuilder(requireContext()).setTitle("取消收藏").setMessage("确定要取消收藏「" + title + "」吗？")
                 .setPositiveButton("确定", (d, w) -> {
-                    new Thread(() -> {
-                        try {
-                            HttpManager.doHttpDelete(ApiConstants.getFullUrl("/composition/favorites/" + favoriteId),
-                                    "userId", String.valueOf(userId));
-                        } catch (Exception e) {
-                            Log.e("article", "删除收藏失败", e);
-                        }
-                    }).start();
+                    ApiBridge.enqueue(MemoryApiClient.composition().deleteFavorite(favoriteId, String.valueOf(userId)),
+                            new Handler(Looper.getMainLooper()) {
+                                @Override
+                                public void handleMessage(@NonNull Message msg) {
+                                    // 静默：本地状态已在下方同步清理
+                                }
+                            }, msg_success, msg_failed, "DeleteFavorite");
                     // 如果删除的是今日收藏的文章，同步清理本地状态
                     long dailyFavId = InnerSettingsManager.getInstance(requireContext()).getDailyFavoriteId(userId);
                     if (favoriteId == dailyFavId) {

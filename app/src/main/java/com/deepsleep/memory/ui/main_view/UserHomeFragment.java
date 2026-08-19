@@ -25,7 +25,9 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.auth_view.LoginActivity;
 import com.deepsleep.memory.ui.extra_view.my_word_view.MyWordBookActivity;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.ApiConstants;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.ui.extra_view.setting_view.SettingActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONException;
@@ -75,14 +77,14 @@ public class UserHomeFragment extends Fragment {
                     // 优先使用复制到内部的URI，确保文件可读；复制失败则使用原始URI
                     Uri uploadUri = (copiedImageUri != null) ? copiedImageUri : imageUri;
 
-                    GetDataByThread getDataByThread = new GetDataByThread("/auth/uploadUserAvatar");
-                    getDataByThread.uploadUserAvatar(new Handler(Looper.getMainLooper()) {
+                    ApiBridge.enqueue(MemoryApiClient.auth().uploadUserAvatar(String.valueOf(userId),
+                            ApiBridge.filePart(requireContext(), uploadUri, "image", "cropped_image.jpg", "image/jpeg")),
+                            new Handler(Looper.getMainLooper()) {
                         @Override
                         public void handleMessage(@NonNull Message msg) {
                             if (msg.what == msg_success) {
                                 String avatarPath = "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId));
-                                GetDataByThread avatarLoader = new GetDataByThread(avatarPath);
-                                String avatarUrl = avatarLoader.getUrl_path();
+                                String avatarUrl = ApiConstants.getFullUrl(avatarPath);
                                 Glide.get(requireContext()).clearMemory();
                                 new Thread(() -> {
                                     Glide.get(requireContext()).clearDiskCache();
@@ -99,7 +101,7 @@ public class UserHomeFragment extends Fragment {
                                 Toast.makeText(requireContext(), "头像更新失败", Toast.LENGTH_SHORT).show();
                             }
                         }
-                    }, msg_success, msg_failed, userId, uploadUri, requireContext());
+                    }, msg_success, msg_failed, "UploadUserAvatar");
 
                 }
             });
@@ -160,8 +162,8 @@ public class UserHomeFragment extends Fragment {
 
     private void initView() {
         userId = innerSettingsManager.getUserId();
-        GetDataByThread getDataByThread = new GetDataByThread("/auth/getUserInfo");
-        getDataByThread.getUserInfo(myHandler, msg_success, msg_failed, String.valueOf(userId));
+        ApiBridge.enqueue(MemoryApiClient.auth().getUserInfo(String.valueOf(userId)), myHandler, msg_success, msg_failed,
+                null);
 
     }
 
@@ -205,9 +207,8 @@ public class UserHomeFragment extends Fragment {
     }
 
     private void updateNickname(String newNickname) {
-        GetDataByThread getDataByThread = new GetDataByThread("/auth/updateUserNickname");
-        getDataByThread.updateUserNickname(new Handler(Looper.getMainLooper()), msg_success, msg_failed,
-                String.valueOf(userId), newNickname);
+        ApiBridge.enqueue(MemoryApiClient.auth().updateUserNickname(String.valueOf(userId), ApiBridge.textBody(newNickname)),
+                new Handler(Looper.getMainLooper()), msg_success, msg_failed, "UpdateUserNickname");
         nickName = newNickname;
         nickNameText.setText(newNickname);
 
@@ -272,11 +273,9 @@ public class UserHomeFragment extends Fragment {
                         nickNameText.setText(nickName);
                         Log.i("avatarUrl", "--------" + avatarUrl);
                         if (!Objects.equals(avatarUrl, "default_avatar_url")) {
-                            GetDataByThread getDataByThread = new GetDataByThread(
-                                    "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId)));
-
                             // 加载用户头像
-                            Glide.with(requireContext()).load(getDataByThread.getUrl_path())
+                            Glide.with(requireContext()).load(ApiConstants.getFullUrl(
+                                    "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId))))
                                     .placeholder(R.drawable.default_avatar).error(R.drawable.default_avatar)
                                     .circleCrop().into(userAvatar);
                         }

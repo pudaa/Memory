@@ -16,7 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONArray;
@@ -47,10 +48,9 @@ public class FavoriteWordsFragment extends Fragment {
         return view;
     }
 
-    GetDataByThread getDataByThread = new GetDataByThread("/learning/getFavoriteWords");
-
     private void getSampleData() {// 获取收藏单词
-        getDataByThread.fetchFavoriteWords(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.learning().getFavoriteWords(String.valueOf(userId)),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == msg_success) {
@@ -105,7 +105,7 @@ public class FavoriteWordsFragment extends Fragment {
                     Log.i("weakWords", "获取失败");
                 }
             }
-        }, msg_success, msg_failed, String.valueOf(userId));
+        }, msg_success, msg_failed, null);
     }
 
     private void unFavoriteWord(String headWord) {
@@ -118,8 +118,8 @@ public class FavoriteWordsFragment extends Fragment {
         // 从WordEntry获取单词ID（wordRank）和词书ID（bookId）
         int wordId = wordEntry.getWordRank();
         String lexiconId = wordEntry.getBookId();
-        GetDataByThread thread = new GetDataByThread("/learning/setFavorite");
-        thread.updateFavorite(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.learning().setFavorite(String.valueOf(userId), String.valueOf(wordId), lexiconId,
+                headWord, String.valueOf(false)), new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == msg_success) {
@@ -128,7 +128,7 @@ public class FavoriteWordsFragment extends Fragment {
                     Log.e("unFavoriteWord", "取消收藏失败");
                 }
             }
-        }, msg_success, msg_failed, String.valueOf(userId), wordId, lexiconId, headWord, false);
+        }, msg_success, msg_failed, "UpdateFavorite");
     }
 
 }

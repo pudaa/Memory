@@ -9,7 +9,8 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 
 import org.json.JSONException;
@@ -137,14 +138,48 @@ public class PendingUploadSync {
                 }
             };
 
-            GetDataByThread submit = new GetDataByThread("/learning/submitAnswer");
             if (WordCard.MODE_INPUT.equals(current.studyMode)) {
-                submit.submitAnswerInput(handler, MSG_SUCCESS, MSG_FAIL, userId, current.wordId, current.lexiconId,
-                        current.word, current.isCorrect, cappedRt, current.userAnswer, current.referenceDefinition,
-                        current.pos, current.submitId);
+                JSONObject j = new JSONObject();
+                try {
+                    j.put("userId", userId);
+                    j.put("wordId", current.wordId);
+                    j.put("lexiconId", current.lexiconId);
+                    j.put("headWord", current.word);
+                    j.put("isCorrect", current.isCorrect);
+                    j.put("responseTimeMs", cappedRt);
+                    j.put("studyMode", "input");
+                    j.put("userAnswer", current.userAnswer);
+                    j.put("referenceDefinition", current.referenceDefinition);
+                    j.put("word", current.word);
+                    j.put("pos", current.pos);
+                    if (current.submitId != null && !current.submitId.isEmpty()) {
+                        j.put("submitId", current.submitId);
+                    }
+                } catch (JSONException e) {
+                    handler.sendEmptyMessage(MSG_FAIL);
+                    return;
+                }
+                ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)), handler, MSG_SUCCESS,
+                        MSG_FAIL, "SubmitAnswer");
             } else {
-                submit.submitAnswer(handler, MSG_SUCCESS, MSG_FAIL, userId, current.wordId, current.lexiconId,
-                        current.word, current.isCorrect, cappedRt, current.studyMode, current.submitId);
+                JSONObject j = new JSONObject();
+                try {
+                    j.put("userId", userId);
+                    j.put("wordId", current.wordId);
+                    j.put("lexiconId", current.lexiconId);
+                    j.put("headWord", current.word);
+                    j.put("isCorrect", current.isCorrect);
+                    j.put("responseTimeMs", cappedRt);
+                    j.put("studyMode", current.studyMode);
+                    if (current.submitId != null && !current.submitId.isEmpty()) {
+                        j.put("submitId", current.submitId);
+                    }
+                } catch (JSONException e) {
+                    handler.sendEmptyMessage(MSG_FAIL);
+                    return;
+                }
+                ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)), handler, MSG_SUCCESS,
+                        MSG_FAIL, "SubmitAnswer");
             }
         }
 

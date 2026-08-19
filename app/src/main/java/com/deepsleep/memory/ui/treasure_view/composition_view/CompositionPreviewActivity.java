@@ -19,7 +19,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONException;
@@ -150,8 +151,8 @@ public class CompositionPreviewActivity extends AppCompatActivity {
         // Toast.makeText(this, "正在批改作文，请稍候...", Toast.LENGTH_SHORT).show();
 
         // 这里可以添加作文批改的实现
-        GetDataByThread getDataByThread = new GetDataByThread("/composition/correctText");
-        getDataByThread.correctText(new CorrectHandler(), msg_success, msg_failed, compositionText, userId);
+        ApiBridge.enqueue(MemoryApiClient.composition().correctText(String.valueOf(userId), ApiBridge.textBody(compositionText)),
+                new CorrectHandler(), msg_success, msg_failed, "CorrectText");
     }
 
     // 显示加载遮罩

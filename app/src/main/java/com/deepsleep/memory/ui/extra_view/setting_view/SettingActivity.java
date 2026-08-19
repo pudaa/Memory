@@ -14,10 +14,13 @@ import android.content.Intent;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.ThemeHelper;
 import com.deepsleep.memory.settings.UserSettingsManager;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class SettingActivity extends AppCompatActivity {
     private UserSettingsManager userSettingsManager;
@@ -257,8 +260,23 @@ public class SettingActivity extends AppCompatActivity {
         if (userId <= 0)
             return;
 
-        GetDataByThread api = new GetDataByThread("/learning/updatePreference");
-        api.updatePreference(new Handler(Looper.getMainLooper()) {
+        JSONObject j = new JSONObject();
+        try {
+            j.put("userId", userId);
+            if (newWords != null)
+                j.put("dailyNewWords", newWords);
+            if (mode != null)
+                j.put("studyModePreference", mode);
+            if (retentionTarget != null)
+                j.put("fsrsRetentionTarget", retentionTarget);
+            if (maxReviewWords != null)
+                j.put("fsrsMaxReviewWords", maxReviewWords);
+        } catch (JSONException e) {
+            Toast.makeText(SettingActivity.this, "同步到服务器失败，已保存到本地", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ApiBridge.enqueue(MemoryApiClient.learning().updatePreference(ApiBridge.jsonBody(j)),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == MSG_SUCCESS) {
@@ -267,7 +285,7 @@ public class SettingActivity extends AppCompatActivity {
                     Toast.makeText(SettingActivity.this, "同步到服务器失败，已保存到本地", Toast.LENGTH_SHORT).show();
                 }
             }
-        }, MSG_SUCCESS, MSG_FAILED, userId, newWords, mode, retentionTarget, maxReviewWords);
+        }, MSG_SUCCESS, MSG_FAILED, "UpdatePreference");
     }
 
     /** 防抖推送用户级设置（滑动方向/主题）到服务端 */
@@ -285,15 +303,23 @@ public class SettingActivity extends AppCompatActivity {
     private void callUpdateUserSettings() {
         if (userId <= 0)
             return;
-        GetDataByThread api = new GetDataByThread("/auth/updateUserSettings");
-        api.updateUserSettings(new Handler(Looper.getMainLooper()) {
+        JSONObject j = new JSONObject();
+        try {
+            j.put("userId", userId);
+            j.put("settings", userSettingsManager.toUserSettingsJson());
+        } catch (JSONException e) {
+            Toast.makeText(SettingActivity.this, "设置同步失败，已保存到本地", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ApiBridge.enqueue(MemoryApiClient.auth().updateUserSettings(ApiBridge.jsonBody(j)),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what != MSG_SUCCESS) {
                     Toast.makeText(SettingActivity.this, "设置同步失败，已保存到本地", Toast.LENGTH_SHORT).show();
                 }
             }
-        }, MSG_SUCCESS, MSG_FAILED, userId, userSettingsManager.toUserSettingsJson());
+        }, MSG_SUCCESS, MSG_FAILED, "UpdateUserSettings");
     }
 
     // ==================== 主题模式 ====================

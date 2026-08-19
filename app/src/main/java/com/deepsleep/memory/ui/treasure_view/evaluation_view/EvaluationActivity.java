@@ -25,7 +25,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.charts.PieChart;
@@ -317,14 +318,14 @@ public class EvaluationActivity extends AppCompatActivity {
         userId = InnerSettingsManager.getInstance(this).getUserId();
         progressBar.setVisibility(View.VISIBLE);
 
-        new GetDataByThread("/evaluation/dashboard").getEvaluationDashboard(handler, MSG_DASHBOARD_OK,
-                MSG_DASHBOARD_FAIL, String.valueOf(userId));
-        new GetDataByThread("/evaluation/deepAnalysis").getEvaluationDeepAnalysis(handler, MSG_DEEP_OK, MSG_DEEP_FAIL,
-                String.valueOf(userId));
-        new GetDataByThread("/evaluation/aiSuggestion").getEvaluationAiSuggestion(handler, MSG_AI_OK, MSG_AI_FAIL,
-                String.valueOf(userId));
-        new GetDataByThread("/evaluation/weeklyReport").getEvaluationWeeklyReport(handler, MSG_WEEKLY_OK,
-                MSG_WEEKLY_FAIL, String.valueOf(userId));
+        ApiBridge.enqueue(MemoryApiClient.evaluation().dashboard(String.valueOf(userId)), handler, MSG_DASHBOARD_OK,
+                MSG_DASHBOARD_FAIL, "EvalDashboard");
+        ApiBridge.enqueue(MemoryApiClient.evaluation().deepAnalysis(String.valueOf(userId)), handler, MSG_DEEP_OK,
+                MSG_DEEP_FAIL, "EvalDeep");
+        ApiBridge.enqueue(MemoryApiClient.evaluation().aiSuggestion(String.valueOf(userId)), handler, MSG_AI_OK,
+                MSG_AI_FAIL, "EvalAiSug");
+        ApiBridge.enqueue(MemoryApiClient.evaluation().weeklyReport(String.valueOf(userId)), handler, MSG_WEEKLY_OK,
+                MSG_WEEKLY_FAIL, "EvalWeekly");
     }
 
     private void onLoadFailed(String section) {
@@ -842,8 +843,17 @@ public class EvaluationActivity extends AppCompatActivity {
             int dailyNew = cachedAiData.optInt("suggestedDailyNewWords", 10);
             String mode = cachedAiData.optString("recommendedMode", "choice");
 
-            GetDataByThread api = new GetDataByThread("/learning/updatePreference");
-            api.updatePreference(new Handler(Looper.getMainLooper()) {
+            JSONObject body = new JSONObject();
+            try {
+                body.put("userId", userId);
+                body.put("dailyNewWords", dailyNew);
+                body.put("studyModePreference", mode);
+            } catch (JSONException e) {
+                Toast.makeText(EvaluationActivity.this, "应用设置失败", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ApiBridge.enqueue(MemoryApiClient.learning().updatePreference(ApiBridge.jsonBody(body)),
+                    new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     if (msg.what == 1) {
@@ -852,7 +862,7 @@ public class EvaluationActivity extends AppCompatActivity {
                         Toast.makeText(EvaluationActivity.this, "应用设置失败", Toast.LENGTH_SHORT).show();
                     }
                 }
-            }, 1, -1, userId, dailyNew, mode, null, null);
+            }, 1, -1, "UpdatePreference");
         } catch (Exception e) {
             Toast.makeText(this, "解析失败", Toast.LENGTH_SHORT).show();
         }

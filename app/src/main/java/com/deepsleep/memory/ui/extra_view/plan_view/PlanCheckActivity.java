@@ -19,7 +19,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -86,12 +87,12 @@ public class PlanCheckActivity extends AppCompatActivity {
 
     private void loadPlanData() {
         // 接口1：统计卡片
-        GetDataByThread statsApi = new GetDataByThread("/learning/getLearningPlanDetails");
-        statsApi.getPlanDetails(new StatsHandler(), MSG_SUCCESS, MSG_FAILED, userId);
+        ApiBridge.enqueue(MemoryApiClient.learning().getLearningPlanDetails(String.valueOf(userId)), new StatsHandler(),
+                MSG_SUCCESS, MSG_FAILED, null);
 
         // 接口2：预测列表
-        GetDataByThread previewApi = new GetDataByThread("/learning/getSchedulePreview");
-        previewApi.getSchedulePreview(new PreviewHandler(), MSG_SUCCESS, MSG_FAILED, String.valueOf(userId));
+        ApiBridge.enqueue(MemoryApiClient.learning().getSchedulePreview(String.valueOf(userId)), new PreviewHandler(),
+                MSG_SUCCESS, MSG_FAILED, "SchedulePreview");
     }
 
     private String getLexiconName(String lexiconId) {

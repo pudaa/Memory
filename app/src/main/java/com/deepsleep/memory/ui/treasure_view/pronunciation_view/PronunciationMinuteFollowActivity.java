@@ -25,7 +25,8 @@ import androidx.core.content.ContextCompat;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.card.MaterialCardView;
@@ -418,9 +419,8 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
             LexiconResourceMap.loadLexicon(this, currentLexiconId);
         }
 
-        GetDataByThread api = new GetDataByThread("/pronunciation/words");
-        api.getPronunciationWords(wordHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL, String.valueOf(userId), wordBookId,
-                phraseCount, sentenceCount);
+        ApiBridge.enqueue(MemoryApiClient.pronunciation().words(String.valueOf(userId), wordBookId, phraseCount,
+                sentenceCount), wordHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL, "PronunciationWords");
     }
 
     private final Handler wordHandler = new Handler(Looper.getMainLooper()) {
@@ -500,9 +500,8 @@ public class PronunciationMinuteFollowActivity extends AppCompatActivity
         isLoadingMore = true;
         Toast.makeText(this, "正在加载更多单词...", Toast.LENGTH_SHORT).show();
 
-        GetDataByThread api = new GetDataByThread("/pronunciation/words");
-        api.getPronunciationWords(loadMoreHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL, String.valueOf(userId),
-                wordBookId, phraseCount, sentenceCount);
+        ApiBridge.enqueue(MemoryApiClient.pronunciation().words(String.valueOf(userId), wordBookId, phraseCount,
+                sentenceCount), loadMoreHandler, MSG_WORDS_SUCCESS, MSG_WORDS_FAIL, "PronunciationWords");
     }
 
     private final Handler loadMoreHandler = new Handler(Looper.getMainLooper()) {

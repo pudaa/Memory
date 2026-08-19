@@ -16,7 +16,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.chip.Chip;
@@ -94,8 +95,8 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
     }
 
     private void loadScenarios() {
-        GetDataByThread api = new GetDataByThread("/conversation/scenarios");
-        api.getScenarios(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.conversation().scenarios(String.valueOf(userId)),
+                new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 if (msg.what == 1) {
@@ -118,7 +119,7 @@ public class ScenarioPickerSheet extends BottomSheetDialogFragment {
                     }
                 }
             }
-        }, 1, -1, userId);
+        }, 1, -1, "Scenarios");
     }
 
     private void setupCategoryChips() {

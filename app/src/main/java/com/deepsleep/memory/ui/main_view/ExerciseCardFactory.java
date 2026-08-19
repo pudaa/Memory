@@ -16,7 +16,8 @@ import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -90,9 +91,9 @@ public class ExerciseCardFactory {
             boolean isFav = !wordCard.isFavorite;
             wordCard.isFavorite = isFav;
             btnFavorite.setImageResource(isFav ? R.drawable.baseline_star_24 : R.drawable.baseline_star_border_24);
-            GetDataByThread setFav = new GetDataByThread("/learning/setFavorite");
-            setFav.updateFavorite(new Handler(Looper.getMainLooper()) {
-            }, 1, -1, String.valueOf(userId), wordCard.word_id, lexiconId, wordCard.word, isFav);
+            ApiBridge.enqueue(MemoryApiClient.learning().setFavorite(String.valueOf(userId), String.valueOf(wordCard.word_id),
+                    lexiconId, wordCard.word, String.valueOf(isFav)), new Handler(Looper.getMainLooper()) {
+            }, 1, -1, "UpdateFavorite");
         });
 
         LinearLayout fsrsBar = cardView.findViewById(R.id.fsrs_info_bar);

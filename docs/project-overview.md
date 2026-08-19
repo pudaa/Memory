@@ -17,7 +17,7 @@
 graph TB
     subgraph App["📱 Android 客户端（本仓库）"]
         UI["UI 层：Activity + Fragment<br/>4-Tab 底部导航"]
-        NET["网络层：HttpManager + GetDataByThread<br/>Apache HttpClient + Handler 回调"]
+        NET["网络层：MemoryApiClient<br/>OkHttp 统一连接池 + Handler 回调"]
         ST["设置层：UserSettingsManager + InnerSettingsManager<br/>集中管理持久化"]
         UTIL["工具层：handle_utils（图片/音频/词库）"]
     end
@@ -55,8 +55,8 @@ graph TB
 | 层次 | 选型 |
 |------|------|
 | UI | AndroidX AppCompat + Material 1.10.0 + ConstraintLayout |
-| 网络 | Apache HttpClient（自定义 `HttpManager` 封装）+ `GetDataByThread` |
-| 异步 | `Handler` / `Message`（主线程 Looper） |
+| 网络 | OkHttp（`MemoryApiClient` 唯一入口 + 单一共享连接池 + Retrofit 域接口 + `ApiBridge` 桥接）|
+| 异步 | `ApiConstants.execute()` 共享网络线程池 + `Handler` / `Message`（主线程 Looper）|
 | JSON | `org.json` 手动解析 |
 | 图片 | Glide 4.12 + `BitmapManager`；裁剪 uCrop（`UcropHelper`） |
 | Markdown | Markwon 4.6.2（每日阅读） |
@@ -69,7 +69,7 @@ graph TB
 ```text
 app/src/main/java/com/deepsleep/memory/
 ├── MainActivity.java        # 底部导航容器
-├── network/                 # ApiConstants(环境切换) / HttpManager / GetDataByThread / CozeAPI
+├── network/                 # ApiConstants(环境中间件) / MemoryApiClient(唯一入口：Retrofit 域接口工厂 + 底层专用能力) + 域接口(AuthApi 等) / ApiBridge(桥接)
 ├── settings/                # UserSettingsManager / InnerSettingsManager / ThemeHelper
 ├── handle_utils/            # BitmapManager / AudioPlayer / MemAudioRecord / lexicon 词库
 └── ui/                      # 各 feature 页面（auth_view / init_view / main_view / treasure_view / extra_view）
@@ -81,12 +81,12 @@ app/src/main/java/com/deepsleep/memory/
 
 | 能力 | 实现位置 | 说明 |
 |------|---------|------|
-| **全部 HTTP 请求** | `network/HttpManager` + `network/GetDataByThread` | 所有业务 API 方法在 `GetDataByThread` 中扩展 |
-| **异步回调** | `Handler(Looper.getMainLooper())` | 项目统一模式 |
+| **全部 HTTP 请求** | `network/MemoryApiClient`（唯一入口：Retrofit 域接口工厂 + 底层专用能力）+ `network/ApiBridge`（Handler 桥接） | 单一共享连接池（`MemoryApiClient.client()`）；`HttpManager` / `GetDataByThread` 已于 2026-08 合并删除 |
+| **异步回调** | `ApiConstants.execute()`（共享网络线程池）+ `Handler(Looper.getMainLooper())` | 项目统一模式 |
 | **用户偏好持久化** | `settings/UserSettingsManager` | 学习模式 / 滑动方向 / 每日新词 / 阅读字号 / 主题 |
 | **内部信息持久化** | `settings/InnerSettingsManager` | 登录信息 / 每日收藏 / 作文草稿 / 发音成绩 |
 | **学习进度持久化** | `main_view/DailyStateManager` | 今日已完成单词（跨天重置） |
-| **环境切换** | `network/ApiConstants.setEnvironment()` | DEV / TEST / PROD |
+| **环境切换** | `network/ApiConstants.setEnvironment()` | DEV / TEST / PROD，运行期切换立即生效（默认 TEST） |
 | **图片处理** | `handle_utils/BitmapManager` | 解码 / 缩放 / 旋转 |
 | **音频播放** | `handle_utils/AudioPlayer` | 有道 TTS 发音 |
 | **录音** | `handle_utils/MemAudioRecord` | PCM 16kHz 16bit |
@@ -103,8 +103,7 @@ app/src/main/java/com/deepsleep/memory/
 
 ```text
 用户操作 → Activity/Fragment
-        → GetDataByThread（后台线程）
-        → HttpManager（Apache HttpClient）
+        → ApiBridge.enqueue(MemoryApiClient.域().xxx(...), handler, ok, fail, tag)（共享网络线程池 execute）
         → 后端 API
         → JSON 响应 → Handler.handleMessage() → 主线程更新 UI
 ```
@@ -124,9 +123,9 @@ Activity/Fragment → UserSettingsManager / InnerSettingsManager / DailyStateMan
 .\gradlew.bat connectedAndroidTest  # 仪器化测试
 ```
 
-- 默认环境：`GetDataByThread` 构造设为 **TEST**。
+- 默认环境：**TEST**（`ApiConstants` 默认值，与历史有效行为一致）。
 - 后端地址在构建时从本地 `local.properties` 注入（`BACKEND_DEV_URL` / `BACKEND_TEST_URL` / `BACKEND_PROD_URL`），经 `app/build.gradle` 写入 `BuildConfig`，由 `ApiConstants` 统一读取；真实地址不提交到版本库。
-- 发布前务必通过 `ApiConstants.setEnvironment()` 确认环境。
+- 发布前务必通过 `ApiConstants.setEnvironment()` 确认环境；运行期切换立即生效（旧栈按调用时解析 URL、新栈 MemoryApiClient 自动重建）。
 
 ## 9. 文档导航
 

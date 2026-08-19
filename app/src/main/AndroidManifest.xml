@@ -141,6 +141,12 @@
                     android:name="android.support.FILE_PROVIDER_PATHS"
                     android:resource="@xml/file_paths"/>
         </provider>
+
+        <!-- 网络层静态初始化（Application.onCreate 之前注入应用级 Context，供 MemoryApiClient 无参使用） -->
+        <provider
+                android:name=".network.NetworkInitializer"
+                android:authorities="${applicationId}.networkinit"
+                android:exported="false"/>
     </application>
 
 </manifest>

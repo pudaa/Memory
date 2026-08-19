@@ -14,7 +14,8 @@ import com.deepsleep.memory.ui.MainActivity;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.init_view.BookSelectActivity;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -46,8 +47,8 @@ public class PlanListActivity extends AppCompatActivity {
             Intent intent = new Intent(PlanListActivity.this, BookSelectActivity.class);
             startActivity(intent);
         });
-        GetDataByThread getDataByThread = new GetDataByThread("/learning/getUserAllLearningPlans");
-        getDataByThread.getPlanDetails(new PlanHandler(), msg_success, msg_failed, userId);
+        ApiBridge.enqueue(MemoryApiClient.learning().getUserAllLearningPlans(String.valueOf(userId)), new PlanHandler(),
+                msg_success, msg_failed, "AllLearningPlans");
     }
 
     private void initView() {
@@ -92,8 +93,8 @@ public class PlanListActivity extends AppCompatActivity {
                         JSONObject plan = filteredBooks.get(position);
                         int planId = plan.optInt("planId");
                         if (planId != onPlanId) {
-                            GetDataByThread getDataByThread = new GetDataByThread("/auth/setPlan");
-                            getDataByThread.updateCurrentPlan(new Handler(Looper.getMainLooper()) {
+                            ApiBridge.enqueue(MemoryApiClient.auth().setPlan(String.valueOf(userId), String.valueOf(planId)),
+                                    new Handler(Looper.getMainLooper()) {
                                 @Override
                                 public void handleMessage(Message msg) {
                                     super.handleMessage(msg);
@@ -104,7 +105,7 @@ public class PlanListActivity extends AppCompatActivity {
                                     }
                                     planListAdapter.notifyDataSetChanged();
                                 }
-                            }, msg_success, msg_failed, userId, planId);
+                            }, msg_success, msg_failed, "UpdateCurrentPlan");
                         }
                     });
                 } catch (JSONException e) {

@@ -25,8 +25,8 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.deepsleep.memory.R;
-import com.deepsleep.memory.network.GetDataByThread;
-import com.deepsleep.memory.network.HttpManager;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.ui.components.CameraCaptureActivity;
 import com.deepsleep.memory.ui.components.ThemeCropActivity;
@@ -150,8 +150,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
 
         int userId = InnerSettingsManager.getInstance(this).getUserId();
 
-        GetDataByThread getRecords = new GetDataByThread("/composition/records");
-        getRecords.fetchHistoryRecords(new Handler(Looper.getMainLooper()) {
+        ApiBridge.enqueue(MemoryApiClient.composition().records(String.valueOf(userId)), new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(@NonNull Message msg) {
                 super.handleMessage(msg);
@@ -165,7 +164,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
                     break;
                 }
             }
-        }, msg_records_success, msg_records_failed, userId);
+        }, msg_records_success, msg_records_failed, null);
     }
 
     private void setListeners() {
@@ -224,9 +223,10 @@ public class CompositionMenuActivity extends AppCompatActivity {
         isOcrInProgress = true;
         showOcrProgress();
 
-        // 使用GetDataByThread进行OCR识别
-        GetDataByThread getDataByThread = new GetDataByThread("/composition/extractText");
-        getDataByThread.extractTextFromImageUri(new OCRHandler(), msg_success, msg_failed, croppedImageUri, this);
+        // 使用 MemoryApiClient 进行OCR识别
+        ApiBridge.enqueue(MemoryApiClient.composition().extractText(
+                ApiBridge.filePart(this, croppedImageUri, "image", "cropped_image.jpg", "image/jpeg")),
+                new OCRHandler(), msg_success, msg_failed, "ExtractText");
     }
 
     /** 显示 OCR 处理进度对话框（先“上传中”，2 秒后切到“识别中”） */
@@ -264,7 +264,7 @@ public class CompositionMenuActivity extends AppCompatActivity {
     private void showOcrError() {
         if (isFinishing() || isDestroyed())
             return;
-        String err = HttpManager.getLastImageUploadError();
+        String err = MemoryApiClient.getLastImageUploadError();
         String msg;
         if (err == null || err.isEmpty()) {
             msg = "未能识别图片中的文字。\n\n建议:\n• 调整拍摄角度与距离,保证文字清晰\n• 避免反光/阴影遮挡文字\n• 稍后重试";

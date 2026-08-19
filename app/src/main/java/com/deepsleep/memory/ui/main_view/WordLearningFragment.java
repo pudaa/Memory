@@ -19,7 +19,8 @@ import com.deepsleep.memory.ui.extra_view.plan_view.PlanCheckActivity;
 import com.deepsleep.memory.ui.extra_view.word_search_view.SearchingActivity;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
 import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
-import com.deepsleep.memory.network.GetDataByThread;
+import com.deepsleep.memory.network.ApiBridge;
+import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 
 import org.json.JSONArray;
@@ -293,8 +294,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     private void loadTodayTask() {
         isLoadingTask = true;
-        GetDataByThread getDataByThread = new GetDataByThread("/learning/getTodayTask");
-        getDataByThread.getPlan(myHandler, msg_success, msg_failed, String.valueOf(userId));
+        ApiBridge.enqueue(MemoryApiClient.learning().getTodayTask(String.valueOf(userId)), myHandler, msg_success,
+                msg_failed, "GetTodayTask");
     }
 
     /** 学习模式等设置变化后重载今日任务，使新配置立即生效 */
@@ -569,10 +570,30 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         pendingUpload.pos = wordCard.pos != null ? wordCard.pos : "";
         dailyState.enqueuePendingUpload(pendingUpload);
 
-        GetDataByThread submit = new GetDataByThread("/learning/submitAnswer");
         if (WordCard.MODE_INPUT.equals(studyMode)) {
             // 输入模式：发送扩展字段，服务端进行 AI 评判
-            submit.submitAnswerInput(new Handler(Looper.getMainLooper()) {
+            JSONObject j = new JSONObject();
+            try {
+                j.put("userId", userId);
+                j.put("wordId", wordCard.word_id);
+                j.put("lexiconId", lexiconId);
+                j.put("headWord", wordCard.word);
+                j.put("isCorrect", wordCard.isCorrect);
+                j.put("responseTimeMs", responseTimeMs);
+                j.put("studyMode", "input");
+                j.put("userAnswer", wordCard.userAnswer != null ? wordCard.userAnswer : "");
+                j.put("referenceDefinition", wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "");
+                j.put("word", wordCard.word);
+                j.put("pos", wordCard.pos != null ? wordCard.pos : "");
+                if (submitId != null && !submitId.isEmpty()) {
+                    j.put("submitId", submitId);
+                }
+            } catch (JSONException e) {
+                Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)),
+                    new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     if (!isAdded())
@@ -616,13 +637,27 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                         Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
                     }
                 }
-            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
-                    responseTimeMs, wordCard.userAnswer != null ? wordCard.userAnswer : "",
-                    wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "",
-                    wordCard.pos != null ? wordCard.pos : "", submitId);
+            }, msg_success, msg_failed, "SubmitAnswer");
         } else {
             // 选择题模式：保持原有行为
-            submit.submitAnswer(new Handler(Looper.getMainLooper()) {
+            JSONObject j = new JSONObject();
+            try {
+                j.put("userId", userId);
+                j.put("wordId", wordCard.word_id);
+                j.put("lexiconId", lexiconId);
+                j.put("headWord", wordCard.word);
+                j.put("isCorrect", wordCard.isCorrect);
+                j.put("responseTimeMs", responseTimeMs);
+                j.put("studyMode", studyMode);
+                if (submitId != null && !submitId.isEmpty()) {
+                    j.put("submitId", submitId);
+                }
+            } catch (JSONException e) {
+                Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)),
+                    new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     if (msg.what == msg_success) {
@@ -633,8 +668,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                         // 提交失败：记录保留在待上传队列，联网后自动补传
                     }
                 }
-            }, msg_success, msg_failed, userId, wordCard.word_id, lexiconId, wordCard.word, wordCard.isCorrect,
-                    responseTimeMs, studyMode, submitId);
+            }, msg_success, msg_failed, "SubmitAnswer");
         }
     }
 
@@ -667,10 +701,18 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     /** 上报学习列表完成状态（幂等操作，补传完成后兜底重发） */
     private void resendLearningListCompletion() {
-        GetDataByThread updateLearningList = new GetDataByThread("/learning/updateLearningListCompletion");
         int actualStudyDay = studyDay > 0 ? studyDay : 1;
-        updateLearningList.updateLearningListCompletion(new UpdateHandler(), msg_success, msg_failed, userId,
-                lexiconId, actualStudyDay, true);
+        JSONObject j = new JSONObject();
+        try {
+            j.put("userId", userId);
+            j.put("lexiconId", lexiconId);
+            j.put("studyDate", actualStudyDay);
+            j.put("isCompleted", true);
+        } catch (JSONException e) {
+            return;
+        }
+        ApiBridge.enqueue(MemoryApiClient.learning().updateLearningListCompletion(ApiBridge.jsonBody(j)),
+                new UpdateHandler(), msg_success, msg_failed, "UpdateCompletion");
     }
 
     /** 添加今日学习总结卡片（幂等：先移除旧总结卡片，再添加新的，避免重复堆积） */
