@@ -201,21 +201,23 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     }
 
     private void playAudio(String audioUrl) {
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
+        if (audioUrl == null || audioUrl.isEmpty())
+            return;
+        // 本地文件直接播放
+        if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://")) {
+            playLocalAudio(audioUrl);
+            return;
         }
-        mediaPlayer = new MediaPlayer();
-        try {
-            mediaPlayer.setDataSource(audioUrl);
-            mediaPlayer.prepareAsync();
-            mediaPlayer.setOnPreparedListener(MediaPlayer::start);
-            mediaPlayer.setOnCompletionListener(mp -> {
-                mp.release();
-                mediaPlayer = null;
-            });
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // 远程 URL：服务端强制 JWT，MediaPlayer 无法附带请求头，
+        // 先带 Bearer 下载到本地再播（后台线程下载，主线程播放）
+        new Thread(() -> {
+            String localPath = com.deepsleep.memory.network.MemoryApiClient
+                    .downloadMediaFile(audioUrl, context);
+            if (localPath != null) {
+                new android.os.Handler(android.os.Looper.getMainLooper())
+                        .post(() -> playLocalAudio(localPath));
+            }
+        }, "conversation-audio-download").start();
     }
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {

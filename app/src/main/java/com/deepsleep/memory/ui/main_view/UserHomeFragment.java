@@ -90,9 +90,7 @@ public class UserHomeFragment extends Fragment {
                                     Glide.get(requireContext()).clearDiskCache();
                                     // 在主线程中重新加载头像
                                     requireActivity().runOnUiThread(() -> {
-                                        Glide.with(UserHomeFragment.this).load(avatarUrl)
-                                                .placeholder(R.drawable.default_avatar).error(R.drawable.default_avatar)
-                                                .circleCrop().into(userAvatar);
+                                        loadAvatarWithAuth(avatarUrl);
 
                                         Toast.makeText(requireContext(), "头像已更新", Toast.LENGTH_SHORT).show();
                                     });
@@ -150,6 +148,19 @@ public class UserHomeFragment extends Fragment {
         reLoginBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                // 尽力通知服务端吊销当前刷新链（不阻塞本地登出）
+                try {
+                    ApiBridge.enqueue(MemoryApiClient.auth().logout(),
+                            new Handler(Looper.getMainLooper()) {
+                                @Override
+                                public void handleMessage(@NonNull Message msg) {
+                                    // 登出请求结果无需 UI 处理
+                                }
+                            }, msg_success, msg_failed, "Logout");
+                } catch (Exception ignored) {
+                }
+                // 清除 token 存储（AuthTokens）与用户偏好（UserPrefs），防止 refresh token 泄留
+                new com.deepsleep.memory.network.TokenStore(requireContext()).clear();
                 innerSettingsManager.clear();
                 Intent intent = new Intent(getActivity(), LoginActivity.class);
                 startActivity(intent);
@@ -158,6 +169,24 @@ public class UserHomeFragment extends Fragment {
         });
         initView();
         return view;
+    }
+
+    /**
+     * 带 Bearer 头加载服务端头像（服务端全面强制 JWT 后，Glide 需显式附 Authorization）。
+     * 用 GlideUrl + LazyHeaderFactory 在每次请求时动态取最新 token（刷新后依然有效）。
+     */
+    private void loadAvatarWithAuth(String url) {
+        com.bumptech.glide.load.model.GlideUrl glideUrl =
+                new com.bumptech.glide.load.model.GlideUrl(url, () -> {
+                    java.util.Map<String, String> headers = new java.util.HashMap<>();
+                    String token = InnerSettingsManager.getStoredAccessToken();
+                    if (token != null && !token.isEmpty()) {
+                        headers.put("Authorization", "Bearer " + token);
+                    }
+                    return headers;
+                });
+        Glide.with(this).load(glideUrl).placeholder(R.drawable.default_avatar)
+                .error(R.drawable.default_avatar).circleCrop().into(userAvatar);
     }
 
     private void initView() {
@@ -273,11 +302,9 @@ public class UserHomeFragment extends Fragment {
                         nickNameText.setText(nickName);
                         Log.i("avatarUrl", "--------" + avatarUrl);
                         if (!Objects.equals(avatarUrl, "default_avatar_url")) {
-                            // 加载用户头像
-                            Glide.with(requireContext()).load(ApiConstants.getFullUrl(
-                                    "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId))))
-                                    .placeholder(R.drawable.default_avatar).error(R.drawable.default_avatar)
-                                    .circleCrop().into(userAvatar);
+                            // 加载用户头像（带 Bearer，服务端强制 JWT）
+                            loadAvatarWithAuth(ApiConstants.getFullUrl(
+                                    "/auth/avatar/{userId}".replace("{userId}", String.valueOf(userId))));
                         }
                         break;
 

@@ -27,6 +27,14 @@ public interface AuthApi {
     Call<ResponseBody> register(@Header("phone") String phone, @Header("password") String password,
             @Header("nickname") String nickname, @Header("avatarUrl") String avatarUrl);
 
+    /** POST /auth/refresh  Header: refreshToken（无 body） */
+    @POST("auth/refresh")
+    Call<ResponseBody> refresh(@Header("refreshToken") String refreshToken);
+
+    /** POST /auth/logout  身份取自 Bearer access token（服务端吊销当前刷新链） */
+    @POST("auth/logout")
+    Call<ResponseBody> logout();
+
     /** GET /auth/getUserInfo  Header: userId */
     @GET("auth/getUserInfo")
     Call<ResponseBody> getUserInfo(@Header("userId") String userId);

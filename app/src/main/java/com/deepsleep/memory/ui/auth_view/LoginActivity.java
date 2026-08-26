@@ -58,10 +58,17 @@ public class LoginActivity extends AppCompatActivity {
         // try {// 删除SharedPreferences文件
         // this.deleteSharedPreferences(PREF_NAME);
         // } catch (Exception ignored) {}
-        // 检查登录状态
+        // 检查登录状态（免登录守卫：本地标记为已登录但 token 已被清除时视为未登录，
+        // 防止 401 刷新失败清 token 后陷入"已登录却全部请求失败"的死循环）
         if (innerSettingsManager.isLoggedIn() == 1 || innerSettingsManager.isLoggedIn() == 2) {
-            int userId = innerSettingsManager.getUserId();
-            startMainActivity(userId);
+            String accessToken = new com.deepsleep.memory.network.TokenStore(this).accessToken();
+            if (accessToken == null || accessToken.isEmpty()) {
+                // 无可用令牌：回退为未登录态
+                innerSettingsManager.setLoggedIn(0);
+            } else {
+                int userId = innerSettingsManager.getUserId();
+                startMainActivity(userId);
+            }
         }
 
         btnLogin.setOnClickListener(v -> performLogin());

@@ -302,7 +302,8 @@ public final class MemoryApiClient {
     /**
      * SSE / 流式响应入口：基于共享 OkHttpClient 发起 POST（application/x-www-form-urlencoded），
      * 返回可流式读取的 Response（调用方负责 close）。失败抛 IOException。
-     * 与历史裸 HttpURLConnection SSE 一致，不附带 Bearer（身份经调用方 Header 传递）。
+     * 服务端全面强制 JWT 后附带 Bearer access token（过期时服务端返回 401，
+     * 调用方按失败流处理；正常刷新由 Retrofit 栈 Authenticator 承担）。
      */
     public static Response postStream(String url, Map<String, String> headers, Map<String, String> formParams)
             throws IOException {
@@ -318,16 +319,16 @@ public final class MemoryApiClient {
                 b.header(e.getKey(), e.getValue());
             }
         }
-        return client().newCall(b.build()).execute();
+        return client().newCall(auth(b).build()).execute();
     }
 
     /**
-     * POST JSON → 下载 WAV 音频到本地文件，返回文件路径（与历史一致：不附带 Bearer）。
+     * POST JSON → 下载 WAV 音频到本地文件，返回文件路径（附带 Bearer access token）。
      */
     public static String downloadWav(String urlString, JSONObject jsonParam, Context context) {
         try {
             Request.Builder b = new Request.Builder().url(urlString).post(jsonBody(jsonParam));
-            try (Response r = client().newCall(b.build()).execute()) {
+            try (Response r = client().newCall(auth(b).build()).execute()) {
                 if (r.code() == 200 && r.body() != null) {
                     File dir = new File(context.getExternalFilesDir(null), "Audio");
                     if (!dir.exists()) {
@@ -341,6 +342,48 @@ public final class MemoryApiClient {
                         fos.close();
                     }
                     return outFile.getAbsolutePath();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * GET + Bearer → 下载远程媒体（听写音频 / 对话音频等）到本地 Audio 目录，返回文件路径。
+     * 服务端对 /tts-audio/** 等资源强制 JWT 后，MediaPlayer 无法直接带头播放，
+     * 统一走"先鉴权下载到本地、再播本地文件"的模式。失败返回 null。
+     */
+    public static String downloadMediaFile(String urlString, Context context) {
+        try {
+            Request.Builder b = new Request.Builder().url(urlString).get();
+            try (Response r = client().newCall(auth(b).build()).execute()) {
+                if (r.code() == 200 && r.body() != null) {
+                    File dir = new File(context.getExternalFilesDir(null), "Audio");
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                    }
+                    String name = Uri.parse(urlString).getLastPathSegment();
+                    if (name == null || name.isEmpty()) {
+                        name = "media_" + System.currentTimeMillis() + ".wav";
+                    }
+                    File outFile = new File(dir, System.currentTimeMillis() + "_" + name);
+                    FileOutputStream fos = new FileOutputStream(outFile);
+                    try {
+                        try (InputStream in = r.body().byteStream()) {
+                            byte[] buf = new byte[16 * 1024];
+                            int n;
+                            while ((n = in.read(buf)) != -1) {
+                                fos.write(buf, 0, n);
+                            }
+                        }
+                    } finally {
+                        fos.close();
+                    }
+                    return outFile.getAbsolutePath();
+                } else {
+                    Log.e("MemoryApiClient", "downloadMediaFile 失败: HTTP " + r.code() + " " + urlString);
                 }
             }
         } catch (Exception e) {
@@ -386,34 +429,49 @@ public final class MemoryApiClient {
                     .build());
         };
 
+        // 单飞刷新锁：App 启动时多个请求并行 401，若各自触发刷新，同一旧 refreshToken
+        // 并发到达服务端会触发轮换竞态（输家被判定复用→整链吊销→本地令牌被清→强制重新登录）。
+        // 加锁 + 双检后同一时刻只有一个线程真正刷新，其余线程直接复用刚刷新出的新 token 重放。
+        final Object refreshLock = new Object();
+
         Authenticator authenticator = (Route route, Response response) -> {
             if (responseCount(response) >= 2) {
                 return null;
             }
-            String refreshToken = tokenStore.refreshToken();
-            if (refreshToken.isEmpty()) {
-                return null;
-            }
-            try (okhttp3.Response refreshResponse = bareClient.newCall(
-                    new Request.Builder().url(ApiConstants.getFullUrl("/auth/refresh"))
-                            .header("refreshToken", refreshToken).post(okhttp3.RequestBody.create(new byte[0]))
-                            .build())
-                    .execute()) {
-                if (!refreshResponse.isSuccessful() || refreshResponse.body() == null) {
-                    tokenStore.clear();
+            synchronized (refreshLock) {
+                // 双检：并发场景下其他线程可能已完成刷新——直接用最新 token 重放原请求
+                String latestAccess = tokenStore.accessToken();
+                String failedToken = bearerTokenOf(response.request().header("Authorization"));
+                if (!latestAccess.isEmpty() && !latestAccess.equals(failedToken)) {
+                    return response.request().newBuilder()
+                            .header("Authorization", "Bearer " + latestAccess).build();
+                }
+
+                String refreshToken = tokenStore.refreshToken();
+                if (refreshToken.isEmpty()) {
                     return null;
                 }
-                JSONObject json = new JSONObject(refreshResponse.body().string());
-                if (!"200".equals(json.optString("code"))) {
-                    tokenStore.clear();
+                try (okhttp3.Response refreshResponse = bareClient.newCall(
+                        new Request.Builder().url(ApiConstants.getFullUrl("/auth/refresh"))
+                                .header("refreshToken", refreshToken).post(okhttp3.RequestBody.create(new byte[0]))
+                                .build())
+                        .execute()) {
+                    if (!refreshResponse.isSuccessful() || refreshResponse.body() == null) {
+                        tokenStore.clear();
+                        return null;
+                    }
+                    JSONObject json = new JSONObject(refreshResponse.body().string());
+                    if (!"200".equals(json.optString("code"))) {
+                        tokenStore.clear();
+                        return null;
+                    }
+                    String access = json.optString("access_token");
+                    String refresh = json.optString("refresh_token", refreshToken);
+                    tokenStore.save(access, refresh);
+                    return response.request().newBuilder().header("Authorization", "Bearer " + access).build();
+                } catch (Exception e) {
                     return null;
                 }
-                String access = json.optString("access_token");
-                String refresh = json.optString("refresh_token", refreshToken);
-                tokenStore.save(access, refresh);
-                return response.request().newBuilder().header("Authorization", "Bearer " + access).build();
-            } catch (Exception e) {
-                return null;
             }
         };
 
@@ -438,5 +496,13 @@ public final class MemoryApiClient {
             result++;
         }
         return result;
+    }
+
+    /** 从 Authorization 头提取 Bearer token（无头或格式不符返回空串），供刷新双检比对 */
+    private static String bearerTokenOf(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return "";
+        }
+        return authorization.substring(7).trim();
     }
 }

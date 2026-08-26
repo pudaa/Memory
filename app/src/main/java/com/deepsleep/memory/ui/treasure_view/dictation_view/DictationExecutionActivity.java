@@ -336,6 +336,9 @@ public class DictationExecutionActivity extends AppCompatActivity {
         }
     }
 
+    /** 音频本地缓存：audioUrl → 本地文件路径（服务端强制 JWT 后统一先下载后播） */
+    private final java.util.Map<String, String> audioCache = new java.util.HashMap<>();
+
     private void playAudio() {
         DictationModels.DictationItem item = items.get(currentIndex);
         String audioUrl = item.audioUrl;
@@ -347,13 +350,38 @@ public class DictationExecutionActivity extends AppCompatActivity {
             return;
         }
 
+        // 命中本地缓存直接播放
+        String cachedPath = audioCache.get(audioUrl);
+        if (cachedPath != null && new File(cachedPath).exists()) {
+            startPlayback(cachedPath);
+            return;
+        }
+
+        // 服务端对音频资源强制 JWT：MediaPlayer 无法附带请求头，
+        // 统一走"带 Bearer 下载到本地 → 播本地文件"模式
         progressAudio.setVisibility(View.VISIBLE);
         isPlaying = true;
+        new Thread(() -> {
+            final String localPath = MemoryApiClient.downloadMediaFile(audioUrl, this);
+            runOnUiThread(() -> {
+                if (localPath == null) {
+                    isPlaying = false;
+                    progressAudio.setVisibility(View.GONE);
+                    Toast.makeText(this, "音频下载失败，请检查网络", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                audioCache.put(audioUrl, localPath);
+                startPlayback(localPath);
+            });
+        }, "dictation-audio-download").start();
+    }
 
+    /** 播放本地音频文件（含自动重播与错误处理） */
+    private void startPlayback(String filePath) {
         try {
             releaseMediaPlayer();
             mediaPlayer = new MediaPlayer();
-            mediaPlayer.setDataSource(audioUrl);
+            mediaPlayer.setDataSource(filePath);
             mediaPlayer.prepareAsync();
 
             mediaPlayer.setOnPreparedListener(mp -> {
