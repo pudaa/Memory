@@ -37,7 +37,7 @@ public class TreasureBoxFragment extends Fragment {
         pronunciationSection = view.findViewById(R.id.pronunciation_section);
         pronunciationSection.setOnClickListener(v -> openPronunciationMenu());
 
-        // 添加学情分析功能的点击事件 (第二行第一个卡片 "学情分析")
+        // 添加学习报告功能的点击事件 (第二行第一个卡片 "学习报告")
         evaluationSection = view.findViewById(R.id.evaluation_section);
         if (evaluationSection != null) {
             evaluationSection.setOnClickListener(v -> openEvaluationDashboard());

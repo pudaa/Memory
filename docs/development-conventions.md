@@ -163,7 +163,7 @@
 |---------|---------|------|---------|
 | **对话框** | `dialog_<功能>` | `dialog_ocr_progress`（OCR 进度对话框） | `AlertDialog` / `DialogFragment` 的内容布局 |
 | **底部弹层** | `sheet_<功能>` | `sheet_scenario_picker`（场景选择弹层） | `BottomSheetDialog` / `BottomSheetDialogFragment` 内容布局 |
-| **Tab 子页面** | `<模块>_page_<名称>` | `evaluation_page_overview`（学情分析概览 Tab） | ViewPager2 / TabLayout 内嵌的子页面（非独立 Activity） |
+| **Tab 子页面** | `<模块>_page_<名称>` | `evaluation_page_overview`（学习报告概览 Tab） | ViewPager2 / TabLayout 内嵌的子页面（非独立 Activity） |
 | **自定义 View / 可复用组件** | `view_<名称>` | `view_bottom_nav` | 自定义控件类 inflate 到自己；或被 `<include>` / 工厂类复用的组件 |
 
 #### 3.8.3 禁止写法（红线）
@@ -206,7 +206,7 @@
 | 文件 | 来源 |
 |------|------|
 | `item_trend_day.xml` / `item_trend_legend.xml` / `item_trend_row.xml` | 已删除的旧 `EvaluationTrendActivity` 遗留 |
-| `item_mastery_bar.xml` | 旧学情分析遗留 |
+| `item_mastery_bar.xml` | 旧学习报告遗留 |
 | `item_section_header.xml` | 历史遗留 |
 | `word_card_layout.xml` | 旧单词卡片基础布局遗留 |
 

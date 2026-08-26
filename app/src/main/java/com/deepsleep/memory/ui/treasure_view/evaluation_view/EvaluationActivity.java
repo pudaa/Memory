@@ -54,7 +54,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 学情分析 — 统一入口页 三个 Tab：学习概览 | 深度分析 | AI建议 融合了原有的 Dashboard / Trend / Weekly /
+ * 学习报告 — 统一入口页 三个 Tab：学习概览 | 深度分析 | AI建议 融合了原有的 Dashboard / Trend / Weekly /
  * DeepAnalysis / AiSuggestion
  */
 public class EvaluationActivity extends AppCompatActivity {

@@ -32,7 +32,7 @@
                 android:exported="false"/>
         <activity
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationMinuteFollowActivity"
-                android:exported="false"/>        <!-- 学情分析模块 -->
+                android:exported="false"/>        <!-- 学习报告模块 -->
         <activity
                 android:name=".ui.treasure_view.evaluation_view.EvaluationActivity"
                 android:exported="false"
