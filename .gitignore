@@ -69,3 +69,6 @@ gen-external-apk/
 .github/
 .codegraph/
 reasonix.toml
+
+# Local scripts & test utilities (not for version control)
+scripts/
