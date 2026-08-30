@@ -64,5 +64,8 @@ gen-external-apk/
 *.hprof
 
 
-# AI
+# AI editor generated folders (auto-generated, not for version control)
+.reasonix/
+.github/
+.codegraph/
 reasonix.toml
