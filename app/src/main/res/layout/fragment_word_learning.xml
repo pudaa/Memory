@@ -99,8 +99,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="3dp"
+        android:layout_marginTop="-9dp"
+        android:layout_marginBottom="4dp"
         android:visibility="gone" />
 
 </LinearLayout>
