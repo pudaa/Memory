@@ -23,7 +23,7 @@ public final class ApiConstants {
     public enum Environment { DEV, TEST, PROD }
 
     /** 默认环境：DEV（局域网直连调试；正式回归可改回 TEST，见类注释） */
-    private static volatile Environment currentEnv = Environment.DEV;
+    private static volatile Environment currentEnv = Environment.TEST;
 
     /** 网络共享线程池：全部网络 IO（含 SSE 流式、轮询、重试）在此执行 */
     private static final ExecutorService NETWORK_EXECUTOR;
