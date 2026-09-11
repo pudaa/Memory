@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.lexicon.db.LexiconBookEntity;
 import com.deepsleep.memory.handle_utils.lexicon.db.LexiconDatabase;
+import com.deepsleep.memory.settings.InnerSettingsManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -55,6 +56,12 @@ public class LexiconResourceMap {
             Log.e("LexiconResourceMap", "词书在数据库中不存在: " + lexiconId);
         } else {
             validatedLexiconId = lexiconId;
+            // 落盘当前词书 ID：词书内容已在本地 Room 库，仅 ID 需要持久化，
+            // 以便离线时词书浏览仍可恢复（见 restoreCachedLexicon）
+            int userId = InnerSettingsManager.getInstance(appContext).getUserId();
+            if (userId > 0) {
+                InnerSettingsManager.getInstance(appContext).saveCurrentLexiconId(userId, lexiconId);
+            }
             Log.d("LexiconResourceMap", "词书就绪(SQLite): " + lexiconId + ", 共 " + count + " 个单词");
         }
     }
@@ -103,6 +110,37 @@ public class LexiconResourceMap {
 
     public static String getLoadedLexiconName() {
         return specifiedLexiconId;
+    }
+
+    /**
+     * 离线恢复当前词书：读取持久化的词书 ID 并在本地库校验。
+     * 全程无网络请求——词书内容本就在本地 Room 库，断网时同样可阅览。
+     *
+     * @return 恢复成功的词书 ID；无缓存或本地不存在该书时返回 ""，
+     *         由调用方决定后续回退策略（本地词书列表 / 提示）
+     */
+    @NonNull
+    public static String restoreCachedLexicon(@NonNull Context context) {
+        if (appContext == null) {
+            appContext = context.getApplicationContext();
+        }
+        int userId = InnerSettingsManager.getInstance(appContext).getUserId();
+        if (userId <= 0) {
+            return "";
+        }
+        String cached = InnerSettingsManager.getInstance(appContext).getCurrentLexiconId(userId);
+        if (cached == null || cached.isEmpty()) {
+            return "";
+        }
+        int count = LexiconDatabase.getInstance(appContext).wordDao().getWordCountByBookId(cached);
+        if (count == 0) {
+            Log.w("LexiconResourceMap", "缓存词书在本地库不存在: " + cached);
+            return "";
+        }
+        specifiedLexiconId = cached;
+        validatedLexiconId = cached;
+        Log.d("LexiconResourceMap", "离线恢复词书: " + cached + ", 共 " + count + " 个单词");
+        return cached;
     }
 
     /**

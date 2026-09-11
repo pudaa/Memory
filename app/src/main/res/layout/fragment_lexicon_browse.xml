@@ -42,6 +42,19 @@
             android:textColor="@color/middle_gray" />
     </LinearLayout>
 
+    <!-- 离线提示：使用缓存词书时显示（在线时不出现） -->
+    <TextView
+        android:id="@+id/tv_offline_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:text="离线模式 · 显示上次学习的词书"
+        android:textSize="12sp"
+        android:textColor="@color/theme_text_secondary"
+        android:visibility="gone" />
+
     <!-- 列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view"

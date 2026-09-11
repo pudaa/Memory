@@ -34,11 +34,16 @@ public class InnerSettingsManager { // 内部信息记录器
     private static final String PREF_PRONUNCIATION = "pronunciation_daily_scores";
     private static final String KEY_SCORE_PREFIX = "scores_";
 
+    // ── 当前词书（离线可用：词书内容在本地 Room，仅"当前词书 ID"需持久化）──
+    private static final String PREF_STUDY = "StudyPrefs";
+    private static final String KEY_CURRENT_LEXICON = "current_lexicon_";
+
     private static InnerSettingsManager instance;
     private final SharedPreferences sharedPreferences;
     private final SharedPreferences dailyPrefs;
     private final SharedPreferences compositionPrefs;
     private final SharedPreferences pronunciationPrefs;
+    private final SharedPreferences studyPrefs;
     private final List<UserSettingsManager.OnSettingsChangedListener> listeners = new ArrayList<>();
 
     private InnerSettingsManager(Context context) {
@@ -46,6 +51,7 @@ public class InnerSettingsManager { // 内部信息记录器
         dailyPrefs = context.getSharedPreferences(PREF_DAILY, Context.MODE_PRIVATE);
         compositionPrefs = context.getSharedPreferences(PREF_COMPOSITION, Context.MODE_PRIVATE);
         pronunciationPrefs = context.getSharedPreferences(PREF_PRONUNCIATION, Context.MODE_PRIVATE);
+        studyPrefs = context.getSharedPreferences(PREF_STUDY, Context.MODE_PRIVATE);
     }
 
     public static synchronized InnerSettingsManager getInstance(Context context) {
@@ -184,6 +190,22 @@ public class InnerSettingsManager { // 内部信息记录器
     /** 删除指定日期的发音成绩 */
     public void removePronunciationScores(String date) {
         pronunciationPrefs.edit().remove(KEY_SCORE_PREFIX + date).apply();
+    }
+
+    // ==================== 当前词书（离线可用，按 userId 隔离） ====================
+
+    /**
+     * 保存当前词书 ID。
+     * 学习页从服务端任务拿到词书 ID 后落盘，离线时词书浏览据此恢复
+     * （词书内容本身已存于本地 Room 库）。
+     */
+    public void saveCurrentLexiconId(int userId, String lexiconId) {
+        studyPrefs.edit().putString(KEY_CURRENT_LEXICON + userId, lexiconId).apply();
+    }
+
+    /** 读取当前词书 ID（无则返回 ""） */
+    public String getCurrentLexiconId(int userId) {
+        return studyPrefs.getString(KEY_CURRENT_LEXICON + userId, "");
     }
 
 
