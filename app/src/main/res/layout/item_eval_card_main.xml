@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 仪表盘概览「辅助小卡」：白底圆角描边，数字 15sp（主卡 item_eval_card_main 为 26sp） -->
+<!--
+    学习概览「主卡」：承载每日行动项（今日已学 / 待复习），
+    数字 26sp 加大以区分于下方四张辅助小卡（item_eval_card）。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="0dp"
-    android:layout_height="72dp"
+    android:layout_height="96dp"
     android:layout_weight="1"
-    android:layout_margin="3dp"
+    android:layout_margin="4dp"
     android:background="@drawable/bg_eval_stat_card"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="4dp">
+    android:padding="6dp">
 
     <TextView
         android:id="@+id/tv_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="--"
-        android:textSize="15sp"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:textColor="@color/theme_stress" />
 
@@ -24,7 +27,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="标签"
-        android:textSize="11sp"
+        android:textSize="13sp"
         android:textColor="@color/theme_text_secondary"
-        android:layout_marginTop="2dp" />
+        android:layout_marginTop="3dp" />
 </LinearLayout>

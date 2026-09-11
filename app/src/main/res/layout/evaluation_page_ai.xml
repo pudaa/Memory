@@ -58,9 +58,10 @@
                 android:background="@drawable/section_divider_line" />
         </LinearLayout>
 
+        <!-- 整体评价：引用式竖条卡，给总评一个视觉锚点 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:background="@drawable/card_round_bg" android:elevation="1dp"
+            android:background="@drawable/bg_quote_card" android:elevation="1dp"
             android:padding="16dp" android:layout_marginBottom="12dp">
             <TextView android:id="@+id/tv_overall_assessment"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -69,6 +70,7 @@
         </LinearLayout>
 
         <!-- ── 学习强度 + 趋势 ── -->
+        <!-- 强度 / 趋势：label 与值竖排居中，长文案居中换行 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:baselineAligned="false"
@@ -81,7 +83,8 @@
                     android:text="学习强度" android:textSize="13sp" android:textColor="@color/theme_text_secondary" />
                 <TextView android:id="@+id/tv_intensity_level"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="--" android:textSize="16sp" android:textStyle="bold" />
+                    android:gravity="center"
+                    android:text="--" android:textSize="15sp" android:textStyle="bold" />
             </LinearLayout>
             <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:background="@drawable/card_round_bg" android:elevation="1dp"
@@ -91,7 +94,8 @@
                     android:text="趋势" android:textSize="13sp" android:textColor="@color/theme_text_secondary" />
                 <TextView android:id="@+id/tv_trend"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="--" android:textSize="16sp" android:textStyle="bold" />
+                    android:gravity="center"
+                    android:text="--" android:textSize="15sp" android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
@@ -108,9 +112,10 @@
                 android:background="@drawable/section_divider_line" />
         </LinearLayout>
 
+        <!-- 薄弱分析：引用式竖条卡（诊断类信息） -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:background="@drawable/card_round_bg" android:elevation="1dp"
+            android:background="@drawable/bg_quote_card" android:elevation="1dp"
             android:padding="16dp" android:layout_marginBottom="12dp">
             <TextView android:id="@+id/tv_weakness_analysis"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -131,11 +136,12 @@
                 android:background="@drawable/section_divider_line" />
         </LinearLayout>
 
+        <!-- 个性化建议：竖条卡 + 加大内边距，缓解多段文字的压迫感 -->
         <LinearLayout
             android:id="@+id/suggestions_layout"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:background="@drawable/card_round_bg" android:elevation="1dp"
-            android:orientation="vertical" android:padding="8dp"
+            android:background="@drawable/bg_quote_card" android:elevation="1dp"
+            android:orientation="vertical" android:padding="14dp"
             android:layout_marginBottom="12dp" />
 
         <!-- ── 推荐设置 ── -->
@@ -156,25 +162,28 @@
             android:background="@drawable/card_round_bg" android:elevation="1dp"
             android:orientation="vertical" android:padding="16dp"
             android:layout_marginBottom="12dp">
+            <!-- 两组 label/value：竖排（原缺失 orientation，默认横排导致标签与长值挤压错位） -->
             <LinearLayout
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal" android:baselineAligned="false">
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:gravity="center" android:padding="8dp">
+                    android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="学习模式" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
                     <TextView android:id="@+id/tv_recommended_mode"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="--" android:textSize="18sp" android:textStyle="bold"
+                        android:gravity="center"
+                        android:text="--" android:textSize="16sp" android:textStyle="bold"
                         android:textColor="@color/theme_stress" />
                 </LinearLayout>
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:gravity="center" android:padding="8dp">
+                    android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="每日新词" android:textSize="12sp" android:textColor="@color/theme_text_secondary" />
                     <TextView android:id="@+id/tv_suggested_daily_new_words"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="--" android:textSize="18sp" android:textStyle="bold"
+                        android:gravity="center"
+                        android:text="--" android:textSize="16sp" android:textStyle="bold"
                         android:textColor="@color/theme_stress" />
                 </LinearLayout>
             </LinearLayout>

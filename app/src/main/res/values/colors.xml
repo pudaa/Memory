@@ -83,4 +83,8 @@
     <color name="score_poor">#FFF44336</color>
     <color name="score_pending">#FF9E9E9E</color>
 
+    <!-- ===== 通用卡片描边（淡蓝 1dp，卡片语言的一部分） ===== -->
+    <color name="card_stroke_soft">#1A82B0DA</color>
+    <color name="card_accent_overlay">#3382B0DA</color>
+
 </resources>

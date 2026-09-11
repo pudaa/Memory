@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    引用式文本卡：白圆角容器 + 左侧主题色竖条（blockquote 语言）。
+    用于 AI 建议 Tab 的整段文本（整体评价 / 薄弱分析 / 个性化建议），
+    用视觉锚点降低纯文本的压迫感。
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="14dp" />
+            <solid android:color="@color/card_background" />
+        </shape>
+    </item>
+    <item
+        android:width="4dp"
+        android:left="0dp"
+        android:top="12dp"
+        android:bottom="12dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/theme_stress" />
+        </shape>
+    </item>
+</layer-list>

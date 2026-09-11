@@ -89,4 +89,8 @@
     <color name="score_partial">#FFFFB74D</color>
     <color name="score_poor">#FFEF5350</color>
     <color name="score_pending">#FF8E8E9E</color>
+
+    <!-- ===== 通用卡片描边 ===== -->
+    <color name="card_stroke_soft">#337FB6E0</color>
+    <color name="card_accent_overlay">#334A6FA5</color>
 </resources>
