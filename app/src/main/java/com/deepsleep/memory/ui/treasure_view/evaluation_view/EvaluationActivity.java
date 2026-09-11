@@ -677,13 +677,15 @@ public class EvaluationActivity extends AppCompatActivity {
                 tvOverallAssessment.setText(data.optString("overallAssessment", "暂无评估"));
 
                 String intensity = data.optString("intensityLevel", "appropriate");
+                // 只呈现强度评价本身；"是否加量/放缓"的行动建议由 AI 正文统一给出，
+                // 避免规则侧与 AI 产出语义冲突（如 AI 说"不急于加量"而规则栏显示"可加大新词量"）。
                 switch (intensity) {
                 case "too_light":
-                    tvIntensityLevel.setText("强度偏低，可加大新词量");
+                    tvIntensityLevel.setText("强度偏低");
                     tvIntensityLevel.setTextColor(getErrorColor());
                     break;
                 case "too_heavy":
-                    tvIntensityLevel.setText("强度偏高，建议放缓");
+                    tvIntensityLevel.setText("强度偏高");
                     tvIntensityLevel.setTextColor(getErrorColor());
                     break;
                 default:

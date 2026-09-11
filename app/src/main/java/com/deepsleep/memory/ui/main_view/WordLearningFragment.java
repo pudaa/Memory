@@ -12,9 +12,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 import androidx.fragment.app.Fragment;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.UserSettingsManager;
+import com.deepsleep.memory.ui.components.CardProgressTrack;
 import com.deepsleep.memory.ui.extra_view.plan_view.PlanCheckActivity;
 import com.deepsleep.memory.ui.extra_view.word_search_view.SearchingActivity;
 import com.deepsleep.memory.handle_utils.lexicon.LexiconResourceMap;
@@ -40,6 +43,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private TextView tvDayCount;
     private ImageButton btnPlan;
     private ImageButton btnSearch;
+    private CardProgressTrack progressTrack;
 
     String lexiconId;
     private String studyMode;
@@ -174,6 +178,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         summaryBuilder = new SummaryCardBuilder(requireContext());
 
         tvDayCount = view.findViewById(R.id.tv_day_count);
+        progressTrack = view.findViewById(R.id.card_progress_track);
         btnPlan = view.findViewById(R.id.btn_plan);
         btnSearch = view.findViewById(R.id.btn_search);
 
@@ -181,6 +186,9 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         btnSearch.setOnClickListener(v -> openSearch());
 
         cardContainer = view.findViewById(R.id.word_card_container);
+        // 点击 / 拖动轨道快速跳到对应卡片。
+        // 方法引用求值时会对 cardContainer 做非空检查，必须放在其 findViewById 之后
+        progressTrack.setOnSeekListener(cardContainer::showCardAtIndex);
         if (cardContainer != null) {
             cardContainer.setOnCardSwipedListener(this);
             dailyState.loadFromPrefs();
@@ -267,17 +275,41 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     private void updateTitleBar() {
         if (tvDayCount != null) {
-            if (studyDay > 0) {
-                if (reviewLimit > 0) {
-                    // 方案B：展示每日复习进度（今日已完成/上限），直观体现"每日累计封顶"
-                    tvDayCount.setText("Day " + studyDay + " · 复习 " + reviewsDoneToday + "/" + reviewLimit);
-                } else {
-                    tvDayCount.setText("Day " + studyDay);
-                }
-            } else {
-                tvDayCount.setText("水滴记忆");
-            }
+            // 顶部回归纯日期。学习进度由卡片下方的分段进度轨道承载
+            // （复习/新学以颜色区分，当前卡以游标呈现）
+            tvDayCount.setText(studyDay > 0 ? "Day " + studyDay : "水滴记忆");
         }
+    }
+
+    // ==================== 卡片进度轨道 ====================
+
+    /** 组装每段最终颜色：色相区分复习（蓝）/新学（橙），未完成段降透明度 */
+    private int[] buildSegmentColors() {
+        int reviewColor = ContextCompat.getColor(requireContext(), R.color.theme_stress);
+        int newColor = ContextCompat.getColor(requireContext(), R.color.score_partial);
+        int[] colors = new int[wordCards.size()];
+        for (int i = 0; i < colors.length; i++) {
+            WordCard wc = wordCards.get(i);
+            int base = wc.isNewList ? newColor : reviewColor;
+            colors[i] = wc.isOperated ? base : ColorUtils.setAlphaComponent(base, 70);
+        }
+        return colors;
+    }
+
+    /** 数据或完成状态变化后刷新进度轨道；总结态（无可学卡片）下隐藏 */
+    private void refreshProgressTrack() {
+        if (progressTrack == null) {
+            return;
+        }
+        if (wordCards.isEmpty()) {
+            // 今日已全部完成、容器展示总结卡时，进度轨道没有可表达的信息，
+            // 直接隐藏（否则空轨道 + 中央悬空游标很怪）
+            progressTrack.setVisibility(View.GONE);
+            return;
+        }
+        progressTrack.setVisibility(View.VISIBLE);
+        progressTrack.setSegments(buildSegmentColors());
+        progressTrack.setCurrentIndex(Math.max(currentCardIndex, 0));
     }
 
     private void showLearningPlan() {
@@ -438,6 +470,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         if (buildNextCardViewBatch(CARD_BUILD_INITIAL_COUNT)) {
             cardBuildHandler.post(this::buildRemainingCardViews);
         }
+        refreshProgressTrack();
     }
 
     /**
@@ -549,6 +582,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             reviewsDoneToday++;
             updateTitleBar();
         }
+        refreshProgressTrack();
         checkAllCompleted();
 
         // 生成客户端提交幂等键：正常提交与补传共用，服务端据此去重（防止重复推进 FSRS）
@@ -729,6 +763,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             cardContainer.addCard(summaryView);
         }
         Log.i("StudyLog", "[总结卡片] 已添加 (词书=" + lexiconId + ")");
+        // 总结态刷新进度轨道：学习中完成 → 满格；重启恢复的总结态（wordCards 为空）→ 隐藏
+        refreshProgressTrack();
     }
 
     private void moveToNextCard() {
@@ -749,6 +785,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             wordCard.resetExerciseState();
             // 渐进式构建兜底：快翻到已构建末尾时补建下一批
             ensureNextCardsBuilt();
+            refreshProgressTrack();
         }
     }
 
