@@ -14,17 +14,18 @@
         android:orientation="vertical"
         android:background="@color/theme_surface">
 
-        <!-- 标题栏 -->
+        <!-- 标题栏：背景走 chat_toolbar_bg（原为 @color/white，暗色下依赖 white 反转，属隐式约定） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:background="@color/white"
+            android:background="@color/chat_toolbar_bg"
             android:orientation="horizontal"
             android:paddingStart="4dp"
             android:paddingEnd="12dp"
-            android:gravity="center_vertical"
-            android:elevation="4dp">
+            android:gravity="center_vertical">
 
+            <!-- 返回按钮：back.png 是早期手绘位图资产，属美术基调的一部分，
+                 不纳入本次矢量替换范围（待原始工程文件导出 SVG 后再统一处理） -->
             <ImageButton
                 android:id="@+id/btn_back"
                 android:layout_width="44dp"
@@ -32,7 +33,8 @@
                 android:src="@drawable/back"
                 android:padding="10dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:scaleType="fitCenter" />
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/nav_back" />
 
             <TextView
                 android:layout_width="0dp"
@@ -48,12 +50,19 @@
                 android:id="@+id/btn_sessions"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
-                android:src="@drawable/baseline_chat_24"
-                android:padding="10dp"
+                android:src="@drawable/ic_history_24"
+                android:padding="11dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:scaleType="fitCenter"
-                android:tint="@color/theme_text_primary" />
+                android:tint="@color/theme_primary"
+                android:contentDescription="历史会话" />
         </LinearLayout>
+
+        <!-- 标题栏分隔线：替代原来 4dp elevation 的生硬投影 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="@color/chat_divider" />
 
         <!-- 模式标签栏（默认隐藏，场景/话题模式时显示） -->
         <LinearLayout
@@ -100,8 +109,8 @@
                 android:id="@+id/rvConversation"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 android:clipToPadding="false"
@@ -115,37 +124,109 @@
                 android:layout_gravity="center"
                 android:visibility="gone"
                 android:indeterminateTint="@color/theme_primary" />
+
+            <!-- 空状态：原先该状态是整屏留白 -->
+            <LinearLayout
+                android:id="@+id/layoutEmptyState"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingStart="48dp"
+                android:paddingEnd="48dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:background="@drawable/bg_chat_empty_circle"
+                    android:padding="26dp"
+                    android:src="@drawable/ic_forum_24"
+                    android:tint="@color/theme_primary"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="还没有对话记录"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textColor="@color/theme_text_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="选一个场景，或直接输入开始英语对话"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="2dp"
+                    android:textColor="@color/theme_text_secondary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEmptyScenario"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="选择场景"
+                    android:textColor="@color/chat_on_accent"
+                    app:backgroundTint="@color/theme_primary"
+                    app:cornerRadius="20dp"
+                    app:icon="@drawable/ic_theater_comedy_24"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/chat_on_accent"
+                    app:iconGravity="textStart"
+                    app:iconPadding="6dp" />
+            </LinearLayout>
         </FrameLayout>
 
+        <!-- 语音录制条：卡片化，与下方输入栏明确分层 -->
         <LinearLayout
             android:id="@+id/layoutVoiceRecord"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginBottom="8dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@color/card_background"
-            android:visibility="gone"
+            android:gravity="center"
+            android:background="@drawable/bg_chat_voice_bar"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:visibility="gone"
             android:clickable="true"
             android:focusable="true">
-            <View
-                android:id="@+id/voiceWave"
-                android:layout_width="0dp"
-                android:layout_height="24dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_voice_wave_placeholder"/>
+
+            <ImageView
+                android:id="@+id/ivVoiceWave"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_graphic_eq_24"
+                android:tint="@color/chat_wave_idle"
+                android:scaleType="fitCenter"
+                android:contentDescription="@null" />
+
             <TextView
                 android:id="@+id/tvVoiceHint"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:text="点击录音"
                 android:textAppearance="?attr/textAppearanceBodyMedium"
                 android:textColor="@color/theme_primary"
-                android:textStyle="bold"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="8dp"/>
+                android:textStyle="bold" />
         </LinearLayout>
+
+        <!-- 输入栏分隔线：原先输入栏与消息区同为白底、无边界 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="@color/chat_divider" />
 
         <LinearLayout
             android:id="@+id/layoutInput"
@@ -153,33 +234,38 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="@drawable/bg_input_bar"
-            android:padding="10dp"
-            android:elevation="2dp">
+            android:background="@color/chat_input_bar_bg"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
 
             <ImageButton
                 android:id="@+id/btnInputMode"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_mic_24dp"
+                android:src="@drawable/ic_mic_24"
+                android:padding="8dp"
                 android:contentDescription="@string/switch_input_mode"
                 android:scaleType="fitCenter"
                 android:tint="@color/theme_primary" />
 
-            <!-- 场景/话题按钮 -->
+            <!-- 场景/话题按钮：原用笑脸图标（语义错配），改面具图标 -->
             <ImageButton
                 android:id="@+id/btnScenario"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_scenarios_24dp"
+                android:src="@drawable/ic_theater_comedy_24"
+                android:padding="8dp"
                 android:contentDescription="场景选择"
                 android:scaleType="fitCenter"
                 android:tint="@color/theme_primary" />
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/layoutMessageInput"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -190,7 +276,7 @@
                 app:boxCornerRadiusTopEnd="20dp"
                 app:boxCornerRadiusBottomStart="20dp"
                 app:boxCornerRadiusBottomEnd="20dp"
-                app:boxBackgroundColor="#F2F2F7"
+                app:boxBackgroundColor="@color/chat_input_bg"
                 app:hintEnabled="false">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etMessage"
@@ -211,10 +297,10 @@
                 android:id="@+id/btnSend"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_send_24dp"
+                android:src="@drawable/ic_send_24"
                 android:contentDescription="@string/send"
                 app:backgroundTint="@color/theme_primary"
-                app:tint="@color/white"
+                app:tint="@color/chat_on_accent"
                 app:fabSize="mini"
                 app:elevation="0dp"
                 app:maxImageSize="20dp"
@@ -242,19 +328,36 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="@color/theme_text_primary"
-            android:background="@color/white" />
+            android:background="@color/chat_toolbar_bg" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="0.5dp"
-            android:background="@color/light_gray" />
+            android:background="@color/chat_divider" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvSessionList"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="8dp" />
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSessionList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:clipToPadding="false"
+                android:overScrollMode="never" />
+
+            <TextView
+                android:id="@+id/tvSessionEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="暂无历史会话"
+                android:textSize="13sp"
+                android:textColor="@color/theme_text_secondary"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNewSession"
@@ -262,10 +365,9 @@
             android:layout_height="wrap_content"
             android:layout_margin="12dp"
             android:text="新建会话"
-            android:textColor="@color/white"
+            android:textColor="@color/chat_on_accent"
             app:backgroundTint="@color/theme_primary"
             app:cornerRadius="12dp" />
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
-

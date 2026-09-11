@@ -63,5 +63,10 @@
     <color name="chat_avatar_text">#FFFFFFFF</color>
     <color name="chat_empty_icon">#FFC3CCD9</color>
     <color name="chat_muted_icon">#FFB8C4D4</color>
+    <color name="chat_on_accent">#FFFFFFFF</color>
+    <color name="chat_play_bg">#1A4E9BF8</color>
+    <color name="chat_empty_bg">#0D82B0DA</color>
+    <color name="chat_record_bar_bg">#1AFF5252</color>
+    <color name="chat_record_bar_stroke">#66FF5252</color>
 
 </resources>

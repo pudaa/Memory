@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 用户气泡：右下收角（贴近发送方侧），其余 16dp -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <corners android:radius="16dp" />
-    <solid android:color="@color/theme_primary" />
+    <corners
+        android:topLeftRadius="16dp"
+        android:topRightRadius="16dp"
+        android:bottomRightRadius="4dp"
+        android:bottomLeftRadius="16dp" />
+    <solid android:color="@color/chat_bubble_user_bg" />
 </shape>

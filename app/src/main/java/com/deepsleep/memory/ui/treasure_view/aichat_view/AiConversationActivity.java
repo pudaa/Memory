@@ -11,11 +11,13 @@ import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.LayoutInflater;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -49,9 +51,14 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class AiConversationActivity extends AppCompatActivity {
@@ -65,21 +72,24 @@ public class AiConversationActivity extends AppCompatActivity {
     private static final int MSG_AUDIO_POLL_READY = 7;
     private static final int REQUEST_RECORD_AUDIO = 123;
 
-    private static final String WELCOME_TEXT = "Hello! Welcome to Memory English Learning App 🎉\n\n"
+    private static final String WELCOME_TEXT = "Hello! Welcome to Memory English Learning App.\n\n"
             + "I'm your English speaking partner. Let's chat in English only — "
             + "no matter what you say, I'll always reply in English to help you practice!\n\n"
             + "Feel free to talk about anything: your day, hobbies, studies, or any topic you like. "
-            + "I'll keep the conversation going and gently correct any mistakes. Ready? Let's start! 😊";
+            + "I'll keep the conversation going and gently correct any mistakes. Ready? Let's start!";
 
     private View coordinatorLayout;
     private RecyclerView rvConversation;
     private ProgressBar progressBar;
     private LinearLayout layoutInput;
+    private View layoutMessageInput;
+    private View layoutEmptyState;
     private ImageButton btnInputMode;
     private ImageButton btnScenario;
     private FloatingActionButton btnSend;
     private TextInputEditText etMessage;
     private LinearLayout layoutVoiceRecord;
+    private ImageView ivVoiceWave;
     private TextView tvVoiceHint;
     private DrawerLayout drawerLayout;
 
@@ -102,6 +112,7 @@ public class AiConversationActivity extends AppCompatActivity {
 
     // 侧边栏会话列表
     private RecyclerView rvSessionList;
+    private View tvSessionEmpty;
     private final List<SessionInfo> sessionList = new ArrayList<>();
     private SessionAdapter sessionAdapter;
 
@@ -119,23 +130,25 @@ public class AiConversationActivity extends AppCompatActivity {
         @NonNull
         @Override
         public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(android.R.layout.simple_list_item_2, parent,
-                    false);
+            // 改用自定义 item：系统 simple_list_item_2 的文字色不跟随明暗主题，暗色下不可读
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_session, parent, false);
             return new VH(v);
         }
 
         @Override
         public void onBindViewHolder(@NonNull VH h, int pos) {
             SessionInfo s = sessionList.get(pos);
-            h.text1.setText(s.title != null && !s.title.isEmpty() ? s.title : "会话 " + (pos + 1));
-            h.text2.setText(s.updatedTime);
+            String title = s.title != null && !s.title.isEmpty() ? s.title : "会话 " + (pos + 1);
+            h.tvTitle.setText(title);
+            h.tvTime.setText(formatSessionTime(s.updatedTime));
             h.itemView.setOnClickListener(v -> {
                 drawerLayout.closeDrawer(GravityCompat.END);
                 switchToSession(s.sessionId);
             });
             h.itemView.setOnLongClickListener(v -> {
                 new MaterialAlertDialogBuilder(AiConversationActivity.this).setTitle("删除会话")
-                        .setMessage("确定要删除「" + h.text1.getText() + "」吗？此操作不可撤销。")
+                        .setMessage("确定要删除「" + title + "」吗？此操作不可撤销。")
                         .setPositiveButton("删除", (d, w) -> deleteSession(s.sessionId, pos))
                         .setNegativeButton("取消", null).show();
                 return true;
@@ -148,14 +161,62 @@ public class AiConversationActivity extends AppCompatActivity {
         }
 
         class VH extends RecyclerView.ViewHolder {
-            TextView text1, text2;
+            TextView tvTitle, tvTime;
 
             VH(View v) {
                 super(v);
-                text1 = v.findViewById(android.R.id.text1);
-                text2 = v.findViewById(android.R.id.text2);
+                tvTitle = v.findViewById(R.id.tvSessionTitle);
+                tvTime = v.findViewById(R.id.tvSessionTime);
             }
         }
+    }
+
+    /**
+     * 把后端返回的 ISO 时间（如 2026-08-19T03:11:04）转成紧凑展示：
+     * 今天 → HH:mm，今年 → MM-dd HH:mm，更早 → yyyy-MM-dd。
+     * 解析失败时原样返回，避免后端改格式后列表整片变空。
+     */
+    private String formatSessionTime(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        try {
+            String normalized = raw.replace('T', ' ').trim();
+            int dot = normalized.indexOf('.');
+            if (dot > 0) {
+                normalized = normalized.substring(0, dot);
+            }
+            if (normalized.length() > 19) {
+                normalized = normalized.substring(0, 19);
+            }
+            Date date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(normalized);
+            if (date == null) {
+                return raw;
+            }
+            Calendar now = Calendar.getInstance();
+            Calendar then = Calendar.getInstance();
+            then.setTime(date);
+            String pattern;
+            if (now.get(Calendar.YEAR) == then.get(Calendar.YEAR)
+                    && now.get(Calendar.DAY_OF_YEAR) == then.get(Calendar.DAY_OF_YEAR)) {
+                pattern = "HH:mm";
+            } else if (now.get(Calendar.YEAR) == then.get(Calendar.YEAR)) {
+                pattern = "MM-dd HH:mm";
+            } else {
+                pattern = "yyyy-MM-dd";
+            }
+            return new SimpleDateFormat(pattern, Locale.getDefault()).format(date);
+        } catch (ParseException e) {
+            return raw;
+        }
+    }
+
+    /** 自定义 item 之后，空列表不再有系统占位提示，需要自行兜底 */
+    private void updateSessionEmptyState() {
+        if (tvSessionEmpty == null) {
+            return;
+        }
+        tvSessionEmpty.setVisibility(sessionList.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
     public static void start(Context context) {
@@ -197,9 +258,13 @@ public class AiConversationActivity extends AppCompatActivity {
         etMessage = findViewById(R.id.etMessage);
         layoutVoiceRecord = findViewById(R.id.layoutVoiceRecord);
         tvVoiceHint = findViewById(R.id.tvVoiceHint);
+        ivVoiceWave = findViewById(R.id.ivVoiceWave);
+        layoutMessageInput = findViewById(R.id.layoutMessageInput);
+        layoutEmptyState = findViewById(R.id.layoutEmptyState);
         layoutModeLabel = findViewById(R.id.layoutModeLabel);
         tvModeLabel = findViewById(R.id.tvModeLabel);
         rvSessionList = findViewById(R.id.rvSessionList);
+        tvSessionEmpty = findViewById(R.id.tvSessionEmpty);
         mAudioRecord = new MemAudioRecord();
 
         // 返回按钮
@@ -219,6 +284,9 @@ public class AiConversationActivity extends AppCompatActivity {
 
         // 场景按钮
         btnScenario.setOnClickListener(v -> showScenarioPicker());
+
+        // 空状态：「选择场景」入口
+        findViewById(R.id.btnEmptyScenario).setOnClickListener(v -> showScenarioPicker());
 
         // 退出模式按钮
         View tvExitMode = findViewById(R.id.tvExitMode);
@@ -269,6 +337,7 @@ public class AiConversationActivity extends AppCompatActivity {
                                         s.optString("updatedTime", "")));
                             }
                             sessionAdapter.notifyDataSetChanged();
+                            updateSessionEmptyState();
                         }
                     } catch (JSONException ignored) {
                     }
@@ -299,6 +368,7 @@ public class AiConversationActivity extends AppCompatActivity {
                         if (sessionList.get(i).sessionId.equals(sessionId)) {
                             sessionList.remove(i);
                             sessionAdapter.notifyItemRemoved(i);
+                            updateSessionEmptyState();
                             break;
                         }
                     }
@@ -349,6 +419,38 @@ public class AiConversationActivity extends AppCompatActivity {
         adapter = new AiConversationAdapter(messageList);
         rvConversation.setLayoutManager(new LinearLayoutManager(this));
         rvConversation.setAdapter(adapter);
+
+        // 空状态随消息列表联动：新增、删除、整体刷新都要重算
+        adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onChanged() {
+                updateEmptyState();
+            }
+
+            @Override
+            public void onItemRangeInserted(int positionStart, int itemCount) {
+                updateEmptyState();
+            }
+
+            @Override
+            public void onItemRangeRemoved(int positionStart, int itemCount) {
+                updateEmptyState();
+            }
+        });
+        updateEmptyState();
+    }
+
+    /**
+     * 无消息且不在加载中时，显示空状态引导；否则隐藏。
+     * progressBar 的可见性集中在 mainHandler 入口统一置为 GONE，刷新点见该处。
+     */
+    private void updateEmptyState() {
+        if (layoutEmptyState == null || adapter == null || progressBar == null) {
+            return;
+        }
+        boolean empty = adapter.getItemCount() == 0;
+        boolean loading = progressBar.getVisibility() == View.VISIBLE;
+        layoutEmptyState.setVisibility(empty && !loading ? View.VISIBLE : View.GONE);
     }
 
     private void setupInputArea() {
@@ -549,7 +651,13 @@ public class AiConversationActivity extends AppCompatActivity {
         layoutVoiceRecord.setVisibility(isVoiceMode ? View.VISIBLE : View.GONE);
         etMessage.setVisibility(isVoiceMode ? View.GONE : View.VISIBLE);
         btnSend.setVisibility(isVoiceMode ? View.GONE : View.VISIBLE);
-        btnInputMode.setImageResource(isVoiceMode ? R.drawable.ic_keyboard_24dp : R.drawable.ic_mic_24dp);
+        btnInputMode.setImageResource(isVoiceMode ? R.drawable.ic_keyboard_24 : R.drawable.ic_mic_24);
+
+        // 语音模式下把输入框整块收起，并让输入栏内容居中。
+        // 原实现只隐藏 EditText，外层 TextInputLayout 仍以 weight=1 占满整段宽度，
+        // 结果右侧留出一大片空白、键盘与场景图标被挤在左侧，视觉失衡。
+        layoutMessageInput.setVisibility(isVoiceMode ? View.GONE : View.VISIBLE);
+        layoutInput.setGravity(isVoiceMode ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
     }
 
     private void startVoiceRecording() {
@@ -570,11 +678,17 @@ public class AiConversationActivity extends AppCompatActivity {
             public void onRecordStart() {
                 mIsRecording = true;
                 runOnUiThread(() -> {
-                    layoutVoiceRecord.setBackgroundColor(
-                            ContextCompat.getColor(AiConversationActivity.this, R.color.theme_error));
+                    // 不再整条铺满高饱和红底：改为低饱和红底 + 红描边，
+                    // 波形图标与提示文字同步转红，保持信息层级清晰。
+                    layoutVoiceRecord.setBackgroundResource(R.drawable.bg_chat_voice_bar_recording);
+                    if (ivVoiceWave != null) {
+                        ivVoiceWave.setColorFilter(ContextCompat.getColor(
+                                AiConversationActivity.this, R.color.theme_error));
+                    }
                     if (tvVoiceHint != null) {
                         tvVoiceHint.setText("录音中…点击停止");
-                        tvVoiceHint.setTextColor(ContextCompat.getColor(AiConversationActivity.this, R.color.white));
+                        tvVoiceHint.setTextColor(ContextCompat.getColor(
+                                AiConversationActivity.this, R.color.theme_error));
                     }
                 });
             }
@@ -599,7 +713,10 @@ public class AiConversationActivity extends AppCompatActivity {
         // stopRecording 内部已做 PCM→WAV 转换，直接用 getAudioFilePath()
         String filePath = mAudioRecord.getAudioFilePath();
 
-        layoutVoiceRecord.setBackgroundColor(ContextCompat.getColor(this, R.color.white));
+        layoutVoiceRecord.setBackgroundResource(R.drawable.bg_chat_voice_bar);
+        if (ivVoiceWave != null) {
+            ivVoiceWave.setColorFilter(ContextCompat.getColor(this, R.color.chat_wave_idle));
+        }
         if (tvVoiceHint != null) {
             tvVoiceHint.setText("点击录音");
             tvVoiceHint.setTextColor(ContextCompat.getColor(this, R.color.theme_primary));
@@ -757,6 +874,7 @@ public class AiConversationActivity extends AppCompatActivity {
         @Override
         public void handleMessage(@NonNull Message msg) {
             progressBar.setVisibility(View.GONE);
+            updateEmptyState();
 
             if (msg.what == MSG_LAST_SUCCESS) {
                 String result = (String) msg.obj;
@@ -1026,7 +1144,7 @@ public class AiConversationActivity extends AppCompatActivity {
                     layoutModeLabel.setVisibility(View.GONE);
                 }
                 // 发送系统消息提示模式已切换
-                AiMessage sysMsg = AiMessage.assistant("Back to free chat mode! Feel free to talk about anything. 😊",
+                AiMessage sysMsg = AiMessage.assistant("Back to free chat mode! Feel free to talk about anything.",
                         null, -1);
                 messageList.add(sysMsg);
                 adapter.notifyItemInserted(messageList.size() - 1);

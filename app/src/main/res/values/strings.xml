@@ -40,6 +40,7 @@
     <string name="review_words">Review Words</string>
     <string name="practice_pronunciation">Practice Pronunciation</string>
     <string name="send">Send</string>
+    <string name="nav_back">Back</string>
     <!-- FSRS 学习模式 -->
     <string name="study_mode_choice">选择题模式</string>
     <string name="study_mode_input">输入题模式</string>
