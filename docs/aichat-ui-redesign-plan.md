@@ -420,11 +420,17 @@ Emoji 的实际处置：
 浅色 `s16_summary_after.png`（第一版图标）、`s17_summary_burst.png`（组合插图）、
 暗色 `s18_summary_burst_dark.png`（组合插图）—— 双模式均通过。
 
-### 8.5 本批仍未覆盖
+### 8.5 第三批收尾（同日执行完毕，commit 064a620）
 
-- 听写页 emoji（`item_dictation_summary.xml` 的 `✓ 完全掌握`、
-  `DictationGenerateActivity` 的 `✓`/`⏳`、`DictationResultActivity` 的 `✓`/`✗`）
-- `ExerciseCardFactory` / `SummaryCardBuilder` 中输入模式评分的
-  4 个硬编码色（`#4CAF50` 等）—— 属配色 token 化，与 emoji 无关，另行处理
-- `strings.xml` 的 3 条死字符串（`feedback_correct` / `feedback_wrong` /
-  `all_learning_complete`，无任何引用）—— 可清理
+- 听写页符号：预览列表 `✓/⏳` → 文字「已就绪 / 生成中」；结果页 `✓/✗` 前缀移除
+  （状态由颜色与色条承担）；卷面 Canvas「请打 ✓」→「请打勾」
+- 评分色 token 化：新增 `score_excellent / good / partial / poor / pending`
+  （values + values-night，暗色用 Material 300 系提亮），
+  替换 SummaryCardBuilder、ExerciseCardFactory、Dictation 三 Activity 共约 25 处；
+  `EvaluationActivity` 的图表/告警色语义不同且图表 API 需 hex 字符串，**仍不在批内**
+- 死字符串：strings.xml 删除 4 条无引用项（`feedback_correct` / `feedback_wrong` /
+  `feedback_skip` 的 ⊘ / `all_learning_complete` 的 🎉）
+- **附带修复存量崩溃**：词书学完后主界面停在总结卡，长按缩放动画结束回调把
+  总结卡传入 `onCardLongPressed`，`findViewById(tv_word)` 为 null 强转即 NPE
+  （logcat 实证两次 FATAL，均为冷启动后触发）；修复为判空忽略；
+  logcat 清零后冷启动 10s 复验无崩溃
