@@ -93,4 +93,5 @@
     <!-- ===== 通用卡片描边 ===== -->
     <color name="card_stroke_soft">#337FB6E0</color>
     <color name="card_accent_overlay">#334A6FA5</color>
+    <color name="quote_bar_soft">#666EB4F0</color>
 </resources>

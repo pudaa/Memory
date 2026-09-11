@@ -11,13 +11,15 @@
             <solid android:color="@color/card_background" />
         </shape>
     </item>
+    <!-- 竖条：40% 透明主题色 + 2dp 圆角（4dp 宽即两端胶囊形），柔和不抢视线 -->
     <item
         android:width="4dp"
         android:left="0dp"
         android:top="12dp"
         android:bottom="12dp">
         <shape android:shape="rectangle">
-            <solid android:color="@color/theme_stress" />
+            <corners android:radius="2dp" />
+            <solid android:color="@color/quote_bar_soft" />
         </shape>
     </item>
 </layer-list>
