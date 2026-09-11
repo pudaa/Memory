@@ -380,3 +380,51 @@ Emoji 的实际处置：
 - **场景面板** —— 同上。
 
 > 截图存放于 `.workbuddy/screenshots/`，受 `.gitignore` 忽略，不入库。
+
+---
+
+## 8. 词卡模块去 emoji 化（2026-09-11 第二批）
+
+老大反馈总结页可用真实数据检查后，将原「遗留待办 2」提前执行。
+范围：单词学习做题页 + 总结页 + 完成提示；**听写页不在本批**。
+
+### 8.1 改动清单
+
+| 位置 | 原状 | 现状 |
+|---|---|---|
+| 总结页顶部插图 | 48sp 的 `🎉` 文本 emoji | 圆形浅底 + 组合矢量插图（见 8.2） |
+| 总结页统计行 | Java 拼 `✅ 27 正确` / `❌ 13 错误` | 布局固定图标位（check/cancel）+ 纯文字数字 |
+| 总结页列表项 | 每项前缀 `✅` / `❌` | 16dp 矢量对勾/叉号，尺寸统一、配色走 token |
+| 总结页结尾 | `明天继续加油！💪` | 移除 💪 |
+| 做题页反馈行 | `✅ 正确！` / `❌ 错误` | 纯文字 + `iv_feedback_icon` 图标位，`setFeedbackIcon()` 切换 |
+| 做题页中性态 | 无图标逻辑 | 「已提交」/数字评分时自动隐藏图标 |
+| 词书完成 Toast | `🎉 恭喜！…` | 去除 🎉 |
+
+### 8.2 完成插图的来源与升级
+
+- 第一版：Material Symbols `celebration`（filled）单色图标 —— **图标库素材，非手绘**。
+  老大反馈喜庆感不如原 emoji，判断属实：其定位是「图标」而非「插图」。
+- 第二版（现行）：`ic_celebrate_burst.xml` 组合矢量 ——
+  彩笛主体（theme_primary）+ 右上主星（theme_stress）+ 半透明星点装饰，
+  主题色三阶拉开层次；新增 `summary_decor_strong` / `summary_decor_soft` token。
+  **该文件为多色插图，fillColor 内嵌主题色引用，不适用「占位黑 + tint」规约。**
+
+### 8.3 不动现有资源的理由
+
+`ic_check_circle.xml` / `ic_celebration.xml`（实为星形，命名误导）已被
+`EvaluationActivity`（学习报告页）引用且 fillColor 写死 —— 保持原样，
+另建 `_24` 后缀新图标，避免牵连报告页。
+
+### 8.4 实测
+
+浅色 `s16_summary_after.png`（第一版图标）、`s17_summary_burst.png`（组合插图）、
+暗色 `s18_summary_burst_dark.png`（组合插图）—— 双模式均通过。
+
+### 8.5 本批仍未覆盖
+
+- 听写页 emoji（`item_dictation_summary.xml` 的 `✓ 完全掌握`、
+  `DictationGenerateActivity` 的 `✓`/`⏳`、`DictationResultActivity` 的 `✓`/`✗`）
+- `ExerciseCardFactory` / `SummaryCardBuilder` 中输入模式评分的
+  4 个硬编码色（`#4CAF50` 等）—— 属配色 token 化，与 emoji 无关，另行处理
+- `strings.xml` 的 3 条死字符串（`feedback_correct` / `feedback_wrong` /
+  `all_learning_complete`，无任何引用）—— 可清理
