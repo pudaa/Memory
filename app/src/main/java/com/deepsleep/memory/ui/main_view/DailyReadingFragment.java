@@ -1,11 +1,11 @@
 package com.deepsleep.memory.ui.main_view;
 
-import android.animation.ObjectAnimator;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
+import com.deepsleep.memory.ui.components.LoadingDotsView;
 import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.MemoryApiClient;
@@ -95,7 +96,7 @@ public class DailyReadingFragment extends Fragment {
     // 线程处理
     static final int msg_success = 1;
     static final int msg_failed = -1;
-    private Map<TextView, ObjectAnimator> animatorMap = new HashMap<>();
+    private LoadingDotsView contentLoadingDots;
 
     // 重试机制
     private boolean isRetrying = false;
@@ -118,6 +119,7 @@ public class DailyReadingFragment extends Fragment {
         highFrequencyWordsContainer = view.findViewById(R.id.markdown_highFrequencyWords_container);
 
         loadingProgressBar = view.findViewById(R.id.loading_progress_bar);
+        contentLoadingDots = view.findViewById(R.id.content_loading_dots);
         scrollView = view.findViewById(R.id.scroll_view);
         readingProgressBar = view.findViewById(R.id.reading_progress_bar);
         tvReadingTime = view.findViewById(R.id.tv_reading_time);
@@ -202,24 +204,17 @@ public class DailyReadingFragment extends Fragment {
             sentenceAnalysisContainer.removeAllViews();
             highFrequencyWordsContainer.removeAllViews();
 
-            TextView loadingSentence = new TextView(requireContext());
-            loadingSentence.setText("正在生成长难句分析……");
-            loadingSentence.setTextSize(17);
-            loadingSentence.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
-            loadingSentence.setPadding(0, 8, 0, 8);
-            sentenceAnalysisContainer.addView(loadingSentence);
-
-            TextView loadingWords = new TextView(requireContext());
-            loadingWords.setText("正在生成高频易错单词……");
-            loadingWords.setTextSize(17);
-            loadingWords.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
-            loadingWords.setPadding(0, 8, 0, 8);
+            // 加载指示：三点呼吸 + 文案（替代原先的文本上下跳动）
+            sentenceAnalysisContainer.addView(buildLoadingIndicator("正在生成长难句分析……"));
+            // 修复：原实现在这里创建了"正在生成高频易错单词……"文本却从未加入容器，
+            // 导致该栏在加载态完全空白（只有一张空卡片）
+            highFrequencyWordsContainer.addView(buildLoadingIndicator("正在生成高频易错单词……"));
 
             if (loadingProgressBar != null) {
                 loadingProgressBar.setVisibility(View.GONE);
-                startWaveAnimation(markdownContentView);
-                startWaveAnimation(loadingSentence);
-                startWaveAnimation(loadingWords);
+            }
+            if (contentLoadingDots != null) {
+                contentLoadingDots.setVisibility(View.VISIBLE);
             }
         }
 
@@ -239,9 +234,9 @@ public class DailyReadingFragment extends Fragment {
             public void handleMessage(@NonNull Message msg) {
 
                 if (msg.what == msg_success) {
+                    hideLoadingIndicators();
                     if (loadingProgressBar != null) {
                         loadingProgressBar.setVisibility(View.GONE);
-                        stopWaveAnimation(markdownContentView);
                     }
 
                     String article = (String) msg.obj;
@@ -302,29 +297,48 @@ public class DailyReadingFragment extends Fragment {
                     isRetrying = false;
                     if (retryCount < MAX_RETRY_COUNT) {
                         scheduleRetry();
+                    } else {
+                        // 重试耗尽：收起加载指示，避免页面一直停留在"加载中"
+                        hideLoadingIndicators();
                     }
                 }
             }
         };
     }
 
-    private void startWaveAnimation(TextView textView) {
-        ObjectAnimator animator = ObjectAnimator.ofFloat(textView, "translationY", 0, -15, 0, 15, 0);
-        animator.setDuration(1000);
-        animator.setRepeatCount(ObjectAnimator.INFINITE);
-        animator.setRepeatMode(ObjectAnimator.RESTART);
-        animator.start();
+    /**
+     * 加载指示：三点呼吸 + 文案（替代原先的文本上下跳动动画）。
+     * 返回一行可直接加入容器的内容（左对齐）。
+     */
+    private View buildLoadingIndicator(String text) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dpToPx(8), 0, dpToPx(8));
 
-        animatorMap.put(textView, animator);
+        LoadingDotsView dots = new LoadingDotsView(requireContext());
+        row.addView(dots, new LinearLayout.LayoutParams(dpToPx(30), dpToPx(30)));
+
+        TextView label = new TextView(requireContext());
+        label.setText(text);
+        label.setTextSize(17);
+        label.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text_secondary));
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        labelLp.leftMargin = dpToPx(10);
+        row.addView(label, labelLp);
+        return row;
     }
 
-    private void stopWaveAnimation(TextView textView) {
-        ObjectAnimator animator = animatorMap.get(textView);
-        if (animator != null) {
-            animator.cancel();
-            animatorMap.remove(textView);
+    /** 收起文章区的加载指示（成功渲染 / 重试耗尽时调用） */
+    private void hideLoadingIndicators() {
+        if (contentLoadingDots != null) {
+            contentLoadingDots.setVisibility(View.GONE);
         }
-        textView.setTranslationY(0);
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private void applyFontSizeToContent() {

@@ -181,6 +181,16 @@
                 android:layout_marginBottom="24dp"
                 android:background="@drawable/bg_section_accent_bar" />
 
+            <!-- ========== 加载指示（三点呼吸，加载态显示 / 就绪后隐藏） ========== -->
+            <com.deepsleep.memory.ui.components.LoadingDotsView
+                android:id="@+id/content_loading_dots"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="-8dp"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone" />
+
             <!-- ========== 文章正文 ========== -->
             <TextView
                 android:id="@+id/markdown_content_view"
