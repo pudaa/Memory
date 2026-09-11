@@ -34,8 +34,9 @@ public class CardProgressTrack extends View {
 
     /** 点直径 */
     private static final float POINT_DP = 6f;
-    /** 点间距 */
-    private static final float GAP_DP = 4f;
+    /** 点间距：需大于 (激活胶囊半宽 + 点半径 - 点径)，否则胶囊会压住相邻点
+     *  （6dp 点径 + 7dp 间距 = 13dp 槽距 > 16/2 + 6/2 = 11dp，净间隙约 2dp） */
+    private static final float GAP_DP = 7f;
     /** 当前点撑开后的宽度（胶囊，以槽位中心对称展开） */
     private static final float ACTIVE_WIDTH_DP = 16f;
     /** 视口槽位数 */
