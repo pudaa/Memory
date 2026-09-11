@@ -317,8 +317,6 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             return;
         }
         if (wordCards.isEmpty()) {
-            // 今日已全部完成、容器展示总结卡时，进度轨道没有可表达的信息，
-            // 直接隐藏（否则空轨道 + 中央悬空游标很怪）
             progressTrack.setVisibility(View.GONE);
             return;
         }
