@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    总结卡完成插图：彩笛主体 + 星星 / 圆点点缀的组合矢量。
+    单个 Material celebration 图标表现力不足以替代原 🎉 的喜庆感，
+    故用多 path 组合 + 主题色三阶（primary / stress / 半透明点缀）弥补。
+    注意：本文件是多色插图，fillColor 内嵌主题色引用，
+    不适用"占位黑 + tint"的单色图标规约。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+
+    <!-- 彩笛主体（Material celebration，960 网格） -->
+    <group
+        android:translateX="120"
+        android:translateY="140"
+        android:scaleX="0.75"
+        android:scaleY="0.75">
+        <group android:translateY="960">
+            <path
+                android:fillColor="@color/theme_primary"
+                android:pathData="m101-140 149-416q4-10 11.5-15t16.5-5q5 0 10.5 2t10.5 7l270 266q5 5 7 10.5t2 11.5q0 9-5 16.5T558-251L140-101q-9 3-17.5 1t-14.5-8q-6-6-8-14.5t1-17.5Zm824-546q-7 7-17 7t-17-7l-2-2q-19-19-44-19.5T800-688L574-462q-7 7-17 7t-17-7q-7-7-7-17t7-17l223-223q32-32 81-32.5t81 31.5q7 7 7 17t-7 17ZM383-811q7-7 17-7t17 7l9 9q35 35 34.5 87.5T425-627l-10 10q-7 7-17 7t-17-7q-7-7-7-17t7-17l13-13q23-23 21.5-52.5T394-766l-11-11q-7-7-7-17t7-17Zm169-73q7-7 17-7t17 7l46 46q31 32 32 80.5T633-677L496-540q-7 7-17 7t-17-7q-7-7-7-17t7-17l135-135q19-19 18.5-48.5T596-806l-44-44q-7-7-7-17t7-17Zm300 505q-7 7-17 7t-17-7l-35-35q-23-23-48-23t-48 23l-33 33q-7 7-17 7t-17-7q-7-7-7-17t7-17l30-30q35-35 84-36t84 34l34 34q7 7 7 17t-7 17Z" />
+        </group>
+    </group>
+
+    <!-- 主星：右上，呼应彩带飘出的方向 -->
+    <group
+        android:translateX="713"
+        android:translateY="50"
+        android:scaleX="8.2"
+        android:scaleY="8.2">
+        <path
+            android:fillColor="@color/theme_stress"
+            android:pathData="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21z" />
+    </group>
+
+    <!-- 副星：左上，小一号 -->
+    <group
+        android:translateX="116"
+        android:translateY="118"
+        android:scaleX="5.6"
+        android:scaleY="5.6">
+        <path
+            android:fillColor="@color/summary_decor_soft"
+            android:pathData="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21z" />
+    </group>
+
+    <!-- 圆点点缀 -->
+    <group
+        android:translateX="24"
+        android:translateY="444"
+        android:scaleX="9"
+        android:scaleY="9">
+        <path
+            android:fillColor="@color/summary_decor_strong"
+            android:pathData="M0,0m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    </group>
+
+    <group
+        android:translateX="862"
+        android:translateY="492"
+        android:scaleX="7"
+        android:scaleY="7">
+        <path
+            android:fillColor="@color/summary_decor_soft"
+            android:pathData="M0,0m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    </group>
+
+    <group
+        android:translateX="736"
+        android:translateY="856"
+        android:scaleX="6"
+        android:scaleY="6">
+        <path
+            android:fillColor="@color/summary_decor_strong"
+            android:pathData="M0,0m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    </group>
+</vector>

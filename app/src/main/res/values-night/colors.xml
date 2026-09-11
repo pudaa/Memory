@@ -79,4 +79,6 @@
 
     <!-- ===== 单词学习总结卡 ===== -->
     <color name="summary_badge_bg">#1A82B0DA</color>
+    <color name="summary_decor_strong">#CC6EB4F0</color>
+    <color name="summary_decor_soft">#4D6EB4F0</color>
 </resources>
