@@ -1,8 +1,9 @@
 # Memory App — 开发约束与规范（Development Conventions）
 
-> **版本**：1.1 | **生效日期**：2026-08-14
+> **版本**：1.2 | **生效日期**：2026-09-11
 >
 > **更新记录**：
+> - 1.2（2026-09-11）：新增 §3.9 美术资源命名规范（Drawable 命名铁律）
 > - 1.1（2026-08-14）：新增 §3.8 布局文件命名规范（Layout 命名铁律）
 >
 > 本文档是项目开发的**强制性约束**。所有新代码、重构以及 AI 辅助开发都必须遵守。
@@ -211,6 +212,63 @@
 | `word_card_layout.xml` | 旧单词卡片基础布局遗留 |
 
 > ⚠️ `crop_image_view.xml` 为裁剪库 vendor 代码（`com.canhub.cropper.CropImageView`）私有布局，**保持不动**，不纳入本项目命名规范。
+
+### 3.9 美术资源命名规范（Drawable 命名铁律）
+
+**目的**：drawable 目录长期并存四套互不兼容的命名体系（`ic_*` / `baseline_*` / `custom_*` / 裸 PNG），且发生过"文件名叫 celebration 实际画的是星形"的语义错配。命名必须做到**一眼可辨类型 + 语义 + 着色方式**。**所有新增美术资源必须遵守本节；存量资源一律保留原名，不做追溯性重命名**（存量审计见 3.9.6）。
+
+**命名总则**：全小写 + 下划线（`snake_case`），格式 = `[类型前缀] + [模块/范围] + 语义名 [+ 规格]`。模块名与布局规范（§3.8）一致（`composition` / `dictation` / `chat` 等），禁止中文、拼音、无意义缩写。
+
+#### 3.9.1 核心规则（强制）
+
+| 资源类型 | 前缀 | 命名格式 | 示例 | 判定依据 |
+|---------|------|---------|------|---------|
+| **图标**（单色矢量，tint 着色） | `ic_` | `ic_<语义>_24` | `ic_send_24.xml` | 24dp 工具尺寸的单色矢量图标；`_24` 为固定规格后缀 |
+| **多色插图**（矢量，内嵌配色） | `ill_` | `ill_<语义>` | `ill_celebrate_burst.xml` | 多 path 多色的组合矢量插图，**不适用 tint** |
+| **背景 / 形状** | `bg_` | `bg_<范围>_<语义>` | `bg_chat_bubble_ai.xml` | shape XML 背景（气泡、卡片、徽章、渐变） |
+| **按钮状态** | `btn_` | `btn_<语义>` | `btn_confirm_bg.xml` | 按钮 selector / shape（含按压态） |
+| **分隔线** | `divider_` | `divider_<范围>` | `divider_reader.xml` | 专用分隔线 shape |
+| **状态选择器** | `sel_` | `sel_<语义>` | `sel_session_item.xml` | 非 button 的 selector（列表项涟漪等） |
+| **位图** | `img_` | `img_<语义>` | `img_celebrate.png` | PNG / WebP 位图（手绘、照片、生成图） |
+
+#### 3.9.2 图标专项规约（强制）
+
+- 图标一律 24dp 逻辑尺寸；viewport 允许 24（Material Icons 老网格）或 960（Material Symbols 原始网格），文件名一律带 `_24` 后缀表示工具尺寸，**不代表 viewport 数值**；
+- 单色图标的 `fillColor` 统一写占位 `#FF000000`，**实际颜色只由布局层 `android:tint` / `app:tint` 指向语义色 token**；
+- **禁止**在单色图标的 vector 内写 `@color/*` 或十六进制色值；
+- 图标来源统一 Material Symbols Rounded（Apache 2.0）**filled 变体**——线性（outlined）变体在 24dp 下视觉重量偏轻，与项目实心基调不一致（2026-09-11 真机实测结论）；
+- SVG → VectorDrawable 转换需处理 Material Symbols 960 网格的负 minY（`<group android:translateY="960">` 包裹 path）。
+
+#### 3.9.3 着色与颜色 token（强制）
+
+- 禁止在布局或 vector 内写十六进制字面量；
+- 颜色一律引用 `colors.xml` 语义 token，且 **values 与 values-night 必须成对新增**；
+- 已知教训：`@color/white` 在暗色模式会被反转为 `#252538`，用它作文字 / 图标前景色是本项目暗色 bug 的主要来源；
+- 多色插图（`ill_`）是唯一例外：可在 vector 内内嵌 `@color/` 引用实现多色，但**禁止再叠加 tint**，且文件头必须注释声明「多色插图，不可 tint」。
+
+#### 3.9.4 禁止写法（红线）
+
+- ❌ `baseline_*` 前缀（Material 老版工具自动命名）→ 统一 `ic_*_24`；
+- ❌ 无前缀裸名（如 `back.png`、`refresh.png`）→ 新增位图必须 `img_`；
+- ❌ `custom_*` 前缀（历史写法）→ 按实际类型归入 `bg_` / `sel_` 等；
+- ❌ 语义与内容不符的命名（教训：`ic_celebration.xml` 实际画的是星形）；
+- ❌ 中文 / 拼音 / emoji / 无意义缩写命名。
+
+#### 3.9.5 手绘资产保护条款（2026-09-11 确立）
+
+`back.png`、`treasure_box.png`、`word_learning.png`、`daily_reading.png`、`user_home.png` 等为早期**手绘位图资产**，是美术基调的组成部分：**不得替换为矢量、不得重命名、不得删除**。待原始工程文件找回并由美术侧导出 SVG 后，按 `ill_`（多色）/ `img_`（位图）规范接入，届时同步更新全部引用。
+
+#### 3.9.6 存量审计记录（2026-09-11，只记录不迁移）
+
+| 类别 | 明细 | 处置 |
+|------|------|------|
+| `baseline_*`（14 个） | Material Icons 老版工具自动命名 | 保留原名，引用照旧；新增禁用该前缀 |
+| 裸名 PNG（约 20 个） | 手绘资产为主 | 保留（见 3.9.5 保护条款） |
+| `custom_*`（约 8 个） | 历史命名 | 保留原名；新增禁用 |
+| 命名语义错配 | `ic_celebration.xml`（实际为星形）等 | 保留；待美术侧确认语义后统一处理 |
+| 已无引用孤儿 | `ic_scenarios_24dp`、`ic_play_24dp`、`ic_send_24dp`、`ic_keyboard_24dp`、`bg_input_bar`、`bg_voice_wave_placeholder`、`bg_voice_record_bar` | 可清理，留待下一次大版本一并处理 |
+
+> 本节 2026-09-11 首次发布。发布时已按规范校准本轮新增资源：`ic_celebrate_burst.xml` 经确认为多色插图，已更名为 `ill_celebrate_burst.xml` 以符合 3.9.1。
 
 ---
 
