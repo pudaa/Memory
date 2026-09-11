@@ -6,21 +6,27 @@
     android:orientation="vertical"
     android:background="@color/activity_background">
 
-    <!-- 顶部词书信息条 -->
+    <!-- 顶部词书信息条：点击可切换词书（在线 / 离线均支持自由浏览） -->
     <LinearLayout
         android:id="@+id/lexicon_info_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical">
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_lexicon_switch_card"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:src="@drawable/baseline_book_24"
             android:tint="@color/theme_primary"
-            android:contentDescription="词书" />
+            android:contentDescription="@null" />
 
         <TextView
             android:id="@+id/tv_lexicon_title"
@@ -28,7 +34,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="考研必考词汇"
-            android:textSize="15sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/theme_text_primary"
             android:layout_marginStart="8dp" />
@@ -39,7 +45,16 @@
             android:layout_height="wrap_content"
             android:text="1341词"
             android:textSize="13sp"
-            android:textColor="@color/middle_gray" />
+            android:textColor="@color/theme_text_secondary" />
+
+        <!-- 切换入口提示 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="切换"
+            android:textSize="12sp"
+            android:textColor="@color/theme_stress" />
     </LinearLayout>
 
     <!-- 离线提示：使用缓存词书时显示（在线时不出现） -->
@@ -47,9 +62,10 @@
         android:id="@+id/tv_offline_hint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="8dp"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
         android:text="离线模式 · 显示上次学习的词书"
         android:textSize="12sp"
         android:textColor="@color/theme_text_secondary"

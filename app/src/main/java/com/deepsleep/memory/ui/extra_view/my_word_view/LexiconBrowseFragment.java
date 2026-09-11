@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -44,6 +45,9 @@ public class LexiconBrowseFragment extends Fragment {
         tvOfflineHint = view.findViewById(R.id.tv_offline_hint);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        // 信息条点击 → 自由切换浏览的词书（在线 / 离线均可用）
+        View infoBar = view.findViewById(R.id.lexicon_info_bar);
+        infoBar.setOnClickListener(v -> openBookPicker());
         loadLexiconData();
 
         return view;
@@ -83,7 +87,7 @@ public class LexiconBrowseFragment extends Fragment {
                         offline = true;
                     }
                 } else if (localBooks.size() > 1) {
-                    showBookPicker(localBooks);
+                    showBookPicker(localBooks, true);
                     return;
                 }
             }
@@ -123,8 +127,26 @@ public class LexiconBrowseFragment extends Fragment {
         });
     }
 
-    /** 本地存在多本词书时的离线兜底：让用户选择要浏览的词书（结果写入缓存） */
-    private void showBookPicker(List<JSONObject> books) {
+    /** 手动切换浏览的词书（在线 / 离线均可用；不改变离线默认词书） */
+    private void openBookPicker() {
+        new Thread(() -> {
+            List<JSONObject> books = LexiconResourceMap.loadBooksFromJson(requireContext());
+            if (books.isEmpty()) {
+                requireActivity().runOnUiThread(() -> Toast
+                        .makeText(requireContext(), "本地暂无词书", Toast.LENGTH_SHORT).show());
+                return;
+            }
+            showBookPicker(books, false);
+        }).start();
+    }
+
+    /**
+     * 弹出本地词书列表供选择。
+     *
+     * @param persistAsOfflineDefault true = 作为离线默认词书落盘（离线兜底场景）；
+     *                                false = 仅切换本次浏览（用户自由切换场景）
+     */
+    private void showBookPicker(List<JSONObject> books, boolean persistAsOfflineDefault) {
         List<String> titles = new ArrayList<>();
         for (JSONObject book : books) {
             titles.add(book.optString("title", book.optString("id", "")));
@@ -140,11 +162,19 @@ public class LexiconBrowseFragment extends Fragment {
                         }
                         progressBar.setVisibility(View.VISIBLE);
                         new Thread(() -> {
-                            LexiconResourceMap.loadLexicon(requireContext(), id);
-                            renderLexicon(id, true);
+                            if (persistAsOfflineDefault) {
+                                // 离线兜底：记为离线默认词书（落盘）
+                                LexiconResourceMap.loadLexicon(requireContext(), id);
+                                renderLexicon(id, true);
+                            } else {
+                                // 自由切换：仅影响本次会话浏览，不写缓存、不显示离线提示
+                                LexiconResourceMap.switchLexiconForBrowsing(requireContext(), id);
+                                renderLexicon(id, false);
+                            }
                         }).start();
                     })
-                    .setNegativeButton("取消", (d, w) -> tvLexiconTitle.setText("未选择词书"))
+                    .setNegativeButton("取消", (d, w) -> {
+                    })
                     .show();
         });
     }

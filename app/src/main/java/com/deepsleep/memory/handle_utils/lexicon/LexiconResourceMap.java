@@ -113,6 +113,18 @@ public class LexiconResourceMap {
     }
 
     /**
+     * 仅切换当前会话的浏览词书（供用户自由切换浏览使用）。
+     * 与 {@link #loadLexicon} 的区别：<b>不写入离线默认词书缓存</b>——
+     * 自由浏览切换并不代表学习计划的词书发生变化。
+     */
+    public static void switchLexiconForBrowsing(@NonNull Context context, @NonNull String lexiconId) {
+        if (appContext == null) {
+            appContext = context.getApplicationContext();
+        }
+        specifiedLexiconId = lexiconId;
+    }
+
+    /**
      * 离线恢复当前词书：读取持久化的词书 ID 并在本地库校验。
      * 全程无网络请求——词书内容本就在本地 Room 库，断网时同样可阅览。
      *
