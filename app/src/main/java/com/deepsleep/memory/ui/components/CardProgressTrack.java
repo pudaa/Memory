@@ -90,6 +90,13 @@ public class CardProgressTrack extends View {
 
     /** 传入每张卡的最终颜色（完成态透明度编码），触发重绘 */
     public void setSegments(int[] colors) {
+        // 同批次数据不重置动画状态：切卡回调（onCurrentCardChanged）会高频触发
+        // 刷新，若在此重置 slideT/oldIndex，拨盘的平移+渐隐渐显动画会被打断
+        if (colors != null && colors.length == cardColors.length
+                && java.util.Arrays.equals(colors, cardColors)) {
+            invalidate();
+            return;
+        }
         cardColors = colors == null ? new int[0] : colors;
         if (currentIndex > cardColors.length - 1) {
             currentIndex = Math.max(cardColors.length - 1, 0);
@@ -133,9 +140,24 @@ public class CardProgressTrack extends View {
 
     // ==================== 槽位映射 ====================
 
-    /** 当前卡所在的槽位（首卡在槽 0，其余固定槽 1，左侧留一槽展示上一张） */
+    /**
+     * 当前卡所在的槽位（视口跟随）：
+     * 卡数不超过槽位数时全量显示；中段固定居中（当前点在屏幕横向正中央）；
+     * 开头从左填充、尾部靠右填满——边界处当前点自然靠边，绝不出现空洞。
+     */
     private int slotOfCard(int cardIndex) {
-        return Math.min(1, cardIndex);
+        int n = cardColors.length;
+        int center = MAX_SLOTS / 2;
+        if (n <= MAX_SLOTS) {
+            return cardIndex;
+        }
+        if (cardIndex < center) {
+            return cardIndex;
+        }
+        if (cardIndex >= n - (MAX_SLOTS - center)) {
+            return MAX_SLOTS - (n - cardIndex);
+        }
+        return center;
     }
 
     /** 槽位 → 卡片（当前卡槽向两侧展开，越界由 clampCard 收敛） */
