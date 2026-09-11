@@ -18,21 +18,23 @@ import com.deepsleep.memory.R;
  * 卡片进度点阵：iOS UIPageControl 风格的抽象化进度指示。
  *
  * <p>每日卡片可能有几十张，不为每张卡生成一个点，而是用固定数量的点
- * （{@link #MAX_POINTS}，放不下时）按区间均分映射整批卡片：</p>
+ * （{@link #MAX_POINTS}，放不下时）按<b>比例映射</b>覆盖整批卡片：</p>
  * <ul>
  *   <li>每个点默认为圆形；当前卡所在区间的点拉宽为胶囊——
  *       即从圆形到圆角矩形的形变（宽度动画过渡）；</li>
- *   <li>点色 = 区间主导类型色（复习蓝 / 新学橙），透明度编码区间完成度
- *       （全完成饱和 / 进行中半透 / 未开始更淡）；</li>
- *   <li>点击点跳到该区间第一张卡片。</li>
+ *   <li>点色 = 类型色相（由调用方传入），透明度编码区间完成度；
+ *       当前点始终饱和，其余按完成度淡化；</li>
+ *   <li>快速点击：跳到该点区间首卡；</li>
+ *   <li>长按 0.2s 进入拖拽：手指滑到某个点范围内该点拉宽成为当前点，
+ *       并<b>实时回调切卡</b>（由容器以既有动效切换），松手结束拖拽。</li>
  * </ul>
  *
- * <p>组件保持纯绘制：每张卡的最终颜色（类型色相 + 完成态透明度）
+ * <p>组件保持纯绘制：每张卡的最终颜色（完成态透明度编码）
  * 由调用方计算传入（{@link #setSegments(int[])}），本组件不感知业务模型。</p>
  */
 public class CardProgressTrack extends View {
 
-    /** 用户点击第 pointIndex 个点后，请求跳到对应区间的第一张卡片（0-based 卡片序号） */
+    /** 拖拽/点击后请求跳到对应卡片（0-based） */
     public interface OnSeekListener {
         void onSeek(int cardIndex);
     }
@@ -41,12 +43,14 @@ public class CardProgressTrack extends View {
     private static final float POINT_DP = 6f;
     /** 点间距 */
     private static final float GAP_DP = 4f;
-    /** 激活点拉宽后的宽度（胶囊） */
+    /** 激活/拖拽点拉宽后的宽度（胶囊） */
     private static final float ACTIVE_WIDTH_DP = 16f;
-    /** 点数上限：超出时按区间均分映射 */
+    /** 点数上限：超出时按比例映射 */
     private static final int MAX_POINTS = 9;
     private static final float VERTICAL_PADDING_DP = 4f;
-    private static final long MORPH_ANIM_MS = 200;
+    /** 长按触发拖拽的时长 */
+    private static final int DRAG_ACTIVATE_MS = 200;
+    private static final long MORPH_ANIM_MS = 160;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
@@ -55,7 +59,6 @@ public class CardProgressTrack extends View {
     private int[] cardColors = new int[0];
     private int currentIndex = 0;
     private int pointCount = 0;
-    private int cardsPerPoint = 1;
     private int activePoint = 0;
     /** 每个点当前渲染宽度（激活点在圆与胶囊之间形变） */
     private float[] pointWidths;
@@ -63,8 +66,13 @@ public class CardProgressTrack extends View {
     private float gapD;
     private float activeW;
     private float verticalPadding;
+    /** 拖拽状态：长按 0.2s 激活，期间实时跟随手指并切卡 */
+    private boolean dragging = false;
+    private boolean pressActive = false;
+    private float lastTouchX = 0f;
     private ValueAnimator morphAnimator;
     private OnSeekListener seekListener;
+    private final Runnable dragActivator = this::startDrag;
 
     public CardProgressTrack(Context context) {
         this(context, null);
@@ -80,7 +88,7 @@ public class CardProgressTrack extends View {
         paint.setColor(ContextCompat.getColor(getContext(), R.color.light_gray));
     }
 
-    /** 传入每张卡的最终颜色（类型色相 + 完成态透明度），触发重算与重绘 */
+    /** 传入每张卡的最终颜色（完成态透明度编码），触发重算与重绘 */
     public void setSegments(int[] colors) {
         cardColors = colors == null ? new int[0] : colors;
         if (currentIndex > cardColors.length - 1) {
@@ -90,7 +98,7 @@ public class CardProgressTrack extends View {
         invalidate();
     }
 
-    /** 当前卡切换：激活点形变到新区间 */
+    /** 当前卡切换（外部回流）：激活点形变到新区间 */
     public void setCurrentIndex(int index) {
         currentIndex = clampCard(index);
         int newActive = pointOfCard(currentIndex);
@@ -105,55 +113,59 @@ public class CardProgressTrack extends View {
         seekListener = listener;
     }
 
-    // ==================== 区间映射算法 ====================
+    // ==================== 比例映射算法 ====================
+    // 采用 i*M/N 比例映射（而非整除均分）：保证单调、均匀、且最后一个点
+    // 必然覆盖最后一张卡——整除式在 N 不是 M 的倍数时尾部点将永远无法激活。
 
-    /** 卡片数 → 点数：放不下时均分映射，点数固定上限 */
+    /** 卡片数 → 点数：放不下时固定为 MAX_POINTS */
     private int pointCountFor(int cardCount) {
         return Math.max(1, Math.min(cardCount, MAX_POINTS));
     }
 
-    /** 每个点代表的卡片数（向上取整，保证区间覆盖全部卡片） */
-    private int cardsPerPoint() {
-        int n = cardColors.length;
-        if (n == 0) {
-            return 1;
-        }
-        int m = pointCountFor(n);
-        return (int) Math.ceil((double) n / m);
-    }
-
-    /** 卡片序号 → 所在点序号 */
+    /** 卡片序号 → 所在点序号（比例映射） */
     private int pointOfCard(int cardIndex) {
-        return Math.min(cardIndex / cardsPerPoint(), pointCount - 1);
+        int n = cardColors.length;
+        int m = pointCount;
+        if (n == 0 || m == 0) {
+            return 0;
+        }
+        return (int) ((long) cardIndex * m / n);
     }
 
-    /** 点序号 → 该区间第一张卡片序号 */
+    /** 点序号 → 该区间第一张卡片序号（ceil 互逆：pointOfCard(firstCardOfPoint(p)) == p） */
     private int firstCardOfPoint(int pointIndex) {
-        return Math.min(pointIndex * cardsPerPoint(), Math.max(cardColors.length - 1, 0));
+        int n = cardColors.length;
+        int m = pointCount;
+        if (m == 0) {
+            return 0;
+        }
+        return (int) (((long) pointIndex * n + m - 1) / m);
     }
 
-    /** 点 i 的区间颜色：色相取区间首卡，透明度取区间内完成度（alpha）的平均 */
+    /** 点 i 的区间颜色：透明度取区间内各卡完成度（alpha）的平均，色相保持不变 */
     private int colorOfPoint(int pointIndex) {
-        int from = pointIndex * cardsPerPoint();
-        int to = Math.min(from + cardsPerPoint(), cardColors.length);
+        int from = firstCardOfPoint(pointIndex);
+        int to = pointIndex + 1 < pointCount ? firstCardOfPoint(pointIndex + 1) : cardColors.length;
+        to = Math.min(Math.max(to, from + 1), cardColors.length);
         if (from >= cardColors.length) {
             from = Math.max(cardColors.length - 1, 0);
         }
-        if (to <= from) {
-            return cardColors[from];
-        }
-        int first = cardColors[from];
         int alphaSum = 0;
+        int count = 0;
         for (int i = from; i < to; i++) {
             alphaSum += Color.alpha(cardColors[i]);
+            count++;
         }
-        int avgAlpha = alphaSum / (to - from);
-        return Color.argb(avgAlpha, Color.red(first), Color.green(first), Color.blue(first));
+        if (count == 0) {
+            return cardColors[from];
+        }
+        int avgAlpha = alphaSum / count;
+        return Color.argb(avgAlpha, Color.red(cardColors[from]),
+                Color.green(cardColors[from]), Color.blue(cardColors[from]));
     }
 
     private void rebuildPoints() {
         pointCount = pointCountFor(cardColors.length);
-        cardsPerPoint = cardsPerPoint();
         activePoint = pointOfCard(currentIndex);
         float[] widths = new float[pointCount];
         for (int i = 0; i < pointCount; i++) {
@@ -168,6 +180,10 @@ public class CardProgressTrack extends View {
 
     /** 激活点换位：旧点胶囊收缩为圆，新点圆撑开为胶囊 */
     private void animateMorph(int fromPoint, int toPoint) {
+        if (fromPoint == toPoint || pointWidths == null
+                || fromPoint >= pointWidths.length || toPoint >= pointWidths.length) {
+            return;
+        }
         if (morphAnimator != null) {
             morphAnimator.cancel();
         }
@@ -177,10 +193,8 @@ public class CardProgressTrack extends View {
         morphAnimator.setDuration(MORPH_ANIM_MS);
         morphAnimator.addUpdateListener(animation -> {
             float t = (float) animation.getAnimatedValue();
-            if (pointWidths != null && fromPoint < pointWidths.length && toPoint < pointWidths.length) {
-                pointWidths[fromPoint] = slim + (wide - slim) * (1 - t);
-                pointWidths[toPoint] = slim + (wide - slim) * t;
-            }
+            pointWidths[fromPoint] = slim + (wide - slim) * (1 - t);
+            pointWidths[toPoint] = slim + (wide - slim) * t;
             invalidate();
         });
         morphAnimator.start();
@@ -225,34 +239,51 @@ public class CardProgressTrack extends View {
         }
     }
 
-    /** 激活点始终用饱和色（透明度编码的是区间完成度，激活表达的是"所在位置"） */
+    /** 当前点始终用饱和色（透明度编码的是区间完成度，当前表达的是"所在位置"） */
     private int saturatedColor(int pointIndex) {
         int c = colorOfPoint(pointIndex);
         return Color.argb(255, Color.red(c), Color.green(c), Color.blue(c));
     }
 
-    // ==================== 交互 ====================
+    // ==================== 交互：快速点击 + 长按拖拽 ====================
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-            float x = Math.min(Math.max(event.getX(), 0), getWidth());
-            int point = pointAt(x);
-            int cardIndex = firstCardOfPoint(point);
-            int previous = currentIndex;
-            currentIndex = cardIndex;
-            int newActive = pointOfCard(cardIndex);
-            if (newActive != activePoint) {
-                animateMorph(activePoint, newActive);
-                activePoint = newActive;
-            }
-            if (seekListener != null && cardIndex != previous) {
-                seekListener.onSeek(cardIndex);
-            }
-            performClick();
-            return true;
+        if (cardColors.length == 0) {
+            return false;
         }
-        return super.onTouchEvent(event);
+        float x = Math.min(Math.max(event.getX(), 0), getWidth());
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                pressActive = true;
+                dragging = false;
+                lastTouchX = x;
+                // 长按 0.2s 激活拖拽
+                postDelayed(dragActivator, DRAG_ACTIVATE_MS);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                lastTouchX = x;
+                if (dragging) {
+                    handleDrag(x);
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                removeCallbacks(dragActivator);
+                pressActive = false;
+                if (dragging) {
+                    // 拖拽结束：状态在 handleDrag 中已实时同步
+                    dragging = false;
+                    performClick();
+                    return true;
+                }
+                // 快速点击：直接跳到该点区间首卡
+                seekToPoint(pointAt(x));
+                performClick();
+                return true;
+            default:
+                return super.onTouchEvent(event);
+        }
     }
 
     @Override
@@ -260,13 +291,43 @@ public class CardProgressTrack extends View {
         return super.performClick();
     }
 
-    private int pointAt(float x) {
-        float unit = pointD + gapD;
-        return (int) Math.min(pointCount - 1, Math.max(0, x / unit));
+    /** 长按到达 0.2s：进入拖拽模式，当前点放大并立即响应手指位置 */
+    private void startDrag() {
+        if (!pressActive || dragging) {
+            return;
+        }
+        dragging = true;
+        getParent().requestDisallowInterceptTouchEvent(true);
+        handleDrag(lastTouchX);
     }
 
-    private int clampCard(int index) {
-        int max = Math.max(cardColors.length - 1, 0);
-        return Math.min(Math.max(index, 0), max);
+    /**
+     * 拖拽跟随：手指落在哪个点的范围内，该点拉宽成为当前点，
+     * 并实时回调切卡（容器以既有的滑出+渐显动效切换）。
+     */
+    private void handleDrag(float x) {
+        int point = pointAt(x);
+        if (point != activePoint) {
+            animateMorph(activePoint, point);
+            activePoint = point;
+        }
+        int cardIndex = firstCardOfPoint(point);
+        if (cardIndex != currentIndex && seekListener != null) {
+            currentIndex = cardIndex;
+            seekListener.onSeek(cardIndex);
+        }
+    }
+
+    /** 快速点击：形变到目标点并跳卡 */
+    private void seekToPoint(int point) {
+        if (point != activePoint) {
+            animateMorph(activePoint, point);
+            activePoint = point;
+        }
+        int cardIndex = firstCardOfPoint(point);
+        if (cardIndex != currentIndex && seekListener != null) {
+            currentIndex = cardIndex;
+            seekListener.onSeek(cardIndex);
+        }
     }
 }
