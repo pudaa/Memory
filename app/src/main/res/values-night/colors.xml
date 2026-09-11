@@ -51,4 +51,24 @@
     <color name="reader_card_stroke">#FF3D3630</color>
     <color name="reader_accent_bar">#FF82B0DA</color>
     <color name="reader_section_title">#FF8AB4D4</color>
+
+    <!-- ===== AI 对话页语义色（暗色） =====
+         重点：chat_bubble_user_text 保持白色 —— 气泡底为 #4A6FA5 中等深度蓝，
+         白字对比度充足。原实现用 @color/white 会被反转成深色，导致深底压深字。 -->
+    <color name="chat_toolbar_bg">#FF252538</color>
+    <color name="chat_input_bar_bg">#FF252538</color>
+    <color name="chat_input_bg">#FF2A2A3C</color>
+    <color name="chat_divider">#FF3A3A4C</color>
+    <color name="chat_bubble_ai_bg">#FF252538</color>
+    <color name="chat_bubble_ai_stroke">#337FB6E0</color>
+    <color name="chat_bubble_user_bg">#FF4A6FA5</color>
+    <color name="chat_bubble_user_text">#FFFFFFFF</color>
+    <color name="chat_voice_bar_bg">#FF1F1F2C</color>
+    <color name="chat_voice_bar_stroke">#337FB6E0</color>
+    <color name="chat_wave_idle">#FF4A4A5E</color>
+    <color name="chat_wave_active">#FF6EB4F0</color>
+    <color name="chat_avatar_bg">#FF4A6FA5</color>
+    <color name="chat_avatar_text">#FFFFFFFF</color>
+    <color name="chat_empty_icon">#FF4A4A5E</color>
+    <color name="chat_muted_icon">#FF70708A</color>
 </resources>

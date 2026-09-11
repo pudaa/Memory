@@ -44,4 +44,24 @@
     <color name="reader_accent_bar">#FF82B0DA</color>
     <color name="reader_section_title">#FF5A7FA0</color>
 
+    <!-- ===== AI 对话页语义色（浅色） =====
+         约定：聊天页所有颜色一律引用本组 token，禁止在布局/vector 内写十六进制字面量。
+         暗色对应值见 values-night/colors.xml -->
+    <color name="chat_toolbar_bg">#FFFFFFFF</color>
+    <color name="chat_input_bar_bg">#FFFFFFFF</color>
+    <color name="chat_input_bg">#FFF2F2F7</color>
+    <color name="chat_divider">#FFE6EAF0</color>
+    <color name="chat_bubble_ai_bg">#FFFFFFFF</color>
+    <color name="chat_bubble_ai_stroke">#1A82B0DA</color>
+    <color name="chat_bubble_user_bg">#FF82B0DA</color>
+    <color name="chat_bubble_user_text">#FFFFFFFF</color>
+    <color name="chat_voice_bar_bg">#FFF8F9FB</color>
+    <color name="chat_voice_bar_stroke">#1A82B0DA</color>
+    <color name="chat_wave_idle">#FFC3CCD9</color>
+    <color name="chat_wave_active">#FF82B0DA</color>
+    <color name="chat_avatar_bg">#FF82B0DA</color>
+    <color name="chat_avatar_text">#FFFFFFFF</color>
+    <color name="chat_empty_icon">#FFC3CCD9</color>
+    <color name="chat_muted_icon">#FFB8C4D4</color>
+
 </resources>
