@@ -300,13 +300,19 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     // ==================== 卡片进度轨道 ====================
 
-    /** 组装每张卡最终颜色：已学饱和 / 未学淡化（单色系，不再区分复习与新学） */
+    /**
+     * 组装每张卡最终颜色，两维编码：
+     * 色相 → 卡片类型（复习 = 蓝 / 新学 = 橙）；
+     * 透明度 → 完成态（已学饱和 / 未学淡化，组件按 alpha >= 128 判定"已学"并统一渲染档位）。
+     */
     private int[] buildSegmentColors() {
-        int base = ContextCompat.getColor(requireContext(), R.color.theme_stress);
+        int reviewColor = ContextCompat.getColor(requireContext(), R.color.theme_stress);
+        int newColor = ContextCompat.getColor(requireContext(), R.color.score_partial);
         int[] colors = new int[wordCards.size()];
         for (int i = 0; i < colors.length; i++) {
-            colors[i] = wordCards.get(i).isOperated
-                    ? base : ColorUtils.setAlphaComponent(base, 70);
+            WordCard wc = wordCards.get(i);
+            int base = wc.isNewList ? newColor : reviewColor;
+            colors[i] = wc.isOperated ? base : ColorUtils.setAlphaComponent(base, 90);
         }
         return colors;
     }
