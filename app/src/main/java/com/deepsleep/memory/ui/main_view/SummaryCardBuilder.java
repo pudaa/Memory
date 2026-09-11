@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -115,10 +116,11 @@ public class SummaryCardBuilder {
         boolean hasScore = !displayCards.isEmpty();
 
         if (hasScore && statsRow != null) {
+            // 图标由布局固定持有，这里只负责数字与文案（原先把 ✅/❌ 拼进字符串）
             if (tvCorrect != null)
-                tvCorrect.setText("✅ " + correct + " 正确");
+                tvCorrect.setText(correct + " 正确");
             if (tvWrong != null)
-                tvWrong.setText("❌ " + wrong + " 错误");
+                tvWrong.setText(wrong + " 错误");
         } else if (statsRow != null) {
             statsRow.setVisibility(View.GONE);
         }
@@ -172,9 +174,9 @@ public class SummaryCardBuilder {
 
         if (showScore) {
             boolean isInputMode = (wc.fsrsScore > 0);
-            TextView tvIcon = new TextView(context);
             if (isInputMode) {
                 // 输入模式：显示 AI 评分 1-4
+                TextView tvIcon = new TextView(context);
                 tvIcon.setText(String.valueOf(wc.fsrsScore));
                 tvIcon.setTextSize(16);
                 tvIcon.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -195,16 +197,23 @@ public class SummaryCardBuilder {
                     break; // 红色-不理解
                 }
                 tvIcon.setTextColor(scoreColor);
+                LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                ip.setMarginEnd(8);
+                row.addView(tvIcon, ip);
             } else {
-                // 选择题模式：保持 ✅/❌
-                tvIcon.setText(wc.isCorrect ? "✅" : "❌");
-                tvIcon.setTextSize(14);
+                // 选择题模式：矢量对勾 / 叉号。
+                // 原先用 ✅/❌ 文本 emoji，各系统 emoji 字形不一致，配色亦不受控。
+                ImageView ivIcon = new ImageView(context);
+                ivIcon.setImageResource(
+                        wc.isCorrect ? R.drawable.ic_check_circle_24 : R.drawable.ic_cancel_24);
+                ivIcon.setColorFilter(ContextCompat.getColor(context,
+                        wc.isCorrect ? R.color.theme_stress : R.color.theme_error));
+                int iconSize = (int) (16 * context.getResources().getDisplayMetrics().density);
+                LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(iconSize, iconSize);
+                ip.setMarginEnd(8);
+                row.addView(ivIcon, ip);
             }
-            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            ip.setMarginEnd(8);
-            tvIcon.setLayoutParams(ip);
-            row.addView(tvIcon);
         }
 
         TextView tvWord = new TextView(context);

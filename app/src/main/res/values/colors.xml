@@ -69,4 +69,7 @@
     <color name="chat_record_bar_bg">#1AFF5252</color>
     <color name="chat_record_bar_stroke">#66FF5252</color>
 
+    <!-- ===== 单词学习总结卡 ===== -->
+    <color name="summary_badge_bg">#1482B0DA</color>
+
 </resources>

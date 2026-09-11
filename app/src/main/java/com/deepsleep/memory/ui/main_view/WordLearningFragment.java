@@ -846,7 +846,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                     }
                     String isCompleted = responseJson.optString("isCompleted", "false");
                     if ("true".equals(isCompleted)) {
-                        Toast.makeText(getContext(), "🎉 恭喜！你已完成本词书全部单词的学习！", Toast.LENGTH_LONG).show();
+                        Toast.makeText(getContext(), "恭喜！你已完成本词书全部单词的学习！", Toast.LENGTH_LONG).show();
                         Log.i("StudyLog", "词书已完成 — 全部 " + totalWords + " 个单词已学习");
                     } else {
                         Toast.makeText(getContext(), R.string.today_learning_complete, Toast.LENGTH_LONG).show();

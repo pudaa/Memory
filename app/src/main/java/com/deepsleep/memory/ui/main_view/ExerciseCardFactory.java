@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -265,9 +266,12 @@ public class ExerciseCardFactory {
             TextView tvResult = cardView.findViewById(R.id.tv_feedback_result);
             TextView tvMeaning = cardView.findViewById(R.id.tv_correct_meaning);
             if (tvResult != null) {
-                tvResult.setText(isCorrect ? "✅ 正确！" : "❌ 错误");
-                tvResult.setTextColor(isCorrect ? android.graphics.Color.parseColor("#4CAF50")
-                        : android.graphics.Color.parseColor("#F44336"));
+                tvResult.setText(isCorrect ? "正确！" : "错误");
+                int resultColor = isCorrect ? android.graphics.Color.parseColor("#4CAF50")
+                        : android.graphics.Color.parseColor("#F44336");
+                tvResult.setTextColor(resultColor);
+                // 对错由矢量图标承担，不再把 ✅/❌ 拼进字符串
+                setFeedbackIcon(cardView, true, isCorrect, resultColor);
             }
             if (tvMeaning != null)
                 tvMeaning.setText("正确释义：" + correctDisplay);
@@ -369,6 +373,7 @@ public class ExerciseCardFactory {
                 // 输入模式：不提前显示对错，只显示中性提交状态
                 tvResult.setText("已提交");
                 tvResult.setTextColor(android.graphics.Color.parseColor("#9E9E9E"));
+                setFeedbackIcon(cardView, false, false, 0);
             }
             if (tvMeaning != null)
                 tvMeaning.setText("标准释义：" + correctMeaning);
@@ -416,10 +421,12 @@ public class ExerciseCardFactory {
             }
             if (fsrsScore > 0) {
                 tvResult.setText(fsrsScore + "  " + level);
+                setFeedbackIcon(cardView, false, false, 0);
             } else {
                 // 降级：服务端未评分，回退到二值
-                tvResult.setText(isCorrect ? "✅ 正确" : "❌ 错误");
+                tvResult.setText(isCorrect ? "正确" : "错误");
                 color = isCorrect ? 0xFF4CAF50 : 0xFFF44336;
+                setFeedbackIcon(cardView, true, isCorrect, color);
             }
             tvResult.setTextColor(color);
         }
@@ -433,5 +440,27 @@ public class ExerciseCardFactory {
                 tvAiFeedback.setVisibility(View.GONE);
             }
         }
+    }
+
+    /**
+     * 反馈行的状态图标：选择题显示对勾 / 叉号，其余状态隐藏。
+     * 原先用 ✅/❌ 文本 emoji 拼进字符串，各系统 emoji 字形不一致、配色不受控。
+     *
+     * @param show      false 时隐藏图标（如"已提交"、数字评分等中性状态）
+     * @param isCorrect true 显示对勾，false 显示叉号
+     * @param color     图标着色（与文字色保持一致）
+     */
+    private static void setFeedbackIcon(View cardView, boolean show, boolean isCorrect, int color) {
+        ImageView iv = cardView.findViewById(R.id.iv_feedback_icon);
+        if (iv == null) {
+            return;
+        }
+        if (!show) {
+            iv.setVisibility(View.GONE);
+            return;
+        }
+        iv.setVisibility(View.VISIBLE);
+        iv.setImageResource(isCorrect ? R.drawable.ic_check_circle_24 : R.drawable.ic_cancel_24);
+        iv.setColorFilter(color);
     }
 }

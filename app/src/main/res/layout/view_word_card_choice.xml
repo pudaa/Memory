@@ -334,14 +334,32 @@
             android:layout_marginTop="12dp"
             android:layout_marginBottom="8dp">
 
-            <TextView
-                android:id="@+id/tv_feedback_result"
+            <!-- 反馈行：状态图标由布局固定持有，文案只承载文字
+                 （原为 "✅ 正确！" 这类把 emoji 拼进字符串的写法） -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="✅ 正确！"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="4dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+
+                <ImageView
+                    android:id="@+id/iv_feedback_icon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="6dp"
+                    android:src="@drawable/ic_check_circle_24"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/tv_feedback_result"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="正确！"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tv_correct_meaning"
