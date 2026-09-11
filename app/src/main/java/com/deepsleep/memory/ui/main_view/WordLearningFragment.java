@@ -188,7 +188,24 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         cardContainer = view.findViewById(R.id.word_card_container);
         // 点击 / 拖动轨道快速跳到对应卡片。
         // 方法引用求值时会对 cardContainer 做非空检查，必须放在其 findViewById 之后
-        progressTrack.setOnSeekListener(cardContainer::showCardAtIndex);
+        progressTrack.setOnSeekListener(index -> {
+            // 跳卡目标可能尚未被渐进构建（首批只建少量卡），先同步补建再显示，
+            // 否则 showCardAtIndex 对不存在的视图静默返回，表现为拖拽/点击无响应
+            ensureCardsBuiltUpTo(index);
+            cardContainer.showCardAtIndex(index);
+        });
+        // 点阵又细又窄，触摸热区必须扩大，否则手指按不准导致点击/拖拽无响应：
+        // 通过 TouchDelegate 将热区左右各扩 40dp、上下各扩 16dp
+        progressTrack.post(() -> {
+            android.graphics.Rect hit = new android.graphics.Rect();
+            progressTrack.getHitRect(hit);
+            float d = getResources().getDisplayMetrics().density;
+            hit.inset((int) (-40 * d), (int) (-16 * d));
+            android.view.View trackParent = (android.view.View) progressTrack.getParent();
+            if (trackParent != null) {
+                trackParent.setTouchDelegate(new android.view.TouchDelegate(hit, progressTrack));
+            }
+        });
         if (cardContainer != null) {
             cardContainer.setOnCardSwipedListener(this);
             dailyState.loadFromPrefs();
@@ -308,6 +325,15 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         progressTrack.setVisibility(View.VISIBLE);
         progressTrack.setSegments(buildSegmentColors());
         progressTrack.setCurrentIndex(Math.max(currentCardIndex, 0));
+    }
+
+    /** 同步补建视图至 index（进度点阵跳卡目标可能超出已渐进构建的范围） */
+    private void ensureCardsBuiltUpTo(int index) {
+        while (pendingViewBuildIndex <= index && pendingViewBuildIndex < wordCards.size()) {
+            if (!buildNextCardViewBatch(index - pendingViewBuildIndex + 1)) {
+                break;
+            }
+        }
     }
 
     private void showLearningPlan() {
