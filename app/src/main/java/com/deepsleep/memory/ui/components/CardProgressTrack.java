@@ -7,29 +7,25 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-import androidx.core.content.ContextCompat;
-
-import com.deepsleep.memory.R;
-
 /**
- * 卡片进度点阵：横向拨盘（横向滚动视口）。
+ * 卡片进度点阵：横向拨盘 + 渐隐渐显。
  *
- * <p>每日卡片可能有几十张，点数固定为 {@link #MAX_SLOTS} 个槽位，
- * <b>当前卡固定落在第 2 个槽位</b>（左侧留一槽展示"上一张"），
- * 其余槽位依次展示后续卡片，越界槽位不绘制：</p>
+ * <p>每日卡片可能有几十张，不为每张卡生成一个点，而是用固定数量的点
+ * （{@link #MAX_SLOTS} 个槽位）按比例映射覆盖整批卡片。核心视觉约定：</p>
  * <ul>
- *   <li>透明度按与当前槽的距离衰减：当前点饱和，相邻半透明，
- *       越远越淡；视口两端额外衰减表示边界——有限点承载无限卡片；</li>
- *   <li>切换卡片时整条视口向切向平移一格（拨盘转动），当前点在平移中
- *       从圆形撑开为胶囊（圆 → 圆角矩形形变）；</li>
- *   <li>快速点击：跳到该槽对应卡片；</li>
- *   <li>长按 0.2s 进入拖拽：手指落在哪个槽，该点拉宽为当前点并
- *       <b>实时回调切卡</b>（容器以既有滑出+渐显动效切换），松手结束。</li>
+ *   <li><b>点永远等距均匀排布，整体宽度恒定</b>——当前点拉宽为胶囊时
+ *       以槽位中心对称展开（覆盖自身两侧间隙），绝不推动相邻点；</li>
+ *   <li>切换卡片时整条点阵向切向平移一格，旧视口整体渐隐滑出、
+ *       新视口渐显滑入（交叉淡化），模拟拨盘滚动；</li>
+ *   <li>点透明度按与当前槽的距离衰减，视口两端额外衰减表示边界。</li>
  * </ul>
+ *
+ * <p>交互：快速点击跳到该槽对应卡片；长按 0.2s 进入拖拽，
+ * 手指扫过槽位实时切卡（容器以既有动效切换）。触摸热区由外部
+ * TouchDelegate 扩大，本组件自身保持极小纵向占用。</p>
  *
  * <p>组件保持纯绘制：每张卡的最终颜色（完成态透明度编码）
  * 由调用方计算传入（{@link #setSegments(int[])}），本组件不感知业务模型。</p>
@@ -45,34 +41,33 @@ public class CardProgressTrack extends View {
     private static final float POINT_DP = 6f;
     /** 点间距 */
     private static final float GAP_DP = 4f;
-    /** 当前点撑开后的宽度（胶囊） */
+    /** 当前点撑开后的宽度（胶囊，以槽位中心对称展开） */
     private static final float ACTIVE_WIDTH_DP = 16f;
     /** 视口槽位数 */
     private static final int MAX_SLOTS = 9;
-    private static final float VERTICAL_PADDING_DP = 12f;
+    private static final float VERTICAL_PADDING_DP = 2f;
     /** 长按触发拖拽的时长 */
     private static final int DRAG_ACTIVATE_MS = 200;
-    /** 拨盘平移 + 形变动画时长 */
+    /** 拨盘平移 + 交叉淡化动画时长 */
     private static final long SLIDE_ANIM_MS = 200;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
 
+    private final float pointD;
+    private final float gapD;
+    private final float activeW;
+    private final float verticalPadding;
+
     /** 每张卡的最终颜色（含完成态透明度），由调用方传入 */
     private int[] cardColors = new int[0];
     private int currentIndex = 0;
-    /** 当前卡所在槽位（0 或 1：首卡在槽 0，其余固定槽 1，左侧留槽展示上一张） */
-    private int currentSlot = 0;
-    /** 拨盘平移偏移（px，动画中从 ±槽宽 过渡到 0） */
-    private float slideOffset = 0f;
-    /** 当前槽宽度形变进度（0=圆，1=胶囊） */
-    private float morphT = 1f;
-    /** 拖拽预览槽（-1 表示非拖拽态） */
-    private int dragSlot = -1;
-    private float pointD;
-    private float gapD;
-    private float activeW;
-    private float verticalPadding;
+    /** 交叉淡化动画的旧视口起始卡（-1 表示当前无动画） */
+    private int oldIndex = -1;
+    /** 动画方向：+1 前进（内容自右滑入），-1 后退 */
+    private int slideDir = 0;
+    /** 动画进度 0→1 */
+    private float slideT = 1f;
     private boolean dragging = false;
     private boolean pressActive = false;
     private float lastTouchX = 0f;
@@ -91,7 +86,6 @@ public class CardProgressTrack extends View {
         gapD = GAP_DP * d;
         activeW = ACTIVE_WIDTH_DP * d;
         verticalPadding = VERTICAL_PADDING_DP * d;
-        paint.setColor(ContextCompat.getColor(getContext(), R.color.light_gray));
     }
 
     /** 传入每张卡的最终颜色（完成态透明度编码），触发重绘 */
@@ -100,15 +94,13 @@ public class CardProgressTrack extends View {
         if (currentIndex > cardColors.length - 1) {
             currentIndex = Math.max(cardColors.length - 1, 0);
         }
-        currentSlot = Math.min(1, currentIndex);
-        slideOffset = 0f;
-        morphT = 1f;
+        oldIndex = -1;
+        slideT = 1f;
         invalidate();
     }
 
     /**
-     * 当前卡切换（外部回流或交互）：整条视口向切向平移一格（拨盘转动），
-     * 当前点在平移中从圆形撑开为胶囊。
+     * 当前卡切换：旧视口向反向滑出并渐隐，新视口自切向滑入并渐显（拨盘滚动）。
      */
     public void setCurrentIndex(int index) {
         int clamped = clampCard(index);
@@ -116,73 +108,53 @@ public class CardProgressTrack extends View {
             invalidate();
             return;
         }
-        int dir = (int) Math.signum(clamped - currentIndex);
+        oldIndex = currentIndex;
+        slideDir = (int) Math.signum(clamped - oldIndex);
         currentIndex = clamped;
-        currentSlot = Math.min(1, currentIndex);
-        startSlide(dir);
+        startSlide();
     }
 
     public void setOnSeekListener(OnSeekListener listener) {
         seekListener = listener;
     }
 
-    // ==================== 槽位 ↔ 卡片映射 ====================
-
-    /** 槽位 s 对应的卡片序号（当前卡固定在 currentSlot，向两侧展开；越界返回 -1/totalCards） */
-    private int cardAtSlot(int slot) {
-        return currentIndex + (slot - currentSlot);
-    }
-
-    /** 槽位 s 对应卡片是否存在 */
-    private boolean slotHasCard(int slot) {
-        int card = cardAtSlot(slot);
-        return card >= 0 && card < cardColors.length;
-    }
-
-    // ==================== 透明度梯度（拨盘边界衰减） ====================
-
-    /**
-     * 槽位透明度：当前点饱和，按距离衰减（半透 → 更淡），
-     * 视口两端再额外衰减表示边界（左缘最先隐没、右缘提示尚有内容）。
-     */
-    private float alphaForSlot(int slot) {
-        int dist = Math.abs(slot - currentSlot);
-        float alpha;
-        switch (dist) {
-            case 0:  alpha = 255f; break;
-            case 1:  alpha = 170f; break;
-            case 2:  alpha = 115f; break;
-            default: alpha = 75f;  break;
-        }
-        if (slot == 0) {
-            alpha *= 0.45f;          // 左缘：即将隐没
-        } else if (slot == MAX_SLOTS - 1) {
-            alpha *= 0.6f;           // 右缘：边界暗示
-        }
-        return alpha;
-    }
-
-    // ==================== 拨盘平移动画 ====================
-
-    /** dir=+1 前进（内容自右滑入），dir=-1 后退（内容自左滑入） */
-    private void startSlide(int dir) {
+    private void startSlide() {
         if (slideAnimator != null) {
             slideAnimator.cancel();
         }
-        float unit = pointD + gapD;
-        float from = dir * unit;
         slideAnimator = ValueAnimator.ofFloat(0f, 1f);
         slideAnimator.setDuration(SLIDE_ANIM_MS);
         slideAnimator.addUpdateListener(animation -> {
-            float t = (float) animation.getAnimatedValue();
-            slideOffset = from * (1 - t);
-            morphT = t;
+            slideT = (float) animation.getAnimatedValue();
             invalidate();
         });
         slideAnimator.start();
     }
 
-    // ==================== 测量与绘制 ====================
+    // ==================== 槽位映射 ====================
+
+    /** 当前卡所在的槽位（首卡在槽 0，其余固定槽 1，左侧留一槽展示上一张） */
+    private int slotOfCard(int cardIndex) {
+        return Math.min(1, cardIndex);
+    }
+
+    /** 槽位 → 卡片（当前卡槽向两侧展开，越界由 clampCard 收敛） */
+    private int cardOfSlot(int slot) {
+        int card = currentIndex + (slot - slotOfCard(currentIndex));
+        return clampCard(card);
+    }
+
+    private int clampCard(int index) {
+        int max = Math.max(cardColors.length - 1, 0);
+        return Math.min(Math.max(index, 0), max);
+    }
+
+    private int slotAt(float x) {
+        float unit = pointD + gapD;
+        return (int) Math.min(MAX_SLOTS - 1, Math.max(0, x / unit));
+    }
+
+    // ==================== 绘制 ====================
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -206,27 +178,65 @@ public class CardProgressTrack extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (cardColors.length == 0) {
+            return;
+        }
+        if (oldIndex >= 0 && slideT < 1f) {
+            // 交叉淡化：旧视口向反向滑出渐隐，新视口自切向滑入渐显
+            float unit = pointD + gapD;
+            drawLayer(canvas, oldIndex, -slideDir * unit * slideT, (1 - slideT), false);
+            drawLayer(canvas, currentIndex, slideDir * unit * (1 - slideT), slideT, true);
+        } else {
+            oldIndex = -1;
+            drawLayer(canvas, currentIndex, 0, 1f, true);
+        }
+    }
+
+    /**
+     * 绘制一层视口：focusCard 落在其当前槽，槽位等距、整体平移 offset；
+     * 透明度 = 层透明度 × 槽位距离衰减 × 端点边界衰减 × 卡片完成度。
+     */
+    private void drawLayer(Canvas canvas, int focusCard, float offset, float layerAlpha, boolean activeMorph) {
+        int slot = slotOfCard(focusCard);
         float unit = pointD + gapD;
         float cy = getHeight() / 2f;
         float radius = pointD / 2f;
 
-        for (int slot = 0; slot < MAX_SLOTS; slot++) {
-            if (!slotHasCard(slot)) {
+        for (int s = 0; s < MAX_SLOTS; s++) {
+            int card = focusCard + (s - slot);
+            if (card < 0 || card >= cardColors.length) {
                 continue;
             }
-            boolean isActive = slot == currentSlot;
-            // 当前槽宽度随 morphT 从圆撑开为胶囊；拖拽预览槽强制胶囊
-            float w = isActive ? pointD + (activeW - pointD) * morphT : pointD;
-            if (slot == dragSlot && dragging) {
-                w = activeW;
+            boolean active = s == slot;
+            // 拉宽以槽位中心对称展开：槽距恒定、整体宽度不变、不推动相邻点
+            float w = active && activeMorph ? pointD + (activeW - pointD) * slideT : pointD;
+            float distAlpha = distanceAlpha(s - slot);
+            if (s == 0) {
+                distAlpha *= 0.55f;         // 左缘边界衰减
+            } else if (s == MAX_SLOTS - 1) {
+                distAlpha *= 0.65f;         // 右缘边界衰减
             }
-            float alpha = alphaForSlot(slot);
-            int base = cardColors[cardAtSlot(slot)];
-            paint.setColor(Color.argb((int) alpha, Color.red(base), Color.green(base), Color.blue(base)));
+            // 完成度只分两档（已学饱和 / 未学 30%）——不与槽梯度连乘，
+            // 否则多层衰减叠乘后未完成点会淡到不可见
+            int base = cardColors[card];
+            float stateAlpha = Color.alpha(base) >= 128 ? 255f
+                    : (active ? 200f : 76f);
+            float finalAlpha = stateAlpha / 255f * distAlpha * layerAlpha;
+            paint.setColor(Color.argb((int) finalAlpha, Color.red(base), Color.green(base), Color.blue(base)));
 
-            float x = slot * unit + slideOffset + (unit - w) / 2f;
-            rect.set(x, cy - radius, x + w, cy + radius);
+            float cx = s * unit + unit / 2f + offset;
+            rect.set(cx - w / 2f, cy - radius, cx + w / 2f, cy + radius);
             canvas.drawRoundRect(rect, radius, radius, paint);
+        }
+    }
+
+    /** 距当前槽的距离衰减：当前 255 → 相邻 170 → 更远 115/75 */
+    private float distanceAlpha(int dist) {
+        switch (Math.abs(dist)) {
+            case 0:  return 255f;
+            case 1:  return 170f;
+            case 2:  return 115f;
+            default: return 75f;
         }
     }
 
@@ -248,8 +258,13 @@ public class CardProgressTrack extends View {
             case MotionEvent.ACTION_MOVE:
                 lastTouchX = x;
                 if (dragging) {
-                    dragSlot = slotAt(x);
-                    seekToSlot(dragSlot);
+                    int cardIndex = cardOfSlot(slotAt(x));
+                    if (cardIndex != currentIndex) {
+                        setCurrentIndex(cardIndex);
+                    }
+                    if (seekListener != null) {
+                        seekListener.onSeek(cardIndex);
+                    }
                 }
                 return true;
             case MotionEvent.ACTION_UP:
@@ -258,7 +273,6 @@ public class CardProgressTrack extends View {
                 pressActive = false;
                 if (dragging) {
                     dragging = false;
-                    dragSlot = -1;
                     performClick();
                     return true;
                 }
@@ -275,43 +289,31 @@ public class CardProgressTrack extends View {
         return super.performClick();
     }
 
-    /** 长按到达 0.2s：进入拖拽模式，立即响应手指位置 */
+    /** 长按到达 0.2s：进入拖拽模式 */
     private void startDrag() {
         if (!pressActive || dragging) {
             return;
         }
         dragging = true;
-        // 拖拽期间禁止父容器拦截手势
         getParent().requestDisallowInterceptTouchEvent(true);
         lastTouchX = Math.min(Math.max(lastTouchX, 0), getWidth());
-        dragSlot = slotAt(lastTouchX);
-        seekToSlot(dragSlot);
-    }
-
-    /** 切换到槽位对应的卡片：拨盘平移 + 实时回调切卡 */
-    private void seekToSlot(int slot) {
-        int cardIndex = cardAtSlot(slot);
-        if (cardIndex < 0 || cardIndex >= cardColors.length) {
-            return;
-        }
+        int cardIndex = cardOfSlot(slotAt(lastTouchX));
         if (cardIndex != currentIndex) {
             setCurrentIndex(cardIndex);
         }
-        if (seekListener != null && cardIndex != lastSeekedCard) {
-            lastSeekedCard = cardIndex;
+        if (seekListener != null) {
             seekListener.onSeek(cardIndex);
         }
     }
 
-    private int lastSeekedCard = -1;
-
-    private int slotAt(float x) {
-        float unit = pointD + gapD;
-        return (int) Math.min(MAX_SLOTS - 1, Math.max(0, x / unit));
-    }
-
-    private int clampCard(int index) {
-        int max = Math.max(cardColors.length - 1, 0);
-        return Math.min(Math.max(index, 0), max);
+    /** 快速点击：跳到槽位对应卡片 */
+    private void seekToSlot(int slot) {
+        int cardIndex = cardOfSlot(slot);
+        if (cardIndex != currentIndex) {
+            setCurrentIndex(cardIndex);
+        }
+        if (seekListener != null) {
+            seekListener.onSeek(cardIndex);
+        }
     }
 }
