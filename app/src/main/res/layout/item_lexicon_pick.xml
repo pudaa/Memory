@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 词书选择项：首字色块 + 书名/词数 + 当前标记 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="9dp"
+    android:background="@drawable/bg_session_item">
+
+    <TextView
+        android:id="@+id/tv_initial"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:gravity="center"
+        android:background="@drawable/bg_lexicon_initial"
+        android:text="词"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/theme_primary" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_book_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="词书名称"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/theme_text_primary" />
+
+        <TextView
+            android:id="@+id/tv_book_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="0 词"
+            android:textSize="12sp"
+            android:textColor="@color/theme_text_secondary" />
+    </LinearLayout>
+
+    <!-- 当前浏览的词书标记 -->
+    <TextView
+        android:id="@+id/tv_current_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_current_tag"
+        android:paddingHorizontal="9dp"
+        android:paddingVertical="3dp"
+        android:text="当前"
+        android:textSize="11sp"
+        android:textColor="@color/theme_stress"
+        android:visibility="gone" />
+
+</LinearLayout>

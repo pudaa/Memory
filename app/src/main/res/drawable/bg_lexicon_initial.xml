@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 词书选择项：书名首字色块（词书无封面图，用首字提供辨识度） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/card_accent_overlay" />
+    <corners android:radius="10dp" />
+</shape>

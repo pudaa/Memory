@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -141,41 +142,60 @@ public class LexiconBrowseFragment extends Fragment {
     }
 
     /**
-     * 弹出本地词书列表供选择。
+     * 弹出词书选择底部弹窗（拖拽指示条 + 标题 + 首字色块卡片列表 + 当前词书标记）。
      *
      * @param persistAsOfflineDefault true = 作为离线默认词书落盘（离线兜底场景）；
      *                                false = 仅切换本次浏览（用户自由切换场景）
      */
     private void showBookPicker(List<JSONObject> books, boolean persistAsOfflineDefault) {
-        List<String> titles = new ArrayList<>();
-        for (JSONObject book : books) {
-            titles.add(book.optString("title", book.optString("id", "")));
-        }
         requireActivity().runOnUiThread(() -> {
             progressBar.setVisibility(View.GONE);
-            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("选择要浏览的词书")
-                    .setItems(titles.toArray(new String[0]), (dialog, which) -> {
-                        String id = books.get(which).optString("id", "");
-                        if (id.isEmpty()) {
-                            return;
+
+            com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                    new com.google.android.material.bottomsheet.BottomSheetDialog(requireContext());
+            View content = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.dialog_lexicon_picker, null);
+            sheet.setContentView(content);
+
+            TextView subtitle = content.findViewById(R.id.tv_picker_subtitle);
+            subtitle.setText("共 " + books.size() + " 本 · 本地词库，离线可浏览");
+
+            String currentId = LexiconResourceMap.getLoadedLexiconName();
+            LinearLayout list = content.findViewById(R.id.lexicon_list);
+
+            for (JSONObject book : books) {
+                String id = book.optString("id", "");
+                String title = book.optString("title", id);
+                int count = book.optInt("wordNum", 0);
+
+                View row = LayoutInflater.from(requireContext())
+                        .inflate(R.layout.item_lexicon_pick, list, false);
+
+                TextView initial = row.findViewById(R.id.tv_initial);
+                initial.setText(title.isEmpty() ? "词" : title.substring(0, 1));
+                ((TextView) row.findViewById(R.id.tv_book_title)).setText(title);
+                ((TextView) row.findViewById(R.id.tv_book_count)).setText(count + " 词");
+                row.findViewById(R.id.tv_current_tag)
+                        .setVisibility(id.equals(currentId) ? View.VISIBLE : View.GONE);
+
+                row.setOnClickListener(v -> {
+                    sheet.dismiss();
+                    progressBar.setVisibility(View.VISIBLE);
+                    new Thread(() -> {
+                        if (persistAsOfflineDefault) {
+                            // 离线兜底：记为离线默认词书（落盘）
+                            LexiconResourceMap.loadLexicon(requireContext(), id);
+                            renderLexicon(id, true);
+                        } else {
+                            // 自由切换：仅影响本次会话浏览，不写缓存、不显示离线提示
+                            LexiconResourceMap.switchLexiconForBrowsing(requireContext(), id);
+                            renderLexicon(id, false);
                         }
-                        progressBar.setVisibility(View.VISIBLE);
-                        new Thread(() -> {
-                            if (persistAsOfflineDefault) {
-                                // 离线兜底：记为离线默认词书（落盘）
-                                LexiconResourceMap.loadLexicon(requireContext(), id);
-                                renderLexicon(id, true);
-                            } else {
-                                // 自由切换：仅影响本次会话浏览，不写缓存、不显示离线提示
-                                LexiconResourceMap.switchLexiconForBrowsing(requireContext(), id);
-                                renderLexicon(id, false);
-                            }
-                        }).start();
-                    })
-                    .setNegativeButton("取消", (d, w) -> {
-                    })
-                    .show();
+                    }).start();
+                });
+                list.addView(row);
+            }
+            sheet.show();
         });
     }
 }
