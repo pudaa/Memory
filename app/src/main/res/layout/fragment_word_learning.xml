@@ -79,19 +79,6 @@
     </LinearLayout>
 
 
-    <!-- 卡片进度轨道：分段色轨（蓝=复习 / 橙=新学 / 降透明=未完成）+ 当前卡胶囊游标，
-         点击或拖动可快速跳卡；GONE 时容器自动上移补位 -->
-    <com.deepsleep.memory.ui.components.CardProgressTrack
-        android:id="@+id/card_progress_track"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="24dp"
-        android:visibility="gone" />
-
-
     <com.deepsleep.memory.ui.main_view.WordCardContainer
         android:id="@+id/word_card_container"
         android:layout_width="match_parent"
@@ -101,5 +88,19 @@
 
 
     </com.deepsleep.memory.ui.main_view.WordCardContainer>
+
+    <!-- 卡片进度点阵：位于卡片下方，居中窄条。
+         点数固定上限 9，卡片较多时按区间均分映射；
+         当前卡所在点的圆点拉宽为胶囊（圆 → 圆角矩形形变）；
+         点色区分复习(蓝)/新学(橙)，透明度编码完成度；
+         点击点跳到对应区间首卡。总结态自动隐藏 -->
+    <com.deepsleep.memory.ui.components.CardProgressTrack
+        android:id="@+id/card_progress_track"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone" />
 
 </LinearLayout>
