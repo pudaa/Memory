@@ -365,47 +365,52 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
         }
     }
 
-    private void showCard(int index) {
-        // Log.i("Showing card at index: " + index, "showCard");
+    /**
+     * @param animate true = 播放渐显（单次切卡）；false = 直接呈现（连续切卡）
+     */
+    private void showCard(int index, boolean animate) {
         if (index < 0 || index >= cardList.size()) {
             Log.i("Invalid index: " + index, "showCard");
             return;
         }
 
         if (currentCard != null) {
-            Log.i("Current card is not null", "showCard");
+            // 清理可能未播完的渐入动画并复位，避免半透明残影
+            currentCard.animate().cancel();
+            currentCard.setAlpha(1f);
             currentCard.setVisibility(View.INVISIBLE);
         }
         currentCard = cardList.get(index);
         currentCardIndex = index;
         hideOtherCardsExcept(currentCard, null);
-        if (currentCard.getVisibility() == View.VISIBLE) {
-            currentCard.setAlpha(1f);
-            currentCard.setScaleX(1f);
-            currentCard.setScaleY(1f);
-            currentCard.setTranslationX(0);
-            currentCard.setTranslationZ(1);
-            setupStackedCards(); // 更新堆叠卡片位置
-            notifyCurrentCardChanged();
-            return;
-        }
-        currentCard.setAlpha(0f); // 初始透明度为0
-        currentCard.setScaleX(0.97f);
-        currentCard.setScaleY(0.97f);
+
+        // 目标卡可能残留上一次被打断的动画（alpha 停在中间值），先归位
+        currentCard.animate().cancel();
+        currentCard.setAlpha(1f);
+        currentCard.setScaleX(1f);
+        currentCard.setScaleY(1f);
         currentCard.setTranslationX(0);
+        currentCard.setTranslationZ(1);
+
+        boolean hadBeenVisible = currentCard.getVisibility() == View.VISIBLE;
         currentCard.setVisibility(View.VISIBLE);
 
-        // 添加渐入动画
-        currentCard.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(ANIMATION_DURATION)
-                .setInterpolator(new AccelerateDecelerateInterpolator()).start();
+        // 渐显仅在单次切卡（animate=true）且该卡此前不可见时播放。
+        // 拖拽连续切卡走 animate=false 直接呈现——否则每张卡从 alpha 0 起
+        // 渐入，还没播完就被下一次切卡打断，表现为持续闪烁、看不清当前卡。
+        if (animate && !hadBeenVisible) {
+            currentCard.setAlpha(0f);
+            currentCard.setScaleX(0.97f);
+            currentCard.setScaleY(0.97f);
+            currentCard.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(ANIMATION_DURATION)
+                    .setInterpolator(new AccelerateDecelerateInterpolator()).start();
+        }
 
         for (int i = index + 1; i < cardList.size(); i++) {
             setupStackedCard(cardList.get(i), i);
         }
 
-        if (onCardSwipedListener != null) {
-            onCardSwipedListener.onCurrentCardChanged(currentCard);
-        }
+        notifyCurrentCardChanged();
     }
 
     private void setupStackedCards() {
@@ -547,9 +552,21 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                 }).start();
     }
 
+    /** 常规切卡（点击跳卡等单次切换）：保留渐显动效 */
     public void showCardAtIndex(int index) {
         if (index >= 0 && index < cardList.size()) {
-            showCard(index);
+            showCard(index, true);
+        }
+    }
+
+    /**
+     * 连续切卡（拖拽进度点阵）：直接呈现目标卡片。
+     * 渐显动画在连续切换时会被下一次切卡不断打断，卡片停留在半透明状态，
+     * 表现为持续闪烁、看不清当前拖到哪张卡。
+     */
+    public void showCardAtIndexImmediate(int index) {
+        if (index >= 0 && index < cardList.size()) {
+            showCard(index, false);
         }
     }
 

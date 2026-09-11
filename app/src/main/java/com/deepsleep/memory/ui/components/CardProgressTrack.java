@@ -85,6 +85,11 @@ public class CardProgressTrack extends View {
         setElevation(4f * d);
     }
 
+    /** 是否处于长按拖拽中（拖拽期间切卡应直接呈现，避免渐显动画反复被打断而闪烁） */
+    public boolean isDragging() {
+        return dragging;
+    }
+
     /** 传入每张卡的最终颜色（完成态透明度编码），触发重绘 */
     public void setSegments(int[] colors) {
         // 同批次数据不重置动画状态：切卡回调（onCurrentCardChanged）会高频触发

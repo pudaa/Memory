@@ -192,7 +192,13 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             // 跳卡目标可能尚未被渐进构建（首批只建少量卡），先同步补建再显示，
             // 否则 showCardAtIndex 对不存在的视图静默返回，表现为拖拽/点击无响应
             ensureCardsBuiltUpTo(index);
-            cardContainer.showCardAtIndex(index);
+            if (progressTrack.isDragging()) {
+                // 拖拽期间连续切卡：直接呈现目标卡，避免渐显动画被反复打断而持续闪烁
+                cardContainer.showCardAtIndexImmediate(index);
+            } else {
+                // 点击跳卡（单次切换）：保留既有渐显动效
+                cardContainer.showCardAtIndex(index);
+            }
         });
         // 点阵又细又窄，触摸热区必须扩大，否则手指按不准导致点击/拖拽无响应：
         // 通过 TouchDelegate 将热区左右各扩 40dp、上下各扩 16dp
