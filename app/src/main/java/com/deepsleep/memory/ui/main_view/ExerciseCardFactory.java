@@ -12,6 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.cardview.widget.CardView;
+import androidx.core.content.ContextCompat;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
@@ -267,8 +268,8 @@ public class ExerciseCardFactory {
             TextView tvMeaning = cardView.findViewById(R.id.tv_correct_meaning);
             if (tvResult != null) {
                 tvResult.setText(isCorrect ? "正确！" : "错误");
-                int resultColor = isCorrect ? android.graphics.Color.parseColor("#4CAF50")
-                        : android.graphics.Color.parseColor("#F44336");
+                int resultColor = ContextCompat.getColor(cardView.getContext(),
+                        isCorrect ? R.color.score_excellent : R.color.score_poor);
                 tvResult.setTextColor(resultColor);
                 // 对错由矢量图标承担，不再把 ✅/❌ 拼进字符串
                 setFeedbackIcon(cardView, true, isCorrect, resultColor);
@@ -372,7 +373,7 @@ public class ExerciseCardFactory {
             if (tvResult != null) {
                 // 输入模式：不提前显示对错，只显示中性提交状态
                 tvResult.setText("已提交");
-                tvResult.setTextColor(android.graphics.Color.parseColor("#9E9E9E"));
+                tvResult.setTextColor(ContextCompat.getColor(cardView.getContext(), R.color.score_pending));
                 setFeedbackIcon(cardView, false, false, 0);
             }
             if (tvMeaning != null)
@@ -401,22 +402,23 @@ public class ExerciseCardFactory {
             // 显示评分数字 + 等级描述
             String level;
             int color;
+            Context ctx = cardView.getContext();
             switch (fsrsScore) {
             case 4:
                 level = "完全掌握";
-                color = 0xFF4CAF50;
+                color = ContextCompat.getColor(ctx, R.color.score_excellent);
                 break;
             case 3:
                 level = "基本掌握";
-                color = 0xFF2196F3;
+                color = ContextCompat.getColor(ctx, R.color.score_good);
                 break;
             case 2:
                 level = "部分理解";
-                color = 0xFFFF9800;
+                color = ContextCompat.getColor(ctx, R.color.score_partial);
                 break;
             default:
                 level = "不理解";
-                color = 0xFFF44336;
+                color = ContextCompat.getColor(ctx, R.color.score_poor);
                 break;
             }
             if (fsrsScore > 0) {
@@ -425,7 +427,8 @@ public class ExerciseCardFactory {
             } else {
                 // 降级：服务端未评分，回退到二值
                 tvResult.setText(isCorrect ? "正确" : "错误");
-                color = isCorrect ? 0xFF4CAF50 : 0xFFF44336;
+                color = ContextCompat.getColor(ctx,
+                        isCorrect ? R.color.score_excellent : R.color.score_poor);
                 setFeedbackIcon(cardView, true, isCorrect, color);
             }
             tvResult.setTextColor(color);

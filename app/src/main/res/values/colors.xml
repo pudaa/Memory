@@ -74,4 +74,12 @@
     <color name="summary_decor_strong">#CC4E9BF8</color>
     <color name="summary_decor_soft">#6682B0DA</color>
 
+    <!-- ===== 练习评分语义色（词卡 / 听写通用） =====
+         四档 AI 评分与对错二值共用；pending 用于"已提交"等中性等待态 -->
+    <color name="score_excellent">#FF4CAF50</color>
+    <color name="score_good">#FF2196F3</color>
+    <color name="score_partial">#FFFF9800</color>
+    <color name="score_poor">#FFF44336</color>
+    <color name="score_pending">#FF9E9E9E</color>
+
 </resources>

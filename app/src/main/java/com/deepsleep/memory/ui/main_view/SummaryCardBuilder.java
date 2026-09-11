@@ -184,16 +184,16 @@ public class SummaryCardBuilder {
                 int scoreColor;
                 switch (wc.fsrsScore) {
                 case 4:
-                    scoreColor = android.graphics.Color.parseColor("#4CAF50");
+                    scoreColor = ContextCompat.getColor(context, R.color.score_excellent);
                     break; // 绿色-完全掌握
                 case 3:
-                    scoreColor = android.graphics.Color.parseColor("#2196F3");
+                    scoreColor = ContextCompat.getColor(context, R.color.score_good);
                     break; // 蓝色-基本掌握
                 case 2:
-                    scoreColor = android.graphics.Color.parseColor("#FF9800");
+                    scoreColor = ContextCompat.getColor(context, R.color.score_partial);
                     break; // 橙色-部分理解
                 default:
-                    scoreColor = android.graphics.Color.parseColor("#F44336");
+                    scoreColor = ContextCompat.getColor(context, R.color.score_poor);
                     break; // 红色-不理解
                 }
                 tvIcon.setTextColor(scoreColor);

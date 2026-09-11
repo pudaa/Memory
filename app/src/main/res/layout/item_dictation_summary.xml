@@ -54,12 +54,12 @@
             android:layout_marginTop="2dp" />
     </LinearLayout>
 
-    <!-- 得分 -->
+    <!-- 得分（默认占位会被代码按对错覆写，状态由颜色与色条承担，不用 ✓/✗ 符号） -->
     <TextView
         android:id="@+id/tv_summary_score"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="✓ 完全掌握"
+        android:text="完全掌握"
         android:textSize="13sp"
         android:textStyle="bold"
         android:textColor="@color/theme_stress" />

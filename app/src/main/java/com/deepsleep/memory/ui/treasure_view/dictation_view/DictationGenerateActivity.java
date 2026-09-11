@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -270,7 +271,7 @@ public class DictationGenerateActivity extends AppCompatActivity {
         if (cooldownEndTime <= 0 || now >= cooldownEndTime) {
             // 冷却已结束，检查音频是否全部就绪
             tvCooldown.setText("准备就绪");
-            tvCooldown.setTextColor(0xFF4CAF50);
+            tvCooldown.setTextColor(ContextCompat.getColor(this, R.color.score_excellent));
             checkAudioReady();
         } else {
             // 正在冷却中
@@ -288,7 +289,8 @@ public class DictationGenerateActivity extends AppCompatActivity {
 
                 if (remaining <= 0) {
                     tvCooldown.setText("准备就绪");
-                    tvCooldown.setTextColor(0xFF4CAF50);
+                    tvCooldown.setTextColor(ContextCompat.getColor(
+                            DictationGenerateActivity.this, R.color.score_excellent));
                     checkAudioReady();
                     return;
                 }
@@ -297,7 +299,8 @@ public class DictationGenerateActivity extends AppCompatActivity {
                 long seconds = (remaining % 60000) / 1000;
                 String text = String.format(Locale.getDefault(), "冷却中 %02d:%02d", minutes, seconds);
                 tvCooldown.setText(text);
-                tvCooldown.setTextColor(0xFFFF9800);
+                tvCooldown.setTextColor(ContextCompat.getColor(
+                        DictationGenerateActivity.this, R.color.score_partial));
 
                 handler.postDelayed(this, 1000);
             }
@@ -522,7 +525,7 @@ public class DictationGenerateActivity extends AppCompatActivity {
 
             // Self-evaluation area
             Paint evalP = paint(12, Typeface.DEFAULT, 0xFF666666);
-            c.drawText("自我评价：不确定的单词请打  ✓", ml, y, evalP);
+            c.drawText("自我评价：不确定的单词请打勾", ml, y, evalP);
             y += 18;
             // Checkbox squares
             for (int i = 0; i < 5; i++) {
@@ -634,8 +637,10 @@ public class DictationGenerateActivity extends AppCompatActivity {
             DictationModels.DictationItem item = data.get(position);
             holder.tvIndex.setText(String.valueOf(item.index));
             holder.tvLevel.setText(getLevelLabel(item.level));
-            holder.tvAudioStatus.setText(item.audioReady ? "✓" : "⏳");
-            holder.tvAudioStatus.setTextColor(item.audioReady ? 0xFF4CAF50 : 0xFFFF9800);
+            // 音频就绪状态：文字化替代原先的 ✓ / ⏳ 文本符号
+            holder.tvAudioStatus.setText(item.audioReady ? "已就绪" : "生成中");
+            holder.tvAudioStatus.setTextColor(ContextCompat.getColor(holder.itemView.getContext(),
+                    item.audioReady ? R.color.score_excellent : R.color.score_partial));
 
             String displayText = buildDisplayText(item);
             holder.tvContent.setText(displayText);

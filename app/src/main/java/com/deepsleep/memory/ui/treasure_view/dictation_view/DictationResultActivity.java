@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.deepsleep.memory.R;
 import com.deepsleep.memory.settings.InnerSettingsManager;
@@ -156,16 +157,16 @@ public class DictationResultActivity extends AppCompatActivity {
         int gradeColor;
         if (accuracy >= 90) {
             grade = "优秀";
-            gradeColor = 0xFF4CAF50;
+            gradeColor = ContextCompat.getColor(this, R.color.score_excellent);
         } else if (accuracy >= 75) {
             grade = "良好";
-            gradeColor = 0xFF2196F3;
+            gradeColor = ContextCompat.getColor(this, R.color.score_good);
         } else if (accuracy >= 60) {
             grade = "一般";
-            gradeColor = 0xFFFF9800;
+            gradeColor = ContextCompat.getColor(this, R.color.score_partial);
         } else {
             grade = "需努力";
-            gradeColor = 0xFFF44336;
+            gradeColor = ContextCompat.getColor(this, R.color.score_poor);
         }
         tvGrade.setText(grade);
         tvGrade.setTextColor(gradeColor);
@@ -198,21 +199,21 @@ public class DictationResultActivity extends AppCompatActivity {
         tvIndex.setText(String.valueOf(summary.index));
 
         if (summary.correct) {
-            // 正确：绿色
+            // 正确：绿色。状态由颜色与色条承担，不再用 ✓/✗ 符号前缀
             tvTarget.setText(summary.targetForm);
             tvUserAnswer.setText(summary.userAnswer);
-            tvUserAnswer.setTextColor(0xFF4CAF50);
-            tvScoreText.setText("✓ " + getScoreLabel(summary.score));
-            tvScoreText.setTextColor(0xFF4CAF50);
-            colorBar.setBackgroundColor(0xFF4CAF50);
+            tvUserAnswer.setTextColor(ContextCompat.getColor(this, R.color.score_excellent));
+            tvScoreText.setText(getScoreLabel(summary.score));
+            tvScoreText.setTextColor(ContextCompat.getColor(this, R.color.score_excellent));
+            colorBar.setBackgroundColor(ContextCompat.getColor(this, R.color.score_excellent));
         } else {
             // 错误：红色，显示正确答案
             tvTarget.setText(summary.targetForm);
             tvUserAnswer.setText(summary.userAnswer.isEmpty() ? "(未作答)" : summary.userAnswer);
-            tvUserAnswer.setTextColor(0xFFF44336);
-            tvScoreText.setText("✗ " + getScoreLabel(summary.score));
-            tvScoreText.setTextColor(0xFFF44336);
-            colorBar.setBackgroundColor(0xFFF44336);
+            tvUserAnswer.setTextColor(ContextCompat.getColor(this, R.color.score_poor));
+            tvScoreText.setText(getScoreLabel(summary.score));
+            tvScoreText.setTextColor(ContextCompat.getColor(this, R.color.score_poor));
+            colorBar.setBackgroundColor(ContextCompat.getColor(this, R.color.score_poor));
         }
 
         return itemView;

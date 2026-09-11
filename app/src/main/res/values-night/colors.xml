@@ -81,4 +81,11 @@
     <color name="summary_badge_bg">#1A82B0DA</color>
     <color name="summary_decor_strong">#CC6EB4F0</color>
     <color name="summary_decor_soft">#4D6EB4F0</color>
+
+    <!-- ===== 练习评分语义色（暗色用 Material 300 系提亮，保证深底可读） ===== -->
+    <color name="score_excellent">#FF66BB6A</color>
+    <color name="score_good">#FF64B5F6</color>
+    <color name="score_partial">#FFFFB74D</color>
+    <color name="score_poor">#FFEF5350</color>
+    <color name="score_pending">#FF8E8E9E</color>
 </resources>

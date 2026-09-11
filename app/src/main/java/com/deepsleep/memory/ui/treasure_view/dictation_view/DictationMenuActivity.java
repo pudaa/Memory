@@ -10,6 +10,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -185,11 +186,14 @@ public class DictationMenuActivity extends AppCompatActivity {
                 holder.tvAccuracy.setText(item.accuracy + "%");
                 holder.tvAccuracy.setVisibility(View.VISIBLE);
                 if (item.accuracy >= 80) {
-                    holder.tvAccuracy.setTextColor(0xFF4CAF50);
+                    holder.tvAccuracy.setTextColor(ContextCompat.getColor(
+                            holder.itemView.getContext(), R.color.score_excellent));
                 } else if (item.accuracy >= 60) {
-                    holder.tvAccuracy.setTextColor(0xFFFF9800);
+                    holder.tvAccuracy.setTextColor(ContextCompat.getColor(
+                            holder.itemView.getContext(), R.color.score_partial));
                 } else {
-                    holder.tvAccuracy.setTextColor(0xFFF44336);
+                    holder.tvAccuracy.setTextColor(ContextCompat.getColor(
+                            holder.itemView.getContext(), R.color.score_poor));
                 }
             } else {
                 holder.tvAccuracy.setVisibility(View.GONE);

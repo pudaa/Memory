@@ -52,12 +52,8 @@
     <string name="btn_skip">跳 过</string>
     <string name="hint_choice_meaning">请选择最合适的释义：</string>
     <string name="hint_input_meaning">请输入该单词的中文释义：</string>
-    <string name="feedback_correct">✅ 正确！</string>
-    <string name="feedback_wrong">❌ 错误</string>
-    <string name="feedback_skip">⊘ 已跳过</string>
     <string name="label_correct_meaning">正确释义：</string>
     <string name="today_learning_complete">今日学习已完成！</string>
-    <string name="all_learning_complete">恭喜🎉您已完成这本词书的学习！</string>
     <string name="submit_failed_retry">提交失败，请重试</string>
 
 </resources>

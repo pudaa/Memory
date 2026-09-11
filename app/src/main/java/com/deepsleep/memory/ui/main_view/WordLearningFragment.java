@@ -754,7 +754,13 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     @Override
     public void onCardLongPressed(View cardView) {
-        String word = ((TextView) cardView.findViewById(R.id.tv_word)).getText().toString();
+        TextView tvWord = cardView.findViewById(R.id.tv_word);
+        // 词书学完后主界面停在总结卡（无 tv_word），长按只对词卡生效。
+        // 此前直接强转并调 getText()，在该状态下必现 NullPointerException。
+        if (tvWord == null) {
+            return;
+        }
+        String word = tvWord.getText().toString();
         if (!word.isEmpty()) {
             Intent intent = new Intent(requireContext(), SearchingActivity.class);
             intent.putExtra("search_word", word);
