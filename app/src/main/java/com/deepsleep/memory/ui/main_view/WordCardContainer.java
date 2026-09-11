@@ -351,7 +351,7 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
         cardView.setVisibility(View.INVISIBLE);
 
         if (cardList.size() == 1) {
-            showCard(0);
+            showCard(0, true);
             onCardSwipedListener.onCurrentCardChanged(currentCard);
             cardStackContainer.addView(cardView);
         } else {
@@ -494,10 +494,10 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
             currentCard = null;
             if (idx < cardList.size()) {
                 currentCardIndex = idx;
-                showCard(idx);
+                showCard(idx, true);
             } else if (!cardList.isEmpty()) {
                 currentCardIndex = cardList.size() - 1;
-                showCard(currentCardIndex);
+                showCard(currentCardIndex, true);
             } else {
                 currentCardIndex = 0;
             }
@@ -542,10 +542,10 @@ public class WordCardContainer extends FrameLayout implements UserSettingsManage
                     // 动画结束时更新当前卡片
                     if (direction > 0
                             && (slideFlag == 1 ? currentCardIndex > 0 : currentCardIndex < cardList.size() - 1)) {
-                        showCard(currentCardIndex - slideFlag);
+                        showCard(currentCardIndex - slideFlag, true);
                     } else if (direction < 0
                             && (slideFlag == 1 ? currentCardIndex < cardList.size() - 1 : currentCardIndex > 0)) {
-                        showCard(currentCardIndex + slideFlag);
+                        showCard(currentCardIndex + slideFlag, true);
                     } else {
                         animateCardBack();
                     }

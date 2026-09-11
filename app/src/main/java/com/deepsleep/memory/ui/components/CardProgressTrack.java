@@ -254,12 +254,14 @@ public class CardProgressTrack extends View {
             case MotionEvent.ACTION_MOVE:
                 lastTouchX = x;
                 if (dragging) {
+                    // 仅在跨过槽位（目标卡变化）时切卡：长按静止时 MOVE 事件仍会
+                    // 高频到达，若每帧都回调切卡，卡片会在反复重播的渐显动画中闪烁
                     int cardIndex = cardAtSlot(slotAt(x));
                     if (cardIndex >= 0 && cardIndex != currentIndex) {
                         setCurrentIndex(cardIndex);
-                    }
-                    if (cardIndex >= 0 && seekListener != null) {
-                        seekListener.onSeek(cardIndex);
+                        if (seekListener != null) {
+                            seekListener.onSeek(cardIndex);
+                        }
                     }
                 }
                 return true;
@@ -302,9 +304,9 @@ public class CardProgressTrack extends View {
         int cardIndex = cardAtSlot(slotAt(lastTouchX));
         if (cardIndex >= 0 && cardIndex != currentIndex) {
             setCurrentIndex(cardIndex);
-        }
-        if (cardIndex >= 0 && seekListener != null) {
-            seekListener.onSeek(cardIndex);
+            if (seekListener != null) {
+                seekListener.onSeek(cardIndex);
+            }
         }
     }
 
