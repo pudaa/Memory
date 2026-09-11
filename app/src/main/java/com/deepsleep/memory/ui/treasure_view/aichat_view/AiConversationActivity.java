@@ -80,7 +80,7 @@ public class AiConversationActivity extends AppCompatActivity {
 
     private View coordinatorLayout;
     private RecyclerView rvConversation;
-    private ProgressBar progressBar;
+    private View progressBar;
     private LinearLayout layoutInput;
     private View layoutMessageInput;
     private View layoutEmptyState;

@@ -71,7 +71,7 @@ public class EvaluationActivity extends AppCompatActivity {
     private int userId;
 
     // 全局
-    private ProgressBar progressBar;
+    private View progressBar;
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
 

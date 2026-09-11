@@ -98,7 +98,7 @@ public class DictationExecutionActivity extends AppCompatActivity {
     private TextView tvProgress, tvContext, tvLevel;
     private EditText etAnswer;
     private Button btnReplay, btnSubmit, btnNext, btnScan;
-    private ProgressBar progressAudio;
+    private View progressAudio;
     private LinearLayout answerInputLayout, submitLayout;
     private Uri cameraImageUri;
     private String currentPhotoPath;

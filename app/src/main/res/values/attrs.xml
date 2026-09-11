@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 加载指示器：三点呼吸（尺寸/颜色可按场景配置，使其契合所在画面） -->
+    <declare-styleable name="LoadingDotsView">
+        <attr name="ldvDotDiameter" format="dimension" />
+        <attr name="ldvDotGap" format="dimension" />
+        <attr name="ldvDotColor" format="color" />
+    </declare-styleable>
+</resources>

@@ -51,13 +51,15 @@
         android:gravity="center"
         android:visibility="visible">
 
-        <ProgressBar
+        <!-- 加载指示：三点呼吸（替代旋转圈） -->
+        <com.deepsleep.memory.ui.components.LoadingDotsView
             android:id="@+id/progress_bar"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:indeterminate="true"
-            android:indeterminateTint="@color/theme_stress" />
+            app:ldvDotDiameter="9dp"
+            app:ldvDotGap="7dp"
+            app:ldvDotColor="@color/theme_stress" />
 
         <TextView
             android:id="@+id/tv_loading_text"

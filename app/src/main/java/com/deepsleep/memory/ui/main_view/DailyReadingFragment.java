@@ -55,7 +55,6 @@ public class DailyReadingFragment extends Fragment {
     private LinearLayout sentenceAnalysisContainer;
     private LinearLayout highFrequencyWordsContainer;
     private ImageButton btnRefresh;
-    private ProgressBar loadingProgressBar;
     private ScrollView scrollView;
     private ProgressBar readingProgressBar;
     private TextView tvReadingTime;
@@ -78,7 +77,7 @@ public class DailyReadingFragment extends Fragment {
     private ListView favoritesListView;
     private TextView favoritesEmptyView;
     private View favoritesEmptyContainer;
-    private ProgressBar favoritesLoading;
+    private View favoritesLoading;
     private ImageButton btnCloseDrawer;
     private boolean isDrawerOpen = false;
     private List<Long> favoriteIds = new ArrayList<>();
@@ -118,7 +117,6 @@ public class DailyReadingFragment extends Fragment {
         sentenceAnalysisContainer = view.findViewById(R.id.markdown_sentenceAnalysis_container);
         highFrequencyWordsContainer = view.findViewById(R.id.markdown_highFrequencyWords_container);
 
-        loadingProgressBar = view.findViewById(R.id.loading_progress_bar);
         contentLoadingDots = view.findViewById(R.id.content_loading_dots);
         scrollView = view.findViewById(R.id.scroll_view);
         readingProgressBar = view.findViewById(R.id.reading_progress_bar);
@@ -210,9 +208,6 @@ public class DailyReadingFragment extends Fragment {
             // 导致该栏在加载态完全空白（只有一张空卡片）
             highFrequencyWordsContainer.addView(buildLoadingIndicator("正在生成高频易错单词……"));
 
-            if (loadingProgressBar != null) {
-                loadingProgressBar.setVisibility(View.GONE);
-            }
             if (contentLoadingDots != null) {
                 contentLoadingDots.setVisibility(View.VISIBLE);
             }
@@ -235,9 +230,6 @@ public class DailyReadingFragment extends Fragment {
 
                 if (msg.what == msg_success) {
                     hideLoadingIndicators();
-                    if (loadingProgressBar != null) {
-                        loadingProgressBar.setVisibility(View.GONE);
-                    }
 
                     String article = (String) msg.obj;
                     Log.i("article", "文章获取成功");
@@ -716,8 +708,8 @@ public class DailyReadingFragment extends Fragment {
         markdownContentView.setText("");
         sentenceAnalysisContainer.removeAllViews();
         highFrequencyWordsContainer.removeAllViews();
-        if (loadingProgressBar != null) {
-            loadingProgressBar.setVisibility(View.GONE);
+        if (contentLoadingDots != null) {
+            contentLoadingDots.setVisibility(View.VISIBLE);
         }
     }
 

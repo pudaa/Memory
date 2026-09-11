@@ -120,13 +120,16 @@
                     android:layout_marginBottom="16dp" />
 
                 <!-- 音频加载中 -->
-                <ProgressBar
+                <!-- 音频加载中：三点呼吸（小尺寸） -->
+                <com.deepsleep.memory.ui.components.LoadingDotsView
                     android:id="@+id/progress_audio"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:visibility="gone"
                     android:layout_marginBottom="12dp"
-                    android:indeterminateTint="@color/theme_stress" />
+                    app:ldvDotDiameter="5dp"
+                    app:ldvDotGap="4dp"
+                    app:ldvDotColor="@color/theme_stress" />
 
                 <!-- 语境文本 -->
                 <TextView

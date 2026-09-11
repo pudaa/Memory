@@ -1,16 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- OCR 处理进度对话框：提示上传/识别阶段，防止用户在长时间等待时误以为卡死 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="24dp">
 
-    <ProgressBar
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:indeterminate="true" />
+    <!-- 加载指示：三点呼吸（替代旋转圈） -->
+    <com.deepsleep.memory.ui.components.LoadingDotsView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:ldvDotDiameter="9dp"
+        app:ldvDotGap="7dp"
+        app:ldvDotColor="@color/theme_primary" />
 
     <TextView
         android:id="@+id/ocr_progress_text"

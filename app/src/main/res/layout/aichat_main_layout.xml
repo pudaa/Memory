@@ -117,13 +117,16 @@
                 android:overScrollMode="never"
                 android:scrollbars="vertical" />
 
-            <ProgressBar
+            <!-- 加载指示：三点呼吸（替代旋转圈，与全局加载语言统一） -->
+            <com.deepsleep.memory.ui.components.LoadingDotsView
                 android:id="@+id/progressBar"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:visibility="gone"
-                android:indeterminateTint="@color/theme_primary" />
+                app:ldvDotDiameter="8dp"
+                app:ldvDotGap="7dp"
+                app:ldvDotColor="@color/theme_primary" />
 
             <!-- 空状态：原先该状态是整屏留白 -->
             <LinearLayout

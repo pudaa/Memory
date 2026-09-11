@@ -2,6 +2,7 @@ package com.deepsleep.memory.ui.components;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.util.AttributeSet;
@@ -49,9 +50,19 @@ public class LoadingDotsView extends View {
     public LoadingDotsView(Context context, AttributeSet attrs) {
         super(context, attrs);
         float d = getResources().getDisplayMetrics().density;
-        dotD = DOT_DP * d;
-        gapD = GAP_DP * d;
-        paint.setColor(ContextCompat.getColor(context, R.color.theme_primary));
+        float dotPx = DOT_DP * d;
+        float gapPx = GAP_DP * d;
+        int color = ContextCompat.getColor(context, R.color.theme_primary);
+        if (attrs != null) {
+            TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.LoadingDotsView);
+            dotPx = a.getDimension(R.styleable.LoadingDotsView_ldvDotDiameter, dotPx);
+            gapPx = a.getDimension(R.styleable.LoadingDotsView_ldvDotGap, gapPx);
+            color = a.getColor(R.styleable.LoadingDotsView_ldvDotColor, color);
+            a.recycle();
+        }
+        dotD = dotPx;
+        gapD = gapPx;
+        paint.setColor(color);
     }
 
     @Override

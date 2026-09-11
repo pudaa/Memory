@@ -28,7 +28,7 @@ import java.util.List;
 public class LexiconBrowseFragment extends Fragment {
 
     private RecyclerView recyclerView;
-    private ProgressBar progressBar;
+    private View progressBar;
     private TextView tvLexiconTitle, tvWordCount;
 
     @Nullable

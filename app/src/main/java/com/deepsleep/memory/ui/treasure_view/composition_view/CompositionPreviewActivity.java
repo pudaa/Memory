@@ -32,7 +32,7 @@ public class CompositionPreviewActivity extends AppCompatActivity {
     private Button btnSaveTemp;
     private Button btnSubmit;
     private View loadingOverlay;
-    private ProgressBar loadingProgressBar;
+    private View loadingProgressBar;
     private String ocrText;
     private int userId;
     static final int msg_success = 1;

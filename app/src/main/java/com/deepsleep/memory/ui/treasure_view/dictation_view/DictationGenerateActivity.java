@@ -59,7 +59,7 @@ public class DictationGenerateActivity extends AppCompatActivity {
     private ImageButton btnBack;
     private TextView tvTitle, tvCooldown, tvStatus, tvWordCount;
     private Button btnStart, btnRetry, btnPrint;
-    private ProgressBar progressBar;
+    private View progressBar;
     private RecyclerView previewRecyclerView;
     private PreviewAdapter previewAdapter;
     private LinearLayout layoutPreview, layoutLoading;
