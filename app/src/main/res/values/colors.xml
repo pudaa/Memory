@@ -43,6 +43,7 @@
     <color name="reader_card_stroke">#FFE8DED1</color>
     <color name="reader_accent_bar">#FF82B0DA</color>
     <color name="reader_section_title">#FF5A7FA0</color>
+    <color name="reader_badge_bg">#1482B0DA</color>
 
     <!-- ===== AI 对话页语义色（浅色） =====
          约定：聊天页所有颜色一律引用本组 token，禁止在布局/vector 内写十六进制字面量。

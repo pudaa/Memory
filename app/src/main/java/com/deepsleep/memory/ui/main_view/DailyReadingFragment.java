@@ -76,6 +76,7 @@ public class DailyReadingFragment extends Fragment {
     private View drawerOverlay;
     private ListView favoritesListView;
     private TextView favoritesEmptyView;
+    private View favoritesEmptyContainer;
     private ProgressBar favoritesLoading;
     private ImageButton btnCloseDrawer;
     private boolean isDrawerOpen = false;
@@ -131,6 +132,7 @@ public class DailyReadingFragment extends Fragment {
         drawerOverlay = view.findViewById(R.id.drawer_overlay);
         favoritesListView = view.findViewById(R.id.favorites_list_view);
         favoritesEmptyView = view.findViewById(R.id.favorites_empty_view);
+        favoritesEmptyContainer = view.findViewById(R.id.favorites_empty_container);
         favoritesLoading = view.findViewById(R.id.favorites_loading);
         btnCloseDrawer = view.findViewById(R.id.btn_close_drawer);
 
@@ -475,7 +477,7 @@ public class DailyReadingFragment extends Fragment {
         drawerOverlay.setVisibility(View.VISIBLE);
         favoritesDrawer.setVisibility(View.VISIBLE);
         favoritesLoading.setVisibility(View.VISIBLE);
-        favoritesEmptyView.setVisibility(View.GONE);
+        favoritesEmptyContainer.setVisibility(View.GONE);
         favoritesListView.setVisibility(View.GONE);
 
         drawerOverlay.animate().alpha(1f).setDuration(250).start();
@@ -521,24 +523,15 @@ public class DailyReadingFragment extends Fragment {
                                 favoritesLoading.setVisibility(View.GONE);
 
                                 if (favoriteTitles.isEmpty()) {
-                                    favoritesEmptyView.setVisibility(View.VISIBLE);
+                                    favoritesEmptyContainer.setVisibility(View.VISIBLE);
                                     return;
                                 }
 
                                 favoritesListView.setVisibility(View.VISIBLE);
-                                ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(),
-                                        android.R.layout.simple_list_item_1, android.R.id.text1, displayItems) {
-                                    @Override
-                                    public View getView(int pos, View convertView, ViewGroup parent) {
-                                        View view = super.getView(pos, convertView, parent);
-                                        TextView text = view.findViewById(android.R.id.text1);
-                                        text.setText(favoriteTitles.get(pos));
-                                        text.setTextSize(15);
-                                        text.setTextColor(ContextCompat.getColor(requireContext(), R.color.reader_text));
-                                        text.setPadding(24, 16, 24, 16);
-                                        return view;
-                                    }
-                                };
+                                // 自定义 item（图标 + 标题卡片），样式收敛进 XML，
+                                // 替代原 simple_list_item_1 + getView 手工补样式
+                                ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                                        R.layout.item_reading_favorite, R.id.tv_favorite_title, displayItems);
                                 favoritesListView.setAdapter(adapter);
                                 favoritesListView.setOnItemClickListener((parent, v, pos, id) -> {
                                     closeFavoritesDrawer();
@@ -553,7 +546,7 @@ public class DailyReadingFragment extends Fragment {
                                 Log.e("article", "加载收藏列表失败", e);
                                 favoritesLoading.setVisibility(View.GONE);
                                 favoritesEmptyView.setText("加载失败");
-                                favoritesEmptyView.setVisibility(View.VISIBLE);
+                                favoritesEmptyContainer.setVisibility(View.VISIBLE);
                             }
                         }
                     }
