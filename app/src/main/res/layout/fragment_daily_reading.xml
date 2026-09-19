@@ -113,6 +113,7 @@
             android:layout_height="36dp"
             android:src="@drawable/ic_reader_read"
             android:background="@drawable/bg_reader_card"
+            android:tint="@color/reader_accent_bar"
             android:scaleType="centerInside"
             android:padding="6dp"
             android:contentDescription="朗读标题与正文"
@@ -247,6 +248,7 @@
                     android:layout_height="32dp"
                     android:src="@drawable/ic_reader_read"
                     android:background="@drawable/bg_reader_card"
+                    android:tint="@color/reader_section_title"
                     android:scaleType="centerInside"
                     android:padding="6dp"
                     android:contentDescription="朗读长难句分析" />
@@ -302,6 +304,7 @@
                     android:layout_height="32dp"
                     android:src="@drawable/ic_reader_read"
                     android:background="@drawable/bg_reader_card"
+                    android:tint="@color/reader_section_title"
                     android:scaleType="centerInside"
                     android:padding="6dp"
                     android:contentDescription="朗读高频易错单词" />

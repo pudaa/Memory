@@ -1043,8 +1043,9 @@ public class DailyReadingFragment extends Fragment {
         if (button == null) {
             return;
         }
-        // 用阅读页专属图标（ic_reader_read / ic_reader_stop），
-        // 它们 tint 到 reader_section_title，浅色/深色主题下都与卡片底有对比
+        // 用阅读页专属图标（ic_reader_read / ic_reader_stop）。
+        // 图标本身不写死颜色，颜色由布局里的 android:tint 决定；换图不影响 tint，
+        // 因为 tint 挂在 ImageButton 上，setImageResource 不会重置它。
         button.setImageResource(reading ? R.drawable.ic_reader_stop : R.drawable.ic_reader_read);
         button.setContentDescription(reading ? "停止朗读" : "朗读");
     }

@@ -2,8 +2,7 @@
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="@color/reader_section_title">
+    android:viewportHeight="24">
     <!--
       每日一读的"朗读"图标。
 
@@ -11,9 +10,11 @@
       且**没有 tint**，直接放到阅读页上：
         - 浅色主题：卡片底 #FEFCF7 上的纯黑，与阅读页暖色调不搭；
         - 深色主题：卡片底 #282420 上的纯黑 → 几乎看不见。
-      这里改用阅读页自己的强调色 token（reader_section_title，
-      浅色 #5A7FA0 / 深色 #8AB4D4），两种主题下都与卡片底有足够对比度，
-      且与板块标题、色条同色系，视觉上是一套。
+
+      这里刻意**不在图标里写死颜色**，而是留白路径、由使用处的 android:tint 决定：
+        工具栏按钮 → reader_accent_bar（与字号 +/-、刷新一致）
+        板块标题旁 → reader_section_title（与板块标题文字一致）
+      同一个图形两处用色不同，所以颜色必须由调用方给。
     -->
     <path
         android:fillColor="@android:color/white"

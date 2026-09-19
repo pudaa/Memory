@@ -2,9 +2,8 @@
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="@color/reader_section_title">
-    <!-- 与 ic_reader_read 同色系的"停止"图标（朗读进行中显示） -->
+    android:viewportHeight="24">
+    <!-- 与 ic_reader_read 同色系的"停止"图标（朗读进行中显示）；颜色同样由使用处 tint 决定 -->
     <path
         android:fillColor="@android:color/white"
         android:pathData="M6,6h12v12H6z" />
