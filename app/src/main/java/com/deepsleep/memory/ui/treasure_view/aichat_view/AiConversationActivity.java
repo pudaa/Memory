@@ -548,10 +548,16 @@ public class AiConversationActivity extends AppCompatActivity {
                 String urlStr = ApiConstants.getFullUrl("/conversation/stream");
                 Map<String, String> headers = new HashMap<>();
                 headers.put("userId", String.valueOf(mUserId));
-                // 告知服务端：本客户端采用"点击才生成"的流式朗读，
-                // **不要**在后台预生成整段 TTS（否则白跑 GPU，且会给出 audioUrl
-                // 让我们误走旧的点播链路）。老客户端不发此头，行为不变。
-                headers.put("TTS-Stream", "1");
+                // 告知服务端本客户端的朗读方式，避免做完即弃的预生成：
+                //   自动朗读开启 → 回复一到达就要播，服务端**预生成**是有用的，
+                //                  因此不发此头（沿用旧行为，且 audioUrl 可作回退）
+                //   自动朗读关闭 → 用户不点就不该生成，发此头让服务端跳过后台预生成
+                // 说明：自动朗读时我们仍然走流式播放（首声更快），预生成只是服务端的兜底。
+                boolean autoPlayAudio = com.deepsleep.memory.settings.UserSettingsManager
+                        .getInstance(this).isAiAutoPlayAudioEnabled();
+                if (!autoPlayAudio) {
+                    headers.put("TTS-Stream", "1");
+                }
                 Map<String, String> form = new HashMap<>();
                 form.put("sessionId", mSessionId);
                 form.put("text", content);
@@ -644,10 +650,16 @@ public class AiConversationActivity extends AppCompatActivity {
                         adapter.notifyItemChanged(pos);
                     }
 
-                    // 启动音频轮询：**只获取音频是否就绪，不自动播放**。
-                    // 播放时机仍由用户点击播放按钮决定（本分支不改变这一产品语义）。
-                    // 流式朗读（边生成边播）由另一条线负责，届时在此处接入。
-                    if (doneData.optBoolean("audioPending", false) && messageId > 0) {
+                    // 播放时机由设置项决定（设置 → AI 服务 → 朗读与音频）：
+                    //   自动朗读开 → 文本一说完就流式合成并播放（更像日常对话）
+                    //   自动朗读关 → 仅准备就绪，等用户点朗读按钮才生成（省 GPU、不打断阅读）
+                    boolean autoPlay = com.deepsleep.memory.settings.UserSettingsManager
+                            .getInstance(AiConversationActivity.this).isAiAutoPlayAudioEnabled();
+                    if (autoPlay && aiMsg.getContent() != null
+                            && !aiMsg.getContent().trim().isEmpty()) {
+                        startStreamingTts(aiMsg);
+                    } else if (doneData.optBoolean("audioPending", false) && messageId > 0) {
+                        // 回退：老链路的"轮询音频 URL"（仅老客户端/未启用流式时才会走到）
                         startAudioPolling(messageId, messageList.indexOf(aiMsg));
                     }
                     break;

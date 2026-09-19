@@ -21,6 +21,8 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     public static final String KEY_CAMERA_ASPECT_RATIO = "camera_aspect_ratio_index"; // 自定义相机拍摄比例索引
     public static final String KEY_CAMERA_GRID_ENABLED = "camera_grid_enabled"; // 自定义相机网格线开关
     public static final String KEY_CROP_AUTO_FIT = "crop_auto_fit"; // 裁剪页"自动适配"开关（旋转/缩放时自动放大图片保证裁剪框不超出图片）
+    public static final String KEY_AI_AUTO_PLAY_AUDIO = "ai_auto_play_audio"; // AI 回复是否自动播放朗读音频
+
     // 默认值
     private static final boolean DEFAULT_IS_SLIDE_BACK = true;
     private static final String DEFAULT_STUDY_MODE = "choice"; // 默认选择题模式
@@ -30,6 +32,14 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     private static final int DEFAULT_CAMERA_ASPECT_RATIO = 1; // 默认 16:9
     private static final boolean DEFAULT_CAMERA_GRID_ENABLED = false; // 默认关闭网格线
     private static final boolean DEFAULT_CROP_AUTO_FIT = true; // 默认开启自动适配
+    /**
+     * AI 回复是否自动朗读。
+     *
+     * 默认 **false（点击才朗读）**：与本次流式改造的语义一致——不点就不生成音频，
+     * 既省 GPU（单卡串行生成，没点播放就白跑一次）也不会打断用户阅读文字。
+     * 开启后体验更接近"日常对话"（AI 一说完就出声），但每条回复都会消耗一次生成。
+     */
+    private static final boolean DEFAULT_AI_AUTO_PLAY_AUDIO = false;
     private static UserSettingsManager instance;
     private final SharedPreferences sharedPreferences;
     private final List<OnSettingsChangedListener> listeners = new ArrayList<>();
@@ -152,6 +162,25 @@ public class UserSettingsManager { // 用于用户设置信息获取和设置
     /** 记录裁剪页"自动适配"开关状态（持久化，下次进入保持） */
     public void setCropAutoFitEnabled(boolean enabled) {
         sharedPreferences.edit().putBoolean(KEY_CROP_AUTO_FIT, enabled).apply();
+    }
+
+    /**
+     * AI 回复是否自动朗读（默认 false = 点击才朗读）。
+     *
+     * 开启后 AI 文本流完即开始流式合成并播放，体验更接近日常对话；
+     * 关闭则等用户点朗读按钮才生成，省 GPU 也不会打断阅读。
+     */
+    public boolean isAiAutoPlayAudioEnabled() {
+        return sharedPreferences.getBoolean(KEY_AI_AUTO_PLAY_AUDIO, DEFAULT_AI_AUTO_PLAY_AUDIO);
+    }
+
+    /** 设置 AI 回复是否自动朗读（持久化，立即生效） */
+    public void setAiAutoPlayAudioEnabled(boolean enabled) {
+        if (isAiAutoPlayAudioEnabled() == enabled) {
+            return; // 值未变化：跳过写入与通知
+        }
+        sharedPreferences.edit().putBoolean(KEY_AI_AUTO_PLAY_AUDIO, enabled).apply();
+        notifySettingsChanged(KEY_AI_AUTO_PLAY_AUDIO, enabled);
     }
 
     /** 导出用户级设置（用于同步到服务端）：滑动方向/主题/字号 */

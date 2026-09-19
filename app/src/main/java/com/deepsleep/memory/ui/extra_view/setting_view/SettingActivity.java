@@ -66,6 +66,13 @@ public class SettingActivity extends AppCompatActivity {
     private static final long DEBOUNCE_DELAY_MS = 800;
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // 从"朗读与音频"页返回时，同步刷新该条目的副标题
+        updateAudioSettingsSummary();
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.setting_layout);
@@ -148,7 +155,22 @@ public class SettingActivity extends AppCompatActivity {
         findViewById(R.id.option_ai_provider).setOnClickListener(v ->
                 startActivity(new Intent(this, AiProviderSettingsActivity.class)));
 
+        // === 朗读与音频 ===
+        findViewById(R.id.option_audio_settings).setOnClickListener(v ->
+                startActivity(new Intent(this, AudioSettingsActivity.class)));
+
         initView();
+    }
+
+    /** 刷新"朗读与音频"条目的副标题，让用户在设置页就能看到当前行为 */
+    private void updateAudioSettingsSummary() {
+        TextView summary = findViewById(R.id.tv_audio_settings_summary);
+        if (summary == null) {
+            return;
+        }
+        summary.setText(userSettingsManager.isAiAutoPlayAudioEnabled()
+                ? "AI 回复自动朗读"
+                : "点击朗读按钮才播放");
     }
 
     private void initView() {
@@ -160,6 +182,7 @@ public class SettingActivity extends AppCompatActivity {
         maxReviewWords = userSettingsManager.getMaxReviewWords();
         clampMaxReview();
         updateMaxReviewDisplay();
+        updateAudioSettingsSummary();
     }
 
     // ==================== 学习模式 ====================

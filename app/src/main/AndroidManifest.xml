@@ -29,19 +29,23 @@
             tools:targetApi="31">
         <activity
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationReportActivity"
-                android:exported="false"/>
+                android:exported="false"
+                android:screenOrientation="portrait" />
         <activity
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationMinuteFollowActivity"
-                android:exported="false"/>        <!-- 学习报告模块 -->
+                android:exported="false"
+                android:screenOrientation="portrait" />        <!-- 学习报告模块 -->
         <activity
                 android:name=".ui.treasure_view.evaluation_view.EvaluationActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>        <activity
                 android:name=".ui.treasure_view.pronunciation_view.PronunciationMenuActivity"
-                android:exported="false"/>
+                android:exported="false"
+                android:screenOrientation="portrait" />
         <activity
                 android:name=".ui.treasure_view.aichat_view.AiConversationActivity"
-                android:exported="false"/>
+                android:exported="false"
+                android:screenOrientation="portrait" />
         <!-- 听写练习模块 -->
         <activity
                 android:name=".ui.treasure_view.dictation_view.DictationMenuActivity"
@@ -66,7 +70,8 @@
                 android:screenOrientation="sensor" />
         <activity
                 android:name=".ui.extra_view.setting_view.SettingActivity"
-                android:exported="false"/>
+                android:exported="false"
+                android:screenOrientation="portrait" />
         <activity
                 android:name=".ui.extra_view.plan_view.PlanListActivity"
                 android:exported="false"
@@ -98,6 +103,10 @@
                 android:screenOrientation="portrait"/>
         <activity
                 android:name=".ui.extra_view.setting_view.AiProviderSettingsActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"/>
+        <activity
+                android:name=".ui.extra_view.setting_view.AudioSettingsActivity"
                 android:exported="false"
                 android:screenOrientation="portrait"/>
         <activity
