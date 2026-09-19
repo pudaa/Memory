@@ -149,6 +149,18 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
                 holder.btnPlayAudio.setAlpha(0.35f);
                 holder.btnPlayAudio.setImageResource(R.drawable.ic_volume_up_24);
                 holder.btnPlayAudio.setOnClickListener(null);
+                // 历史消息可能残留"生成中"状态（例如上次预生成失败/中断，audio_url 永远为空），
+                // 那样按钮会一直是灰的、点不动。既然本方案是"点击才生成"，
+                // 只要有正文就让按钮可点（点击会走流式合成）。
+                if (hasText && !message.isAudioPlaying()) {
+                    holder.btnPlayAudio.setEnabled(true);
+                    holder.btnPlayAudio.setAlpha(1.0f);
+                    holder.btnPlayAudio.setOnClickListener(v -> {
+                        if (audioActionListener != null) {
+                            audioActionListener.onPlayAudio(message);
+                        }
+                    });
+                }
             } else if (hasText || message.hasAudio()) {
                 holder.btnPlayAudio.setVisibility(View.VISIBLE);
                 holder.btnPlayAudio.setEnabled(true);
