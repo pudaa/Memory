@@ -15,9 +15,11 @@ def backendTestUrl = localProps.getProperty("BACKEND_TEST_URL", "http://YOUR_TES
 def backendProdUrl = localProps.getProperty("BACKEND_PROD_URL", "http://YOUR_PROD_HOST:8080")
 
 // Hosts for the generated network_security_config.xml (cleartext HTTP allowlist).
-def backendHosts = [backendDevUrl, backendTestUrl, backendProdUrl].collect { u ->
+// localhost / 127.0.0.1 一并放行：真机 USB 调试时用 `adb reverse tcp:8080 tcp:8080`，
+// 手机上的 http://localhost:8080 会转发到 PC 的本地后端（见 ApiConstants.Environment.LOCAL）。
+def backendHosts = ([backendDevUrl, backendTestUrl, backendProdUrl].collect { u ->
     try { new URI(u).host } catch (Exception ignored) { null }
-}.findAll { it != null }
+}.findAll { it != null } + ['localhost', '127.0.0.1']).unique()
 def networkSecurityDir = file("$buildDir/generated/res")
 
 android {

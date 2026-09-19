@@ -32,6 +32,26 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     private Context context;
     private MediaPlayer mediaPlayer;
 
+    /**
+     * 朗读按钮的动作回调（"点击才生成"的流式朗读由 Activity 负责驱动）。
+     *
+     * 适配器只负责 UI 状态，不持有音频通道——因为流式播放需要 AudioTrack 与
+     * 网络请求的生命周期管理，放在 Activity 里与页面生命周期一致。
+     */
+    public interface AudioActionListener {
+        /** 用户点击朗读（该消息尚无已生成音频）→ 触发流式生成并播放 */
+        void onPlayAudio(AiMessage message);
+
+        /** 用户再次点击（正在播放）→ 立即停止 */
+        void onStopAudio(AiMessage message);
+    }
+
+    private AudioActionListener audioActionListener;
+
+    public void setAudioActionListener(AudioActionListener l) {
+        this.audioActionListener = l;
+    }
+
     private static final int VIEW_TYPE_MESSAGE = 0;
     private static final int VIEW_TYPE_SUMMARY = 1;
 
@@ -105,17 +125,45 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
             holder.tvAiContent.setAlpha(1.0f);
             holder.tvAiContent.setText(message.getContent());
 
-            // 音频按钮状态：加载中 / 可播放 / 隐藏
-            if (message.isAudioPending()) {
-                holder.btnPlayAudio.setVisibility(View.VISIBLE);
-                holder.btnPlayAudio.setEnabled(false);
-                holder.btnPlayAudio.setAlpha(0.35f);
-                holder.btnPlayAudio.setOnClickListener(null);
-            } else if (message.hasAudio()) {
+            // 音频按钮状态：等首片(转圈) / 播放中(可停止) / 可点击朗读 / 隐藏
+            //
+            // 对话朗读采用"点击才生成"的方案：AI 回复文本到达时**不预生成音频**，
+            // 用户点播放按钮才向后端流式请求（首声约 0.6s），再点一次即停止。
+            // 因此这里不再依赖 hasAudio()（那需要先落盘/轮询），而是只要正文非空
+            // 就展示播放按钮。
+            final boolean hasText = message.getContent() != null
+                    && !message.getContent().trim().isEmpty();
+            if (message.isAudioPlaying()) {
                 holder.btnPlayAudio.setVisibility(View.VISIBLE);
                 holder.btnPlayAudio.setEnabled(true);
                 holder.btnPlayAudio.setAlpha(1.0f);
-                holder.btnPlayAudio.setOnClickListener(v -> playAudio(message.getAudioUrl()));
+                holder.btnPlayAudio.setImageResource(R.drawable.ic_stop_24);
+                holder.btnPlayAudio.setOnClickListener(v -> {
+                    if (audioActionListener != null) {
+                        audioActionListener.onStopAudio(message);
+                    }
+                });
+            } else if (message.isAudioPending()) {
+                holder.btnPlayAudio.setVisibility(View.VISIBLE);
+                holder.btnPlayAudio.setEnabled(false);
+                holder.btnPlayAudio.setAlpha(0.35f);
+                holder.btnPlayAudio.setImageResource(R.drawable.ic_volume_up_24);
+                holder.btnPlayAudio.setOnClickListener(null);
+            } else if (hasText || message.hasAudio()) {
+                holder.btnPlayAudio.setVisibility(View.VISIBLE);
+                holder.btnPlayAudio.setEnabled(true);
+                holder.btnPlayAudio.setAlpha(1.0f);
+                holder.btnPlayAudio.setImageResource(R.drawable.ic_volume_up_24);
+                holder.btnPlayAudio.setOnClickListener(v -> {
+                    // 优先走"点击才生成"的流式朗读：服务端按文本派生固定 seed，
+                    // 同一条回复每次听到的都一致，且不落盘。
+                    // 仅当流式不可用（Activity 未接管）时，才退回旧的直连/下载播放。
+                    if (audioActionListener != null) {
+                        audioActionListener.onPlayAudio(message);
+                    } else if (message.hasAudio()) {
+                        playAudio(message.getAudioUrl());
+                    }
+                });
             } else {
                 holder.btnPlayAudio.setVisibility(View.GONE);
             }

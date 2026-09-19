@@ -17,6 +17,7 @@ public class AiMessage {
     private String asrTranscript; // 语音识别文本（用户语音消息时）
     private long messageId; // 消息 ID
     private boolean audioPending; // 音频是否在后台生成中
+    private boolean audioPlaying; // 流式朗读是否正在播放中
     private String level; // 等级（excellent/good/fair/poor）
     private double pronunciationScore = -1; // 发音分
     private double fluencyScore = -1; // 流利度
@@ -109,6 +110,21 @@ public class AiMessage {
 
     public void setAudioPending(boolean audioPending) {
         this.audioPending = audioPending;
+    }
+
+    /**
+     * 流式朗读是否正在播放。
+     *
+     * 用于"点击才生成"的方案：点击后进入播放，再点一次即停止。
+     * 与 {@link #isAudioPending()} 的区别：pending 表示"正在等首片"（转圈），
+     * playing 表示"已在出声"（可点击停止）。
+     */
+    public boolean isAudioPlaying() {
+        return audioPlaying;
+    }
+
+    public void setAudioPlaying(boolean audioPlaying) {
+        this.audioPlaying = audioPlaying;
     }
 
     public boolean hasScore() {

@@ -20,10 +20,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ApiConstants {
 
-    public enum Environment { DEV, TEST, PROD }
+    public enum Environment { DEV, TEST, PROD, LOCAL }
 
-    /** 默认环境：DEV（局域网直连调试；正式回归可改回 TEST，见类注释） */
+    /**
+     * 默认环境（TEST，保持既有行为）。
+     *
+     * <p>真机 USB 调试本地后端时，临时改成 {@link #LOCAL} 并执行
+     * {@code adb reverse tcp:8080 tcp:8080}：手机上的 localhost:8080 会被转发到
+     * PC 的 8080（Spring Boot）。这样不要求手机与 PC 同网段。
+     * 仅 debug 构建可用（release 下 LOCAL_BASE_URL 为 null，会自动回退 DEV）。
+     */
     private static volatile Environment currentEnv = Environment.TEST;
+
+    /** 真机 USB 调试用：经 adb reverse 转发到 PC 本地后端 */
+    private static final String LOCAL_BASE_URL =
+            BuildConfig.DEBUG ? "http://localhost:8080" : null;
 
     /** 网络共享线程池：全部网络 IO（含 SSE 流式、轮询、重试）在此执行 */
     private static final ExecutorService NETWORK_EXECUTOR;
@@ -49,6 +60,9 @@ public final class ApiConstants {
 
     public static String getBaseUrl() {
         switch (currentEnv) {
+            // 真机 USB 调试：经 adb reverse 打到 PC 本地后端
+            case LOCAL:
+                return LOCAL_BASE_URL != null ? LOCAL_BASE_URL : DEV_BASE_URL;
             case TEST:
                 return TEST_BASE_URL;
             case PROD:

@@ -246,7 +246,7 @@ public class AiConversationActivity extends AppCompatActivity {
             mAudioRecord.cleanup();
         }
         // 停掉流式朗读，释放 AudioTrack（否则 Activity 销毁后仍可能出声）
-        com.deepsleep.memory.handle_utils.PcmStreamPlayer.stop();
+        stopStreamingTts(streamingMsg);
         if (adapter != null) {
             adapter.releaseMediaPlayer();
         }
@@ -423,6 +423,18 @@ public class AiConversationActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         adapter = new AiConversationAdapter(messageList);
+        // 朗读按钮：点击才生成（流式边生成边播），再点一次即停止
+        adapter.setAudioActionListener(new AiConversationAdapter.AudioActionListener() {
+            @Override
+            public void onPlayAudio(AiMessage message) {
+                startStreamingTts(message);
+            }
+
+            @Override
+            public void onStopAudio(AiMessage message) {
+                stopStreamingTts(message);
+            }
+        });
         rvConversation.setLayoutManager(new LinearLayoutManager(this));
         rvConversation.setAdapter(adapter);
 
@@ -530,12 +542,16 @@ public class AiConversationActivity extends AppCompatActivity {
      */
     private void sendStreamingMessage(String content, AiMessage aiMsg) {
         // 发新消息即打断上一条正在流式朗读的音频（避免新旧两段声音重叠）
-        com.deepsleep.memory.handle_utils.PcmStreamPlayer.stop();
+        stopStreamingTts(streamingMsg);
         ApiConstants.execute(() -> {
             try {
                 String urlStr = ApiConstants.getFullUrl("/conversation/stream");
                 Map<String, String> headers = new HashMap<>();
                 headers.put("userId", String.valueOf(mUserId));
+                // 告知服务端：本客户端采用"点击才生成"的流式朗读，
+                // **不要**在后台预生成整段 TTS（否则白跑 GPU，且会给出 audioUrl
+                // 让我们误走旧的点播链路）。老客户端不发此头，行为不变。
+                headers.put("TTS-Stream", "1");
                 Map<String, String> form = new HashMap<>();
                 form.put("sessionId", mSessionId);
                 form.put("text", content);
@@ -946,6 +962,117 @@ public class AiConversationActivity extends AppCompatActivity {
             }
         }
     };
+
+    // ==================== 流式朗读（方案 A：点击才生成） ====================
+
+    /** 流式朗读端点（与 MemoryServer 的 TtsController 对应） */
+    private static final String STREAM_TTS_PATH = "/tts/synthesize-stream";
+
+    /** 当前正在流式朗读的消息（用于"再点一次停止"与状态回滚） */
+    private AiMessage streamingMsg;
+
+    /**
+     * 点击朗读：**此刻才**向后端请求流式合成，边生成边播（首声约 0.6s）。
+     *
+     * 与旧链路的区别：旧链路在 AI 回复到达时就异步生成整段音频、落盘、再轮询 URL，
+     * 用户点击时才下载播放。现在改为"点击才生成"：
+     * - 用户不点 → 完全不生成，不浪费 GPU（下游 4060 + 串行生成）；
+     * - 同一条回复重复点击 → 服务端按文本派生固定 seed，音频可复现（相关性 0.99999）；
+     * - 不落盘、不产生任何音频文件。
+     */
+    private void startStreamingTts(AiMessage msg) {
+        if (msg == null) {
+            return;
+        }
+        final String text = msg.getContent();
+        if (text == null || text.trim().isEmpty()) {
+            return;
+        }
+        // 已经在播这条 → 视为停止
+        if (streamingMsg == msg) {
+            stopStreamingTts(msg);
+            return;
+        }
+        // 切换目标：先停掉上一条，并释放可能有声的 MediaPlayer（避免两路声音重叠）
+        if (streamingMsg != null) {
+            stopStreamingTts(streamingMsg);
+        }
+        if (adapter != null) {
+            adapter.releaseMediaPlayer();
+        }
+
+        streamingMsg = msg;
+        msg.setAudioPending(true);   // 等首片：按钮转圈
+        msg.setAudioPlaying(false);
+        refreshMessageRow(msg);
+
+        final String url = ApiConstants.getFullUrl(STREAM_TTS_PATH);
+        com.deepsleep.memory.handle_utils.PcmStreamPlayer.playStream(url, text,
+                new com.deepsleep.memory.handle_utils.PcmStreamPlayer.Listener() {
+                    @Override
+                    public void onFirstAudio(int elapsedMs) {
+                        Log.i(TAG, "流式朗读首声: " + elapsedMs + "ms");
+                        runOnUiThread(() -> {
+                            // 若用户在等首片期间已停止，则忽略
+                            if (streamingMsg != msg) {
+                                return;
+                            }
+                            msg.setAudioPending(false);
+                            msg.setAudioPlaying(true);   // 已出声：按钮变"停止"
+                            refreshMessageRow(msg);
+                        });
+                    }
+
+                    @Override
+                    public void onCompleted(int totalMs) {
+                        Log.i(TAG, "流式朗读完成: " + totalMs + "ms");
+                        runOnUiThread(() -> {
+                            if (streamingMsg == msg) {
+                                streamingMsg = null;
+                            }
+                            msg.setAudioPending(false);
+                            msg.setAudioPlaying(false);
+                            refreshMessageRow(msg);
+                        });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Log.w(TAG, "流式朗读失败: " + message);
+                        runOnUiThread(() -> {
+                            if (streamingMsg == msg) {
+                                streamingMsg = null;
+                            }
+                            msg.setAudioPending(false);
+                            msg.setAudioPlaying(false);
+                            refreshMessageRow(msg);
+                            Snackbar.make(coordinatorLayout, "朗读失败，请稍后再试",
+                                    Snackbar.LENGTH_SHORT).show();
+                        });
+                    }
+                });
+    }
+
+    /** 停止流式朗读（用户再点一次 / 页面销毁 / 发新消息） */
+    private void stopStreamingTts(AiMessage msg) {
+        com.deepsleep.memory.handle_utils.PcmStreamPlayer.stop();
+        if (msg != null) {
+            msg.setAudioPending(false);
+            msg.setAudioPlaying(false);
+            refreshMessageRow(msg);
+        }
+        if (streamingMsg == msg) {
+            streamingMsg = null;
+        }
+    }
+
+    /** 刷新某条消息所在行（仅在消息仍在列表中时） */
+    private void refreshMessageRow(AiMessage msg) {
+        int pos = messageList.indexOf(msg);
+        if (pos >= 0 && adapter != null) {
+            adapter.notifyItemChanged(pos);
+        }
+    }
 
     // ==================== 音频轮询 ====================
 
