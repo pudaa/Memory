@@ -203,6 +203,8 @@ public class AiConversationAdapter extends RecyclerView.Adapter<AiConversationAd
     private void playAudio(String audioUrl) {
         if (audioUrl == null || audioUrl.isEmpty())
             return;
+        // 手动播放要先打断流式朗读，避免两路声音重叠
+        com.deepsleep.memory.handle_utils.PcmStreamPlayer.stop();
         // 本地文件直接播放
         if (!audioUrl.startsWith("http://") && !audioUrl.startsWith("https://")) {
             playLocalAudio(audioUrl);

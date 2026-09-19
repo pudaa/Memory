@@ -300,6 +300,44 @@ public final class MemoryApiClient {
     }
 
     /**
+     * 流式 PCM 合成入口：POST JSON，返回可**边读边播**的 Response（调用方负责 close）。
+     *
+     * 对应后端的 `/tts/synthesize-stream`（MemoryServer 透传 MemoryServerTTS 的
+     * chunked 裸 PCM，int16LE / 单声道 / 24kHz）。与 {@link #downloadMediaFile}
+     * 的关键区别：**不落盘、不缓冲整个响应**，读到多少就能播多少，
+     * 因此首声延迟约 0.6s 而不是等整段下载完。
+     *
+     * @param urlString 完整 URL
+     * @param text      待合成文本
+     * @param onResponse 拿到 200 响应后回调（可从中读 Content-Type / X-Audio-Sample-Rate
+     *                   并消费 body 流）；回调抛出的异常会被包装成 IOException
+     */
+    public static void streamPcm(String urlString, String text, PcmResponseHandler onResponse)
+            throws IOException {
+        JSONObject json = new JSONObject();
+        try {
+            json.put("text", text);
+        } catch (Exception e) {
+            throw new IOException("构造请求体失败", e);
+        }
+        Request.Builder b = new Request.Builder().url(urlString).post(jsonBody(json));
+        try (Response r = client().newCall(auth(b).build()).execute()) {
+            if (r.code() != 200) {
+                Log.e("MemoryApiClient", "streamPcm 失败: HTTP " + r.code() + " " + urlString);
+                throw new IOException("HTTP " + r.code());
+            }
+            if (onResponse != null) {
+                onResponse.onResponse(r);
+            }
+        }
+    }
+
+    /** 流式 PCM 响应回调 */
+    public interface PcmResponseHandler {
+        void onResponse(Response response) throws IOException;
+    }
+
+    /**
      * SSE / 流式响应入口：基于共享 OkHttpClient 发起 POST（application/x-www-form-urlencoded），
      * 返回可流式读取的 Response（调用方负责 close）。失败抛 IOException。
      * 服务端全面强制 JWT 后附带 Bearer access token（过期时服务端返回 401，
