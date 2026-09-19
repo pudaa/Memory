@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.deepsleep.memory.R;
+import com.deepsleep.memory.handle_utils.AudioPlaybackManager;
 import com.deepsleep.memory.handle_utils.MemAudioRecord;
 import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.ApiConstants;
@@ -975,7 +976,7 @@ public class AiConversationActivity extends AppCompatActivity {
         }
     };
 
-    // ==================== 流式朗读（方案 A：点击才生成） ====================
+    // ==================== 朗读（统一走 AudioPlaybackManager） ====================
 
     /** 流式朗读端点（与 MemoryServer 的 TtsController 对应） */
     private static final String STREAM_TTS_PATH = "/tts/synthesize-stream";
@@ -988,9 +989,12 @@ public class AiConversationActivity extends AppCompatActivity {
      *
      * 与旧链路的区别：旧链路在 AI 回复到达时就异步生成整段音频、落盘、再轮询 URL，
      * 用户点击时才下载播放。现在改为"点击才生成"：
-     * - 用户不点 → 完全不生成，不浪费 GPU（下游 4060 + 串行生成）；
+     * - 用户不点 → 完全不生成，不浪费 GPU；
      * - 同一条回复重复点击 → 服务端按文本派生固定 seed，音频可复现（相关性 0.99999）；
      * - 不落盘、不产生任何音频文件。
+     *
+     * 播放统一交给 {@link AudioPlaybackManager}：它会先打断任何正在播放的音频
+     * （无论是另一条回复的流式朗读，还是片段音频），保证同一时刻只有一路声音。
      */
     private void startStreamingTts(AiMessage msg) {
         if (msg == null) {
@@ -1005,12 +1009,9 @@ public class AiConversationActivity extends AppCompatActivity {
             stopStreamingTts(msg);
             return;
         }
-        // 切换目标：先停掉上一条，并释放可能有声的 MediaPlayer（避免两路声音重叠）
+        // 切换目标：交由管理器统一打断上一路（含 MediaPlayer 释放）
         if (streamingMsg != null) {
             stopStreamingTts(streamingMsg);
-        }
-        if (adapter != null) {
-            adapter.releaseMediaPlayer();
         }
 
         streamingMsg = msg;
@@ -1019,55 +1020,48 @@ public class AiConversationActivity extends AppCompatActivity {
         refreshMessageRow(msg);
 
         final String url = ApiConstants.getFullUrl(STREAM_TTS_PATH);
-        com.deepsleep.memory.handle_utils.PcmStreamPlayer.playStream(url, text,
-                new com.deepsleep.memory.handle_utils.PcmStreamPlayer.Listener() {
+        AudioPlaybackManager.playStreaming(this, url, text,
+                new AudioPlaybackManager.Listener() {
                     @Override
-                    public void onFirstAudio(int elapsedMs) {
+                    public void onStarted(int elapsedMs) {
                         Log.i(TAG, "流式朗读首声: " + elapsedMs + "ms");
-                        runOnUiThread(() -> {
-                            // 若用户在等首片期间已停止，则忽略
-                            if (streamingMsg != msg) {
-                                return;
-                            }
-                            msg.setAudioPending(false);
-                            msg.setAudioPlaying(true);   // 已出声：按钮变"停止"
-                            refreshMessageRow(msg);
-                        });
+                        if (streamingMsg != msg) {
+                            return;   // 等待期间已被停下
+                        }
+                        msg.setAudioPending(false);
+                        msg.setAudioPlaying(true);   // 已出声：按钮变"停止"
+                        refreshMessageRow(msg);
                     }
 
                     @Override
                     public void onCompleted(int totalMs) {
                         Log.i(TAG, "流式朗读完成: " + totalMs + "ms");
-                        runOnUiThread(() -> {
-                            if (streamingMsg == msg) {
-                                streamingMsg = null;
-                            }
-                            msg.setAudioPending(false);
-                            msg.setAudioPlaying(false);
-                            refreshMessageRow(msg);
-                        });
+                        if (streamingMsg == msg) {
+                            streamingMsg = null;
+                        }
+                        msg.setAudioPending(false);
+                        msg.setAudioPlaying(false);
+                        refreshMessageRow(msg);
                     }
 
                     @Override
                     public void onError(String message) {
                         Log.w(TAG, "流式朗读失败: " + message);
-                        runOnUiThread(() -> {
-                            if (streamingMsg == msg) {
-                                streamingMsg = null;
-                            }
-                            msg.setAudioPending(false);
-                            msg.setAudioPlaying(false);
-                            refreshMessageRow(msg);
-                            Snackbar.make(coordinatorLayout, "朗读失败，请稍后再试",
-                                    Snackbar.LENGTH_SHORT).show();
-                        });
+                        if (streamingMsg == msg) {
+                            streamingMsg = null;
+                        }
+                        msg.setAudioPending(false);
+                        msg.setAudioPlaying(false);
+                        refreshMessageRow(msg);
+                        Snackbar.make(coordinatorLayout, "朗读失败，请稍后再试",
+                                Snackbar.LENGTH_SHORT).show();
                     }
                 });
     }
 
     /** 停止流式朗读（用户再点一次 / 页面销毁 / 发新消息） */
     private void stopStreamingTts(AiMessage msg) {
-        com.deepsleep.memory.handle_utils.PcmStreamPlayer.stop();
+        AudioPlaybackManager.stop();
         if (msg != null) {
             msg.setAudioPending(false);
             msg.setAudioPlaying(false);

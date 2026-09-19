@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@color/reader_section_title">
+    <!--
+      每日一读的"朗读"图标。
+
+      为什么不用通用的 ic_volume_up_24：那个图标是硬编码 fillColor="#FF000000"
+      且**没有 tint**，直接放到阅读页上：
+        - 浅色主题：卡片底 #FEFCF7 上的纯黑，与阅读页暖色调不搭；
+        - 深色主题：卡片底 #282420 上的纯黑 → 几乎看不见。
+      这里改用阅读页自己的强调色 token（reader_section_title，
+      浅色 #5A7FA0 / 深色 #8AB4D4），两种主题下都与卡片底有足够对比度，
+      且与板块标题、色条同色系，视觉上是一套。
+    -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,9v6h4l5,5V4L7,9H3zM16.5,12c0,-1.77 -1.02,-3.29 -2.5,-4.03v8.05c1.48,-0.73 2.5,-2.25 2.5,-4.02zM14,3.23v2.06c2.89,0.86 5,3.54 5,6.71s-2.11,5.85 -5,6.71v2.06c4.01,-0.91 7,-4.49 7,-8.77s-2.99,-7.86 -7,-8.77z" />
+</vector>

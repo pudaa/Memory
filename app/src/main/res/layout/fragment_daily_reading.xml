@@ -106,6 +106,18 @@
             android:textSize="13sp"
             android:textColor="@color/reader_text_secondary" />
 
+        <!-- 朗读整篇（标题 + 文章正文）：走流式合成，边生成边播 -->
+        <ImageButton
+            android:id="@+id/btn_read_article"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_reader_read"
+            android:background="@drawable/bg_reader_card"
+            android:scaleType="centerInside"
+            android:padding="6dp"
+            android:contentDescription="朗读标题与正文"
+            android:layout_marginEnd="8dp" />
+
         <!-- 字号缩小 -->
         <ImageButton
             android:id="@+id/btn_font_decrease"
@@ -227,6 +239,17 @@
                     android:textStyle="bold"
                     android:textColor="@color/reader_section_title"
                     android:letterSpacing="0.03" />
+
+                <!-- 只朗读"长难句分析"这一板块 -->
+                <ImageButton
+                    android:id="@+id/btn_read_sentence_analysis"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_reader_read"
+                    android:background="@drawable/bg_reader_card"
+                    android:scaleType="centerInside"
+                    android:padding="6dp"
+                    android:contentDescription="朗读长难句分析" />
             </LinearLayout>
 
             <!-- 长难句卡片 -->
@@ -271,6 +294,17 @@
                     android:textStyle="bold"
                     android:textColor="@color/reader_section_title"
                     android:letterSpacing="0.03" />
+
+                <!-- 只朗读"高频易错单词"这一板块 -->
+                <ImageButton
+                    android:id="@+id/btn_read_high_freq_words"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_reader_read"
+                    android:background="@drawable/bg_reader_card"
+                    android:scaleType="centerInside"
+                    android:padding="6dp"
+                    android:contentDescription="朗读高频易错单词" />
             </LinearLayout>
 
             <!-- 高频单词卡片 -->

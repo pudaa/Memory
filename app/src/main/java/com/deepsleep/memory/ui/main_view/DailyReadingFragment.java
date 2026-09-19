@@ -24,7 +24,9 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import com.deepsleep.memory.R;
+import com.deepsleep.memory.handle_utils.AudioPlaybackManager;
 import com.deepsleep.memory.handle_utils.AudioPlayer;
+import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.ui.components.LoadingDotsView;
 import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.ApiBridge;
@@ -83,6 +85,12 @@ public class DailyReadingFragment extends Fragment {
     private List<Long> favoriteIds = new ArrayList<>();
     private List<String> favoriteTitles = new ArrayList<>();
 
+    // ── 朗读（流式合成，边生成边播）──
+    /** 正在朗读的按钮（用于再点停止与状态还原） */
+    private ImageButton readingButton;
+    /** 点击朗读时提交的文本，用于"再点一次停止"时判断是否同一条 */
+    private String readingText = "";
+
     private int userId;
     private int currentFontSize = 19;
     private static final int FONT_SIZE_MIN = 15;
@@ -135,6 +143,15 @@ public class DailyReadingFragment extends Fragment {
         favoritesEmptyContainer = view.findViewById(R.id.favorites_empty_container);
         favoritesLoading = view.findViewById(R.id.favorites_loading);
         btnCloseDrawer = view.findViewById(R.id.btn_close_drawer);
+
+        // ── 朗读按钮（流式合成）──
+        // 工具栏按钮朗读"标题 + 正文"；子模块标题后的按钮只读该模块内容
+        view.findViewById(R.id.btn_read_article).setOnClickListener(v ->
+                toggleRead((ImageButton) v, buildArticleReadText()));
+        view.findViewById(R.id.btn_read_sentence_analysis).setOnClickListener(v ->
+                toggleRead((ImageButton) v, buildSentenceAnalysisReadText()));
+        view.findViewById(R.id.btn_read_high_freq_words).setOnClickListener(v ->
+                toggleRead((ImageButton) v, buildHighFrequencyReadText()));
 
         // 收藏夹入口 → 打开侧边抽屉
         btnHistory.setOnClickListener(v -> openFavoritesDrawer());
@@ -876,9 +893,210 @@ public class DailyReadingFragment extends Fragment {
         isRetrying = false;
     }
 
+    // ==================== 朗读（流式，边生成边播） ====================
+
+    /** 流式朗读端点（与 MemoryServer 的 TtsController 对应） */
+    private static final String STREAM_TTS_PATH = "/tts/synthesize-stream";
+
+    /**
+     * 工具栏：朗读"标题 + 正文"。
+     *
+     * 注意**不含**长难句分析与高频易错单词——那两块各有自己的朗读按钮，
+     * 由用户按需单独听（整篇连读会把释义/翻译也念出来，反而不便）。
+     */
+    private String buildArticleReadText() {
+        StringBuilder sb = new StringBuilder();
+        if (currentArticleTitle != null && !currentArticleTitle.trim().isEmpty()) {
+            sb.append(currentArticleTitle.trim()).append(". ");
+        }
+        sb.append(markdownToPlainText(currentArticleContent));
+        return sb.toString().trim();
+    }
+
+    /** 长难句分析板块：逐句朗读（英文原句 + 中文翻译） */
+    private String buildSentenceAnalysisReadText() {
+        StringBuilder sb = new StringBuilder();
+        if (currentSentenceAnalysis == null) {
+            return "";
+        }
+        for (int i = 0; i < currentSentenceAnalysis.length(); i++) {
+            try {
+                JSONObject item = currentSentenceAnalysis.getJSONObject(i);
+                String sentence = markdownToPlainText(item.optString("sentence", ""));
+                String translation = markdownToPlainText(item.optString("translation", ""));
+                if (!sentence.isEmpty()) {
+                    sb.append(sentence).append(". ");
+                }
+                if (!translation.isEmpty()) {
+                    sb.append(translation).append("。");
+                }
+            } catch (JSONException e) {
+                Log.w("article", "读取长难句失败: " + e.getMessage());
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    /** 高频易错单词板块："单词：释义" 逐条朗读 */
+    private String buildHighFrequencyReadText() {
+        StringBuilder sb = new StringBuilder();
+        if (currentHighFrequencyWords == null) {
+            return "";
+        }
+        for (int i = 0; i < currentHighFrequencyWords.length(); i++) {
+            try {
+                Object raw = currentHighFrequencyWords.get(i);
+                String word;
+                String explanation;
+                if (raw instanceof JSONObject) {
+                    JSONObject item = (JSONObject) raw;
+                    word = item.optString("word", "");
+                    explanation = item.optString("explanation", "");
+                } else {
+                    String[] parts = splitWordExplanation(String.valueOf(raw));
+                    word = parts[0];
+                    explanation = parts[1];
+                }
+                if (word == null || word.isEmpty()) {
+                    continue;
+                }
+                explanation = stripLeadingWord(word, explanation);
+                sb.append(word).append(". ");
+                if (explanation != null && !explanation.isEmpty()) {
+                    sb.append(markdownToPlainText(explanation)).append("。");
+                }
+            } catch (JSONException e) {
+                Log.w("article", "读取高频单词失败: " + e.getMessage());
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    /**
+     * 点击朗读：第一次点击开始朗读，再点一次停止。
+     *
+     * 走 {@link AudioPlaybackManager#playStreaming}（流式合成）——服务端边生成边下发，
+     * 长文章首声约 0.5–0.8s，不必等整段生成完。管理器保证同时只有一路音频。
+     */
+    private void toggleRead(ImageButton button, String rawText) {
+        final String text = rawText == null ? "" : rawText.trim();
+        if (text.isEmpty()) {
+            Toast.makeText(requireContext(), "暂无可朗读的内容", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 再点同一个按钮 → 停止
+        if (readingButton == button) {
+            stopReading();
+            return;
+        }
+        stopReading();
+
+        readingButton = button;
+        readingText = text;
+        setReadButtonState(button, true);   // 转圈/播放中
+
+        AudioPlaybackManager.playStreaming(requireContext(),
+                ApiConstants.getFullUrl(STREAM_TTS_PATH), text,
+                new AudioPlaybackManager.Listener() {
+                    @Override
+                    public void onStarted(int elapsedMs) {
+                        Log.i("article", "朗读首声: " + elapsedMs + "ms, 文本长度=" + text.length());
+                        setReadButtonState(button, true);
+                    }
+
+                    @Override
+                    public void onCompleted(int totalMs) {
+                        Log.i("article", "朗读完成: " + totalMs + "ms");
+                        clearReadingState(button);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Log.w("article", "朗读失败: " + message);
+                        clearReadingState(button);
+                        if (isAdded()) {
+                            Toast.makeText(requireContext(), "朗读失败，请稍后再试",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    /** 停止当前朗读并还原按钮 */
+    private void stopReading() {
+        AudioPlaybackManager.stop();
+        if (readingButton != null) {
+            clearReadingState(readingButton);
+        }
+    }
+
+    private void clearReadingState(ImageButton button) {
+        // 仅当仍是当前按钮时才还原，避免过期回调清掉新一次朗读的状态
+        if (button != null && button == readingButton) {
+            readingButton = null;
+            readingText = "";
+            setReadButtonState(button, false);
+        }
+    }
+
+    private void setReadButtonState(ImageButton button, boolean reading) {
+        if (button == null) {
+            return;
+        }
+        // 用阅读页专属图标（ic_reader_read / ic_reader_stop），
+        // 它们 tint 到 reader_section_title，浅色/深色主题下都与卡片底有对比
+        button.setImageResource(reading ? R.drawable.ic_reader_stop : R.drawable.ic_reader_read);
+        button.setContentDescription(reading ? "停止朗读" : "朗读");
+    }
+
+    /**
+     * Markdown → 纯文本。
+     *
+     * 必需：正文是 Markdown（`**粗体**`、`## 标题`、`- 列表`、链接等），
+     * 直接丢给 TTS 会把符号念出来。这里只做**轻量清理**，保留可读文字。
+     */
+    private String markdownToPlainText(String md) {
+        if (md == null || md.isEmpty()) {
+            return "";
+        }
+        String t = md;
+        // 代码块与行内代码
+        t = t.replaceAll("```[\\s\\S]*?```", " ");
+        t = t.replaceAll("`([^`]*)`", "$1");
+        // 图片 → 去掉；链接 [text](url) → 保留 text
+        t = t.replaceAll("!\\[[^\\]]*\\]\\([^)]*\\)", " ");
+        t = t.replaceAll("\\[([^\\]]*)\\]\\([^)]*\\)", "$1");
+        // 标题/引用/列表符号（行首）
+        t = t.replaceAll("(?m)^\\s{0,3}#{1,6}\\s*", "");
+        t = t.replaceAll("(?m)^\\s{0,3}>\\s?", "");
+        t = t.replaceAll("(?m)^\\s{0,3}[-*+]\\s+", "");
+        t = t.replaceAll("(?m)^\\s{0,3}\\d+\\.\\s+", "");
+        // 强调标记与水平线
+        t = t.replaceAll("\\*\\*([^*]*)\\*\\*", "$1");
+        t = t.replaceAll("__([^_]*)__", "$1");
+        t = t.replaceAll("\\*([^*]*)\\*", "$1");
+        t = t.replaceAll("_([^_]*)_", "$1");
+        t = t.replaceAll("(?m)^\\s*([-*_])\\1{2,}\\s*$", " ");
+        // 压缩空白
+        t = t.replaceAll("[ \\t]+", " ");
+        t = t.replaceAll("\\n{2,}", "\n");
+        return t.trim();
+    }
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         cancelRetry();
+        // 页面销毁即停播，并清空引用避免泄露旧 View
+        AudioPlaybackManager.stop();
+        readingButton = null;
+        readingText = "";
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // 离开页面停止朗读（避免用户已离开却还在出声）
+        stopReading();
     }
 }
