@@ -44,11 +44,58 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // 签名配置。
+    // 本仓库原本没有 signingConfigs —— release 构建产不出可安装的签名包。
+    // 这里默认复用**调试密钥**（AGP 自动生成在 $ANDROID_SDK_HOME/.android/debug.keystore），
+    // 使 `assembleDebug` 与 `assembleRelease` 共用一个签名，装到真机可互相覆盖升级。
+    //
+    // ⚠️ 调试密钥仅供内部/毕设演示使用，**不可用于正式发布**（会被当成 debug 签名，
+    //    且换密钥后无法覆盖升级）。要正式发布时，在 local.properties 里提供：
+    //      RELEASE_STORE_FILE / RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD
+    //    本文件会自动优先使用它们，不影响明文密钥入库。
+    def releaseStoreFile = localProps.getProperty("RELEASE_STORE_FILE")
+    def hasReleaseKey = releaseStoreFile != null && file(releaseStoreFile).exists()
+    def debugStoreFile = new File(
+            (System.getenv("ANDROID_SDK_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "${System.getProperty('user.home')}") +
+                    "/.android/debug.keystore")
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword localProps.getProperty("RELEASE_STORE_PASSWORD", "")
+                keyAlias localProps.getProperty("RELEASE_KEY_ALIAS", "")
+                keyPassword localProps.getProperty("RELEASE_KEY_PASSWORD", "")
+            }
+        }
+        if (debugStoreFile.exists()) {
+            debugLike {
+                storeFile debugStoreFile
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            } else if (debugStoreFile.exists()) {
+                // 没有正式密钥时退回调试密钥，保证 release 包可安装（见上方说明）
+                signingConfig signingConfigs.debugLike
+            }
         }
+    }
+
+    // 该项目的 release 仅用于毕设真机验收，lint 会额外拉取 lint-gradle 依赖且无实际收益，
+    // 因此关闭（开启时会因离线环境缺依赖而构建失败）。
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
