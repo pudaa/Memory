@@ -338,6 +338,60 @@ public final class MemoryApiClient {
     }
 
     /**
+     * 刷新用的单飞锁：与 Retrofit 栈的 Authenticator 共用同一把，
+     * 避免两条路径同时用同一个旧 refresh_token 刷新而触发服务端轮换竞态。
+     */
+    static final Object REFRESH_LOCK = new Object();
+
+    /**
+     * 阻塞式刷新 access token（与 Authenticator 共用单飞锁）。
+     *
+     * <p>为什么需要它：OkHttp 的 Authenticator 只在「OkHttp 发出的请求」收到 401 时触发，
+     * 而 {@code MediaPlayer} 有自己的 HTTP 栈、**不在 OkHttp 体系内**，
+     * 直连播放遇到 token 过期不会自动刷新，需要调用方显式刷新后重试。
+     *
+     * @return true 表示刷新成功且新 token 已保存
+     */
+    public static boolean refreshTokenBlocking() {
+        synchronized (REFRESH_LOCK) {
+            if (sAppContext == null) {
+                Log.e("MemoryApiClient", "refreshTokenBlocking: 网络层未初始化");
+                return false;
+            }
+            TokenStore store = tokenStore();
+            String refreshToken = store.refreshToken();
+            if (refreshToken == null || refreshToken.isEmpty()) {
+                return false;
+            }
+            try (Response refreshResponse = client().newCall(
+                    new Request.Builder().url(ApiConstants.getFullUrl("/auth/refresh"))
+                            .header("refreshToken", refreshToken)
+                            .post(RequestBody.create(new byte[0]))
+                            .build())
+                    .execute()) {
+                if (!refreshResponse.isSuccessful() || refreshResponse.body() == null) {
+                    Log.e("MemoryApiClient", "refreshTokenBlocking 失败: HTTP " + refreshResponse.code());
+                    return false;
+                }
+                JSONObject json = new JSONObject(refreshResponse.body().string());
+                if (!"200".equals(json.optString("code"))) {
+                    return false;
+                }
+                String access = json.optString("access_token");
+                if (access == null || access.isEmpty()) {
+                    return false;
+                }
+                store.save(access, json.optString("refresh_token", refreshToken));
+                Log.i("MemoryApiClient", "refreshTokenBlocking 成功");
+                return true;
+            } catch (Exception e) {
+                Log.e("MemoryApiClient", "refreshTokenBlocking 异常", e);
+                return false;
+            }
+        }
+    }
+
+    /**
      * SSE / 流式响应入口：基于共享 OkHttpClient 发起 POST（application/x-www-form-urlencoded），
      * 返回可流式读取的 Response（调用方负责 close）。失败抛 IOException。
      * 服务端全面强制 JWT 后附带 Bearer access token（过期时服务端返回 401，
@@ -432,6 +486,18 @@ public final class MemoryApiClient {
 
     // ── Retrofit 构建（环境感知） ──
 
+    /** 取得（必要时创建）共享 TokenStore */
+    private static TokenStore tokenStore() {
+        if (tokenStore == null) {
+            synchronized (MemoryApiClient.class) {
+                if (tokenStore == null) {
+                    tokenStore = new TokenStore(sAppContext);
+                }
+            }
+        }
+        return tokenStore;
+    }
+
     private static void ensureBuilt() {
         if (sAppContext == null) {
             throw new IllegalStateException("网络层未初始化：NetworkInitializer（ContentProvider）未生效或未调用 setAppContext()");
@@ -470,7 +536,9 @@ public final class MemoryApiClient {
         // 单飞刷新锁：App 启动时多个请求并行 401，若各自触发刷新，同一旧 refreshToken
         // 并发到达服务端会触发轮换竞态（输家被判定复用→整链吊销→本地令牌被清→强制重新登录）。
         // 加锁 + 双检后同一时刻只有一个线程真正刷新，其余线程直接复用刚刷新出的新 token 重放。
-        final Object refreshLock = new Object();
+        // 注意：用类级 REFRESH_LOCK 而非局部锁 —— MediaPlayer 直连播放走不到 Authenticator，
+        // 需要用 refreshTokenBlocking() 手动刷新，两条路径必须共用同一把锁。
+        final Object refreshLock = REFRESH_LOCK;
 
         Authenticator authenticator = (Route route, Response response) -> {
             if (responseCount(response) >= 2) {

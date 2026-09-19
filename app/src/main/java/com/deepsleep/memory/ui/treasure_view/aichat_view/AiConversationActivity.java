@@ -72,20 +72,6 @@ public class AiConversationActivity extends AppCompatActivity {
     private static final int MSG_AUDIO_POLL_READY = 7;
     private static final int REQUEST_RECORD_AUDIO = 123;
 
-    /**
-     * 是否使用**流式朗读**（推荐）。
-     *
-     * <p>开启后：AI 文本流式输出完毕时，立即向后端 `/tts/synthesize-stream`
-     * 发起请求，音频边生成边播（首声约 0.6s），不再走"轮询音频 URL → 整段下载"。
-     *
-     * <p>失败或不支持时会**自动回退**到原有轮询链路，因此开着是安全的。
-     * 若需临时关闭（例如后端未部署流式端点），把这里改成 false 即可。
-     */
-    private static final boolean USE_STREAMING_TTS = true;
-
-    /** 流式朗读端点（与 MemoryServer 的 TtsController 对应） */
-    private static final String STREAM_TTS_PATH = "/tts/synthesize-stream";
-
     private static final String WELCOME_TEXT = "Hello! Welcome to Memory English Learning App.\n\n"
             + "I'm your English speaking partner. Let's chat in English only — "
             + "no matter what you say, I'll always reply in English to help you practice!\n\n"
@@ -247,6 +233,10 @@ public class AiConversationActivity extends AppCompatActivity {
         setupInputArea();
         loadUserId();
         checkLastSession();
+        // 兜底清理历史遗留的音频缓存：该目录原先无任何清理逻辑，
+        // 文件名带时间戳，长期使用会无限堆积（后台线程做磁盘 IO）
+        ApiConstants.execute(() ->
+                com.deepsleep.memory.handle_utils.AudioCacheCleaner.cleanup(this));
     }
 
     @Override
@@ -638,12 +628,10 @@ public class AiConversationActivity extends AppCompatActivity {
                         adapter.notifyItemChanged(pos);
                     }
 
-                    // ── 优先走流式朗读：文本一输出完就边生成边播（首声约 0.6s）──
-                    if (USE_STREAMING_TTS && aiMsg.getContent() != null
-                            && !aiMsg.getContent().trim().isEmpty()) {
-                        startStreamingTts(aiMsg, messageId, pos);
-                    } else if (doneData.optBoolean("audioPending", false) && messageId > 0) {
-                        // 回退：原有"轮询音频 URL"链路
+                    // 启动音频轮询：**只获取音频是否就绪，不自动播放**。
+                    // 播放时机仍由用户点击播放按钮决定（本分支不改变这一产品语义）。
+                    // 流式朗读（边生成边播）由另一条线负责，届时在此处接入。
+                    if (doneData.optBoolean("audioPending", false) && messageId > 0) {
                         startAudioPolling(messageId, messageList.indexOf(aiMsg));
                     }
                     break;
@@ -958,79 +946,6 @@ public class AiConversationActivity extends AppCompatActivity {
             }
         }
     };
-
-    // ==================== 流式朗读 ====================
-
-    /**
-     * 流式朗读：把 AI 回复文本发给后端流式端点，边生成边播。
-     *
-     * <p>与 {@link #startAudioPolling} 的对比：
-     * <ul>
-     *   <li>轮询：等整段生成 → 落盘 → 轮询到 URL → 整段下载 → 播。长回复首声要等十几秒。</li>
-     *   <li>流式：请求发出后约 0.6s 就出声，且不落盘、不产生中间音频文件。</li>
-     * </ul>
-     *
-     * <p>播放成功时同步把"播放中"状态反映到列表项；失败则回退到轮询链路，
-     * 保证功能不会因为流式不可用而丢失。
-     */
-    private void startStreamingTts(AiMessage aiMsg, long messageId, int listPosition) {
-        final String text = aiMsg.getContent();
-        if (text == null || text.trim().isEmpty()) {
-            return;
-        }
-
-        // UI 先进入"播放中"：按钮置灰，避免用户重复点击
-        aiMsg.setAudioPending(true);
-        if (listPosition >= 0 && listPosition < messageList.size()) {
-            adapter.notifyItemChanged(listPosition);
-        }
-
-        final String url = ApiConstants.getFullUrl(STREAM_TTS_PATH);
-        final boolean[] gotAudio = {false};
-        final int[] firstMs = {-1};
-
-        // PcmStreamPlayer 内部自带后台线程；状态回调在后台线程，UI 操作需切主线程
-        com.deepsleep.memory.handle_utils.PcmStreamPlayer.playStream(url, text,
-                new com.deepsleep.memory.handle_utils.PcmStreamPlayer.Listener() {
-                    @Override
-                    public void onFirstAudio(int elapsedMs) {
-                        gotAudio[0] = true;
-                        firstMs[0] = elapsedMs;
-                        Log.i(TAG, "流式朗读首声: " + elapsedMs + "ms");
-                        runOnUiThread(() -> {
-                            if (listPosition >= 0 && listPosition < messageList.size()) {
-                                adapter.notifyItemChanged(listPosition);
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onCompleted(int totalMs) {
-                        Log.i(TAG, "流式朗读完成: " + totalMs + "ms (首声 " + firstMs[0] + "ms)");
-                        runOnUiThread(() -> {
-                            aiMsg.setAudioPending(false);
-                            if (listPosition >= 0 && listPosition < messageList.size()) {
-                                adapter.notifyItemChanged(listPosition);
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        Log.w(TAG, "流式朗读失败，回退轮询: " + message);
-                        // 回退：恢复状态并走原有轮询链路
-                        runOnUiThread(() -> {
-                            aiMsg.setAudioPending(false);
-                            if (listPosition >= 0 && listPosition < messageList.size()) {
-                                adapter.notifyItemChanged(listPosition);
-                            }
-                            if (messageId > 0) {
-                                startAudioPolling(messageId, listPosition);
-                            }
-                        });
-                    }
-                });
-    }
 
     // ==================== 音频轮询 ====================
 
