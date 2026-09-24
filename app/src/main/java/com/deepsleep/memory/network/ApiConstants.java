@@ -8,33 +8,49 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 网络中间件 —— 环境（DEV/TEST/PROD）唯一来源 + 网络异步的统一执行器。
+ * 网络中间件 —— 环境（DEV/TEST/PROD/LOCAL）唯一来源 + 网络异步的统一执行器。
  *
  * 2026-08 网络层统一改造（Apache HttpClient → OkHttp）后的职责：
  * 1. 环境唯一来源：所有栈（HttpManager / GetDataByThread / MemoryApiClient / 各 UI 直连点）
  *    都通过 {@link #getBaseUrl()} / {@link #getFullUrl(String)} 取地址，禁止调用方自行拼接；
- * 2. 默认环境为 TEST —— 与历史"有效行为"一致：旧版 GetDataByThread 构造会静默 setEnvironment(TEST)，
- *    该全局副作用已移除，默认值保留以免改变任何调用方的实际指向；
+ * 2. 环境与地址**全部来自 `local.properties`**（构建期注入 BuildConfig）：
+ *    `BACKEND_*_URL` 提供四个环境的地址，`DEFAULT_ENVIRONMENT` 提供默认环境。
+ *    中间件内**不硬编码任何地址或默认环境**；
  * 3. 运行期切换环境立即生效：旧栈在调用时解析 URL，新栈（MemoryApiClient）检测 baseUrl 变化自动重建；
  * 4. 异步统一走 {@link #execute(Runnable)}：基于单一共享线程池，替代散落在 UI 层的 new Thread。
+ *
+ * <h3>四个环境（与 DEV/TEST/PROD 同等对待）</h3>
+ * <ul>
+ *   <li>{@link Environment#DEV} —— 局域网直连开发机</li>
+ *   <li>{@link Environment#TEST} —— 测试隧道（frp）</li>
+ *   <li>{@link Environment#PROD} —— 生产</li>
+ *   <li>{@link Environment#LOCAL} —— 真机 USB 调试：先执行
+ *       {@code adb reverse tcp:8080 tcp:8080}，手机上的 localhost:8080 即转发到
+ *       PC 本地后端，不要求同网段。端口需与 `BACKEND_LOCAL_URL` 一致。</li>
+ * </ul>
  */
 public final class ApiConstants {
 
     public enum Environment { DEV, TEST, PROD, LOCAL }
 
     /**
-     * 默认环境（TEST，保持既有行为）。
-     *
-     * <p>真机 USB 调试本地后端时，临时改成 {@link #LOCAL} 并执行
-     * {@code adb reverse tcp:8080 tcp:8080}：手机上的 localhost:8080 会被转发到
-     * PC 的 8080（Spring Boot）。这样不要求手机与 PC 同网段。
-     * 仅 debug 构建可用（release 下 LOCAL_BASE_URL 为 null，会自动回退 DEV）。
+     * 默认环境 —— 取自 `local.properties` 的 `DEFAULT_ENVIRONMENT`（构建期注入），
+     * 不再硬编码在中间件里。未配置或写错时回退 TEST。
      */
-    private static volatile Environment currentEnv = Environment.TEST;
+    private static volatile Environment currentEnv =
+            parseEnvironment(BuildConfig.DEFAULT_ENVIRONMENT);
 
-    /** 真机 USB 调试用：经 adb reverse 转发到 PC 本地后端 */
-    private static final String LOCAL_BASE_URL =
-            BuildConfig.DEBUG ? "http://localhost:8080" : null;
+    /** 把配置里的环境名解析成枚举；非法值回退 TEST（不抛异常，避免 App 起不来） */
+    private static Environment parseEnvironment(String name) {
+        if (name != null) {
+            try {
+                return Environment.valueOf(name.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                // 配置写错时回退 TEST，而不是崩溃
+            }
+        }
+        return Environment.TEST;
+    }
 
     /** 网络共享线程池：全部网络 IO（含 SSE 流式、轮询、重试）在此执行 */
     private static final ExecutorService NETWORK_EXECUTOR;
@@ -58,11 +74,19 @@ public final class ApiConstants {
     private static final String TEST_BASE_URL = BuildConfig.TEST_BASE_URL;
     private static final String PROD_BASE_URL = BuildConfig.PROD_BASE_URL;
 
+    /**
+     * 真机 USB 调试地址 —— 同样来自 `local.properties`（`BACKEND_LOCAL_URL`），
+     * 与 DEV/TEST/PROD 一套机制，不再硬编码。缺省 {@code http://localhost:8080}
+     * （adb reverse 惯用端口）。
+     */
+    private static final String LOCAL_BASE_URL = BuildConfig.LOCAL_BASE_URL;
+
     public static String getBaseUrl() {
         switch (currentEnv) {
-            // 真机 USB 调试：经 adb reverse 打到 PC 本地后端
             case LOCAL:
-                return LOCAL_BASE_URL != null ? LOCAL_BASE_URL : DEV_BASE_URL;
+                // 配置为空/占位时回退 DEV，避免拼出不可用地址
+                return (LOCAL_BASE_URL != null && !LOCAL_BASE_URL.isEmpty())
+                        ? LOCAL_BASE_URL : DEV_BASE_URL;
             case TEST:
                 return TEST_BASE_URL;
             case PROD:

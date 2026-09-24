@@ -13,11 +13,18 @@ if (localPropsFile.exists()) {
 def backendDevUrl = localProps.getProperty("BACKEND_DEV_URL", "http://YOUR_DEV_HOST:8080")
 def backendTestUrl = localProps.getProperty("BACKEND_TEST_URL", "http://YOUR_TEST_HOST:port")
 def backendProdUrl = localProps.getProperty("BACKEND_PROD_URL", "http://YOUR_PROD_HOST:8080")
+// LOCAL：真机 USB 调试。手机上的 localhost:<port> 经 `adb reverse` 转发到 PC 本地后端。
+// 与 DEV/TEST/PROD 同一套机制——统一从 local.properties 注入，不在中间件里硬编码。
+// 默认值与 adb reverse 的惯用端口一致（adb reverse tcp:8080 tcp:8080）。
+def backendLocalUrl = localProps.getProperty("BACKEND_LOCAL_URL", "http://localhost:8080")
+
+// 默认环境（DEV | TEST | PROD | LOCAL），从 local.properties 注入。
+// 与 base URL 同样属于"本地配置"，不该硬编码在中间件代码里。
+def defaultEnvironment = localProps.getProperty("DEFAULT_ENVIRONMENT", "TEST")
 
 // Hosts for the generated network_security_config.xml (cleartext HTTP allowlist).
-// localhost / 127.0.0.1 一并放行：真机 USB 调试时用 `adb reverse tcp:8080 tcp:8080`，
-// 手机上的 http://localhost:8080 会转发到 PC 的本地后端（见 ApiConstants.Environment.LOCAL）。
-def backendHosts = ([backendDevUrl, backendTestUrl, backendProdUrl].collect { u ->
+// LOCAL 的 host（通常是 localhost / 127.0.0.1）也一并放行。
+def backendHosts = ([backendDevUrl, backendTestUrl, backendProdUrl, backendLocalUrl].collect { u ->
     try { new URI(u).host } catch (Exception ignored) { null }
 }.findAll { it != null } + ['localhost', '127.0.0.1']).unique()
 def networkSecurityDir = file("$buildDir/generated/res")
@@ -40,6 +47,10 @@ android {
         buildConfigField "String", "DEV_BASE_URL", "\"${backendDevUrl}\""
         buildConfigField "String", "TEST_BASE_URL", "\"${backendTestUrl}\""
         buildConfigField "String", "PROD_BASE_URL", "\"${backendProdUrl}\""
+        // LOCAL（真机 USB 调试）：与上面三个同等对待，统一由 local.properties 注入
+        buildConfigField "String", "LOCAL_BASE_URL", "\"${backendLocalUrl}\""
+        // 默认环境名，供 ApiConstants 初始化 currentEnv（避免硬编码在中间件里）
+        buildConfigField "String", "DEFAULT_ENVIRONMENT", "\"${defaultEnvironment}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
