@@ -784,17 +784,15 @@ public class AiConversationActivity extends AppCompatActivity {
      */
     private String fixAudioUrl(String rawUrl) {
         if (rawUrl == null || rawUrl.isEmpty() || "null".equals(rawUrl)) {
-            return null;
+            return null;                      // 这个 null 守卫仍有用，保留
         }
-        // 服务端 TTS 返回的 URL 可能使用 localhost，Android 设备无法访问
-        // 替换为当前环境配置的实际 API 主机地址
-        if (rawUrl.contains("localhost")) {
-            String baseUrl = ApiConstants.getBaseUrl();
-            // 从 http://localhost:8080/tts-audio/xxx.wav →
-            // http://<当前环境主机>:8080/tts-audio/xxx.wav
-            return rawUrl.replaceFirst("https?://localhost(:\\d+)?", baseUrl);
+        // 收敛网络层后，服务端用 tts.audio.base.url 拼绝对 URL，不会再返回 localhost
+        // （DB 实证 66/66 条均为 frp-fit.com）。这里不再做替换 —— 静默替换会掩盖
+        // 服务端配置错误；改为告警，让配错立刻可见。
+        if (rawUrl.contains("localhost") || rawUrl.contains("127.0.0.1")) {
+            Log.e(TAG, "服务端返回了不可达的本地地址，请检查 tts.audio.base.url 配置: " + rawUrl);
         }
-        return rawUrl;
+        return rawUrl;    
     }
 
     private void parseConversationResponse(String responseJson) {
