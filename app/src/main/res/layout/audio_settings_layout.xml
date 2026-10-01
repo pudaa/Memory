@@ -131,7 +131,7 @@
                     android:textSize="13sp"
                     android:lineSpacingExtra="3dp"
                     android:textColor="@color/dark_gray"
-                    android:text="· 关闭时：AI 回复到达后不会立即生成语音，点每条回复下方的朗读按钮才开始生成并播放。\n· 开启时：AI 回复一说完就自动开始朗读，更接近日常对话的节奏。\n\n提示：语音为实时合成，每条回复朗读一次都会占用一次语音生成。开启自动朗读后，每条回复都会消耗一次生成，在低配设备上可能与其他识别功能互相排队。" />
+                    android:text="· 关闭时：AI 回复到达后不会立即生成语音，点每条回复下方的朗读按钮才开始生成并播放。\n· 开启时：AI 回复一说完就自动开始朗读，更接近日常对话的节奏。" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
