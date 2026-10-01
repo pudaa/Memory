@@ -37,6 +37,10 @@ public class InnerSettingsManager { // 内部信息记录器
     // ── 当前词书（离线可用：词书内容在本地 Room，仅"当前词书 ID"需持久化）──
     private static final String PREF_STUDY = "StudyPrefs";
     private static final String KEY_CURRENT_LEXICON = "current_lexicon_";
+    /** 当前学习计划 ID（离线读取任务快照 / 出站队列分桶用） */
+    private static final String KEY_CURRENT_PLAN = "current_plan_";
+    /** 本地词书资源（assets/databases/lexicon.db）的数据版本，见 LexiconDatabase.ASSET_DATA_VERSION */
+    private static final String KEY_LEXICON_ASSET_VERSION = "lexicon_asset_version";
 
     private static InnerSettingsManager instance;
     private final SharedPreferences sharedPreferences;
@@ -206,6 +210,42 @@ public class InnerSettingsManager { // 内部信息记录器
     /** 读取当前词书 ID（无则返回 ""） */
     public String getCurrentLexiconId(int userId) {
         return studyPrefs.getString(KEY_CURRENT_LEXICON + userId, "");
+    }
+
+    /**
+     * 保存当前「学习计划」ID。
+     *
+     * <p>离线冷启动时无法从服务端获取 planId，而任务快照 / 出站队列都以
+     * {@code (userId, planId)} 为作用域键，因此需要把最近一次 know 的 planId 落盘。</p>
+     */
+    public void saveCurrentPlanId(int userId, String planId) {
+        if (userId <= 0 || planId == null || planId.isEmpty()) {
+            return;
+        }
+        studyPrefs.edit().putString(KEY_CURRENT_PLAN + userId, planId).apply();
+    }
+
+    /** 读取当前学习计划 ID（无则返回 ""） */
+    public String getCurrentPlanId(int userId) {
+        return studyPrefs.getString(KEY_CURRENT_PLAN + userId, "");
+    }
+
+    /**
+     * 已拷贝的词书资源数据版本。
+     *
+     * <p>
+     * Room 的 {@code createFromAsset} 只在数据库文件不存在时拷贝 assets 中的 lexicon.db，
+     * 因此存量安装升级 App 后拿不到更新后的词书数据；{@code LexiconDatabase} 用该版本号
+     * 判断是否需要「删库重拷」。0 表示尚未拷贝过。
+     * </p>
+     */
+    public int getLexiconAssetVersion() {
+        return studyPrefs.getInt(KEY_LEXICON_ASSET_VERSION, 0);
+    }
+
+    /** 记录已拷贝的词书资源数据版本（成功打开数据库后写入） */
+    public void setLexiconAssetVersion(int version) {
+        studyPrefs.edit().putInt(KEY_LEXICON_ASSET_VERSION, version).apply();
     }
 
 
