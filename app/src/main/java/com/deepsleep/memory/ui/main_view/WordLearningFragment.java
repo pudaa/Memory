@@ -25,6 +25,14 @@ import com.deepsleep.memory.handle_utils.lexicon.WordEntry;
 import com.deepsleep.memory.network.ApiBridge;
 import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
+import com.deepsleep.memory.sync.OutboxEntity;
+import com.deepsleep.memory.sync.OutboxKind;
+import com.deepsleep.memory.sync.OutboxStore;
+import com.deepsleep.memory.sync.OutboxSync;
+import com.deepsleep.memory.sync.SyncMetaStore;
+import com.deepsleep.memory.sync.TaskSnapshotEntity;
+import com.deepsleep.memory.sync.TaskSnapshotStore;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,11 +49,17 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     private final List<WordCard> wordCards = new ArrayList<>();
 
     private TextView tvDayCount;
+    /** 离线状态横幅（离线模式 / 跨天锁定提示） */
+    private TextView tvOfflineBanner;
     private ImageButton btnPlan;
     private ImageButton btnSearch;
     private CardProgressTrack progressTrack;
 
     String lexiconId;
+    /** 服务端计划 ID（离线补传 / 缓存分桶的作用域键，2026-09-30 起由 getTodayTask 下发） */
+    String planId = "";
+    /** 服务端"哪一天"的权威口径（yyyy-MM-dd），断网补传时随作答一并上报 */
+    String planDate = "";
     private String studyMode;
     private int dailyNewWordCount = 0;
     private int studyDay = 0;
@@ -74,6 +88,18 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     /** 防止 onCreateView 和 onResume 重复触发 loadTodayTask */
     private boolean isLoadingTask = false;
+
+    /** 服务端响应到达时页面尚未 resume（被丢弃）→ 标记待重载，避免页面永久空白 */
+    private boolean reloadPendingForResume = false;
+
+    /** 离线态（正在使用本地任务快照） */
+    private boolean offlineMode = false;
+
+    /** 离线跨天锁定态：卡片可回看，但拦截提交 */
+    private boolean offlineLocked = false;
+
+    /** 本次完成上报的幂等键（服务端确认成功后据此出队） */
+    private String completionSubmitIdInFlight = "";
 
     /** 学习模式切换时若正在加载任务，标记待重载（当前加载完成后补执行） */
     private boolean reloadPendingForMode = false;
@@ -178,6 +204,7 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         summaryBuilder = new SummaryCardBuilder(requireContext());
 
         tvDayCount = view.findViewById(R.id.tv_day_count);
+        tvOfflineBanner = view.findViewById(R.id.tv_offline_banner);
         progressTrack = view.findViewById(R.id.card_progress_track);
         btnPlan = view.findViewById(R.id.btn_plan);
         btnSearch = view.findViewById(R.id.btn_search);
@@ -244,7 +271,9 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             clearCardsAndCancelBuilds();
         }
         boolean containerEmpty = cardContainer != null && cardContainer.getAllCards().isEmpty();
-        if ((dayChanged || wordCards.isEmpty() || containerEmpty) && !isLoadingTask) {
+        // offlineMode 也要重试：离线内容已渲染时卡片非空，若不显式处理就再也不会回到服务端数据
+        if ((dayChanged || wordCards.isEmpty() || containerEmpty || offlineMode || reloadPendingForResume)
+                && !isLoadingTask) {
             loadTodayTask();
         }
         // 后台挂起的学习模式重载，回到前台补执行（保证切换模式后回到单词页立即生效）
@@ -259,6 +288,25 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         startMidnightCheck();
         // 网络恢复信号：静默补传断网期间未同步的答题记录
         flushPendingUploads();
+        // 离线横幅需要展示最新待同步条数 / 跨天状态
+        updateOfflineBanner();
+    }
+
+    /**
+     * Tab 切换回调（MainActivity 用 hide/show，不会触发 onResume）：
+     * 切回学习页时补一次"补传 + 无卡则加载"，避免只在冷启动才有补传机会。
+     */
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (hidden || !isAdded() || cardContainer == null) {
+            return;
+        }
+        flushPendingUploads();
+        boolean containerEmpty = cardContainer.getAllCards().isEmpty();
+        if ((wordCards.isEmpty() || containerEmpty || offlineMode) && !isLoadingTask) {
+            loadTodayTask();
+        }
     }
 
     @Override
@@ -360,8 +408,137 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
     private void loadTodayTask() {
         isLoadingTask = true;
+        reloadPendingForResume = false;
         ApiBridge.enqueue(MemoryApiClient.learning().getTodayTask(String.valueOf(userId)), myHandler, msg_success,
                 msg_failed, "GetTodayTask");
+    }
+
+    /**
+     * 离线兜底：服务端不可达时用本地任务快照进入学习（P2）。
+     *
+     * <p><b>禁止离线跨天</b>：快照 {@code planDate} 早于设备日期时不展示旧卡片 ——
+     * 昨天的任务已经过期，继续摆出来只会误导用户；此时卡片区留空、只给「联网获取今日任务」的引导，
+     * 同时置 {@link #offlineLocked} 兜底拦截提交。</p>
+     *
+     * @return 是否成功处理（含"跨天留空"这种已处理状态）
+     */
+    private boolean renderFromSnapshot() {
+        if (cardContainer == null || userSettingsManager == null) {
+            return false;
+        }
+        String knownPlanId = planId;
+        if (knownPlanId == null || knownPlanId.isEmpty()) {
+            knownPlanId = InnerSettingsManager.getInstance(requireContext()).getCurrentPlanId(userId);
+        }
+        TaskSnapshotEntity snapshot = TaskSnapshotStore.load(requireContext(), userId, knownPlanId);
+        if (snapshot == null) {
+            Log.i("WordLearning", "离线且无任务快照，无法进入学习");
+            return false;
+        }
+        lexiconId = snapshot.lexiconId;
+        planId = snapshot.planId;
+        planDate = snapshot.planDate;
+        studyDay = snapshot.studyDay;
+        dailyNewWordCount = snapshot.newWordCount;
+        reviewLimit = snapshot.reviewLimit;
+        reviewsDoneToday = snapshot.reviewsDoneToday;
+        offlineMode = true;
+        updateTitleBar();
+
+        if (!TaskSnapshotStore.isUsableToday(snapshot)) {
+            // 跨天且尚未取到新任务：允许卡片区为空（只保留引导文案）
+            offlineLocked = true;
+            clearCardsAndCancelBuilds();
+            updateOfflineBanner();
+            Log.i("WordLearning", "快照已跨天（" + planDate + "），卡片区留空等待联网获取今日任务");
+            return true;
+        }
+
+        try {
+            offlineLocked = false;
+            renderCardsFromWordList(new JSONArray(snapshot.wordListJson));
+            updateOfflineBanner();
+            Log.i("WordLearning", "已用本地任务快照进入学习: planDate=" + planDate);
+            return true;
+        } catch (JSONException e) {
+            Log.w("WordLearning", "任务快照解析失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 同步状态横幅（P4）：离线态提示数据日期；在线但有未发送/死信时提示待同步条数。
+     *
+     * <p>死信可点击进入处理（重试全部 / 清除），避免"静默失败"。</p>
+     */
+    private void updateOfflineBanner() {
+        if (tvOfflineBanner == null) {
+            return;
+        }
+        int pending = OutboxStore.pendingCount(requireContext(), userId);
+        int dead = OutboxStore.deadCount(requireContext(), userId);
+        if (!offlineMode && pending == 0 && dead == 0) {
+            tvOfflineBanner.setVisibility(View.GONE);
+            tvOfflineBanner.setOnClickListener(null);
+            return;
+        }
+        String text;
+        if (offlineLocked) {
+            // 跨天且未取到新任务：卡片区留空，只给引导（不展示昨日任务）
+            text = "已跨天（离线数据为 " + planDate + "）· 联网后获取今日学习任务";
+        } else if (offlineMode) {
+            text = "离线模式 · 数据为 " + planDate
+                    + (pending > 0 ? "（待同步 " + pending + " 条）" : "（本地作答，联网后自动同步）");
+        } else {
+            String lastSync = SyncMetaStore.lastSyncText(requireContext(), userId,
+                    planId == null ? "" : planId);
+            text = "待同步 " + pending + " 条作答"
+                    + (lastSync.isEmpty() ? "" : "（上次同步 " + lastSync + "）");
+        }
+        if (dead > 0) {
+            text += "　·　" + dead + " 条同步失败，点击处理";
+            tvOfflineBanner.setOnClickListener(v -> showDeadLetterDialog(dead));
+        } else {
+            // 手动重试入口：补上"服务端恢复但设备连通性未变化（没有 onAvailable 事件）"时无触发点的问题
+            text += "　·　点击立即重试";
+            tvOfflineBanner.setOnClickListener(v -> retrySyncNow());
+        }
+        tvOfflineBanner.setText(text);
+        tvOfflineBanner.setVisibility(View.VISIBLE);
+    }
+
+    /** 立即重试：补传一次；离线态下同时重拉今日任务（服务端可能已恢复） */
+    private void retrySyncNow() {
+        Toast.makeText(getContext(), "正在重试…", Toast.LENGTH_SHORT).show();
+        OutboxSync.sync(requireContext(), (syncedCount, remainCount) -> {
+            updateOfflineBanner();
+            if (syncedCount > 0) {
+                Toast.makeText(getContext(), "已同步 " + syncedCount + " 条", Toast.LENGTH_SHORT).show();
+            }
+        });
+        if (offlineMode && !isLoadingTask) {
+            loadTodayTask();
+        }
+    }
+
+    /** 死信处理：重试全部 / 清除（让"同步失败"可被用户看见并处理） */
+    private void showDeadLetterDialog(int deadCount) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("有 " + deadCount + " 条学习记录同步失败")
+                .setMessage("这些记录已被服务端拒绝或重试超限。可重新尝试上传，或清除它们（清除后不再上传，本地学习进度不受影响）。")
+                .setPositiveButton("重试全部", (dialog, which) -> {
+                    int retried = OutboxStore.retryAllDead(requireContext(), userId);
+                    Toast.makeText(getContext(), "已重新排队 " + retried + " 条", Toast.LENGTH_SHORT).show();
+                    OutboxSync.sync(requireContext(), (syncedCount, remainCount) -> updateOfflineBanner());
+                    updateOfflineBanner();
+                })
+                .setNegativeButton("清除", (dialog, which) -> {
+                    int cleared = OutboxStore.clearAllDead(requireContext(), userId);
+                    Toast.makeText(getContext(), "已清除 " + cleared + " 条", Toast.LENGTH_SHORT).show();
+                    updateOfflineBanner();
+                })
+                .setNeutralButton("稍后", null)
+                .show();
     }
 
     /** 学习模式等设置变化后重载今日任务，使新配置立即生效 */
@@ -391,6 +568,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
         // 能拉到今日任务说明网络已通：静默补传断网期间未同步的答题记录
         flushPendingUploads();
         lexiconId = responseJson.getString("lexiconId");
+        // planId / planDate：离线补偿锚定的作用域键（服务端 2026-09-30 起下发）
+        // planDate 是"哪一天"的服务端权威口径，客户端本地日期仅作保守兜底
+        if (responseJson.has("planId")) {
+            planId = responseJson.optString("planId", "");
+        }
+        planDate = responseJson.optString("planDate", LocalDate.now().toString());
         // 兼容旧字段 dailyNewWordCount，优先读取服务端 newWordCount（修复固定为 10 的问题）
         dailyNewWordCount = responseJson.has("newWordCount") ? responseJson.optInt("newWordCount", 10)
                 : responseJson.optInt("dailyNewWordCount", 10);
@@ -420,11 +603,49 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             }
         }
         studyMode = userSettingsManager.getStudyMode();
+        // 服务端数据到达 → 退出离线态
+        offlineMode = false;
+        offlineLocked = false;
 
+        JSONArray wordList = responseJson.getJSONArray("wordList");
+        // 落盘任务快照：断网冷启动时据此进入学习（禁止跨天由 planDate 判定）
+        saveTaskSnapshot(wordList);
+        renderCardsFromWordList(wordList);
+        // 服务端数据已就绪：隐藏离线横幅（否则会残留"离线模式/待同步 N 条"的过期文案）
+        updateOfflineBanner();
+    }
+
+    /** 保存今日任务快照（服务端原样 wordList + 计数），供离线学习使用 */
+    private void saveTaskSnapshot(@NonNull JSONArray wordList) {
+        try {
+            InnerSettingsManager.getInstance(requireContext()).saveCurrentPlanId(userId, planId);
+            TaskSnapshotEntity snapshot = new TaskSnapshotEntity();
+            snapshot.userId = userId;
+            snapshot.planId = planId == null ? "" : planId;
+            snapshot.lexiconId = lexiconId == null ? "" : lexiconId;
+            snapshot.planDate = planDate == null ? "" : planDate;
+            snapshot.studyDay = studyDay;
+            snapshot.newWordCount = dailyNewWordCount;
+            snapshot.reviewLimit = reviewLimit;
+            snapshot.reviewsDoneToday = reviewsDoneToday;
+            snapshot.wordListJson = wordList.toString();
+            snapshot.fetchedAtEpochMs = System.currentTimeMillis();
+            TaskSnapshotStore.save(requireContext(), snapshot);
+            // 记录任务拉取时间（同步元信息：节流与"数据新鲜度"展示）
+            SyncMetaStore.touchTaskPull(requireContext(), userId, snapshot.planId);
+        } catch (Exception e) {
+            Log.w("WordLearning", "保存任务快照失败（不影响在线学习）", e);
+        }
+    }
+
+    /**
+     * 由 wordList 构建卡片与视图（在线响应与本地快照共用同一条渲染路径，
+     * 保证离线/在线行为一致）。
+     */
+    private void renderCardsFromWordList(@NonNull JSONArray wordList) throws JSONException {
         // 预加载词库
         LexiconResourceMap.loadLexicon(requireContext(), lexiconId);
 
-        JSONArray wordList = responseJson.getJSONArray("wordList");
         wordCards.clear();
         dailyState.clearFilteredSnapshot();
 
@@ -605,6 +826,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
     // ==================== 答案提交 ====================
 
     private void submitAnswerForCard(WordCard wordCard, long responseTimeMs) {
+        // 离线跨天锁定：禁止产生跨天作答（否则会污染服务端 FSRS 档期，也会在次日联网时
+        // 与当天新任务叠加造成复习高峰）
+        if (offlineLocked) {
+            Toast.makeText(getContext(), "已跨天，请联网获取今日任务后再学习", Toast.LENGTH_SHORT).show();
+            return;
+        }
         // 仅首次提交时计入标题栏进度（防止重复触发导致多计）
         boolean firstSubmit = !wordCard.isOperated;
         wordCard.isOperated = true;
@@ -621,46 +848,58 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
 
         // 生成客户端提交幂等键：正常提交与补传共用，服务端据此去重（防止重复推进 FSRS）
         final String submitId = wordCard.word_id + "_" + System.currentTimeMillis();
+        // 作答时刻锚点（ISO-8601 带时区）：断网补传时服务端据此推进 FSRS，
+        // 否则会把"昨天离线作答、今天才入库"算成今天复习（due 后移 + 间隔通胀）
+        final String answeredAt = java.time.OffsetDateTime.now().toString();
 
-        // 入队待上传记录：断网/提交失败时联网后自动补传，服务端确认成功后移除
-        DailyStateManager.PendingUpload pendingUpload = new DailyStateManager.PendingUpload();
-        pendingUpload.wordId = wordCard.word_id;
-        pendingUpload.submitId = submitId;
-        pendingUpload.lexiconId = lexiconId;
-        pendingUpload.word = wordCard.word;
-        pendingUpload.isCorrect = wordCard.isCorrect;
-        pendingUpload.fsrsScore = wordCard.fsrsScore;
-        pendingUpload.aiFeedback = wordCard.aiFeedback != null ? wordCard.aiFeedback : "";
-        pendingUpload.responseTimeMs = responseTimeMs;
-        pendingUpload.studyMode = studyMode;
-        pendingUpload.userAnswer = wordCard.userAnswer != null ? wordCard.userAnswer : "";
-        pendingUpload.referenceDefinition = wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "";
-        pendingUpload.pos = wordCard.pos != null ? wordCard.pos : "";
-        dailyState.enqueuePendingUpload(pendingUpload);
+        // 构建请求体：**入队与在线提交共用同一份 payload**，避免两条路径字段漂移
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("userId", userId);
+            payload.put("wordId", wordCard.word_id);
+            payload.put("lexiconId", lexiconId);
+            payload.put("headWord", wordCard.word);
+            payload.put("isCorrect", wordCard.isCorrect);
+            payload.put("responseTimeMs", responseTimeMs);
+            payload.put("studyMode", studyMode);
+            if (WordCard.MODE_INPUT.equals(studyMode)) {
+                payload.put("userAnswer", wordCard.userAnswer != null ? wordCard.userAnswer : "");
+                payload.put("referenceDefinition",
+                        wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "");
+                payload.put("word", wordCard.word);
+                payload.put("pos", wordCard.pos != null ? wordCard.pos : "");
+            }
+            if (submitId != null && !submitId.isEmpty()) {
+                payload.put("submitId", submitId);
+            }
+            OutboxStore.putAnchorFields(payload, answeredAt, planId, planDate, studyDay);
+        } catch (JSONException e) {
+            Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 入队：断网 / 提交失败时由 OutboxSync 联网后自动补传，服务端确认成功后出队
+        OutboxEntity entry = new OutboxEntity();
+        entry.kind = OutboxKind.SUBMIT_ANSWER;
+        entry.userId = userId;
+        entry.submitId = submitId;
+        entry.planId = planId;
+        entry.planDate = planDate;
+        entry.lexiconId = lexiconId;
+        entry.studyDay = studyDay;
+        entry.answeredAtIso = answeredAt;
+        entry.answeredAtEpochMs = System.currentTimeMillis();
+        entry.payloadJson = payload.toString();
+        OutboxStore.enqueue(requireContext(), entry);
+        // 入队后立刻刷新角标：离线答题时"待同步 N 条"要马上反映，而不是等下次 resume
+        updateOfflineBanner();
 
         if (WordCard.MODE_INPUT.equals(studyMode)) {
-            // 输入模式：发送扩展字段，服务端进行 AI 评判
-            JSONObject j = new JSONObject();
-            try {
-                j.put("userId", userId);
-                j.put("wordId", wordCard.word_id);
-                j.put("lexiconId", lexiconId);
-                j.put("headWord", wordCard.word);
-                j.put("isCorrect", wordCard.isCorrect);
-                j.put("responseTimeMs", responseTimeMs);
-                j.put("studyMode", "input");
-                j.put("userAnswer", wordCard.userAnswer != null ? wordCard.userAnswer : "");
-                j.put("referenceDefinition", wordCard.referenceDefinition != null ? wordCard.referenceDefinition : "");
-                j.put("word", wordCard.word);
-                j.put("pos", wordCard.pos != null ? wordCard.pos : "");
-                if (submitId != null && !submitId.isEmpty()) {
-                    j.put("submitId", submitId);
-                }
-            } catch (JSONException e) {
-                Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)),
+            // 输入模式：服务端进行 AI 评判，返回后覆盖本地判定
+            JSONObject j = payload;
+            // 快速失败路径：本条已入出站队列，前台只重试 1 次（连接超时 5s），
+            // 避免服务端不可达时"提交中"停留几十秒
+            ApiBridge.enqueue(MemoryApiClient.learningFastFail().submitAnswer(ApiBridge.jsonBody(j)),
                     new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
@@ -680,8 +919,8 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                                 // 持久化完整的 AI 评判结果
                                 dailyState.markCompletedWithFullResult(wordCard.word_id, serverIsCorrect, fsrsScore,
                                         aiFeedback);
-                                // 服务端确认成功：移出待上传队列
-                                dailyState.removePendingUpload(wordCard.word_id);
+                                // 服务端确认成功：出队
+                                OutboxStore.deleteBySubmitId(requireContext(), submitId);
                                 // 找到对应的卡片视图并更新 AI 评判结果
                                 if (cardContainer != null) {
                                     for (View cv : cardContainer.getAllCards()) {
@@ -705,49 +944,37 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                         Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
                     }
                 }
-            }, msg_success, msg_failed, "SubmitAnswer");
+            }, msg_success, msg_failed, "SubmitAnswer", 1);
         } else {
-            // 选择题模式：保持原有行为
-            JSONObject j = new JSONObject();
-            try {
-                j.put("userId", userId);
-                j.put("wordId", wordCard.word_id);
-                j.put("lexiconId", lexiconId);
-                j.put("headWord", wordCard.word);
-                j.put("isCorrect", wordCard.isCorrect);
-                j.put("responseTimeMs", responseTimeMs);
-                j.put("studyMode", studyMode);
-                if (submitId != null && !submitId.isEmpty()) {
-                    j.put("submitId", submitId);
-                }
-            } catch (JSONException e) {
-                Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ApiBridge.enqueue(MemoryApiClient.learning().submitAnswer(ApiBridge.jsonBody(j)),
+            // 选择题模式：与输入模式共用同一份 payload（含锚定字段），仅服务端评分路径不同
+            ApiBridge.enqueue(MemoryApiClient.learningFastFail().submitAnswer(ApiBridge.jsonBody(payload)),
                     new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(@NonNull Message msg) {
                     if (msg.what == msg_success) {
-                        // 服务端确认成功：移出待上传队列
-                        dailyState.removePendingUpload(wordCard.word_id);
+                        // 服务端确认成功：出队
+                        OutboxStore.deleteBySubmitId(requireContext(), submitId);
                     } else {
                         Toast.makeText(getContext(), R.string.submit_failed_retry, Toast.LENGTH_SHORT).show();
-                        // 提交失败：记录保留在待上传队列，联网后自动补传
+                        // 提交失败：记录保留在出站队列，联网后自动补传
                     }
                 }
-            }, msg_success, msg_failed, "SubmitAnswer");
+            }, msg_success, msg_failed, "SubmitAnswer", 1);
         }
     }
 
-    // ==================== 断网补传（待上传队列） ====================
+    // ==================== 断网补传（出站队列） ====================
 
     /**
-     * 网络恢复信号（onResume / 今日任务加载成功）后触发：
-     * 由 PendingUploadSync 静默逐条补传本地未同步的答题记录（App 启动时也会全局触发）。
+     * 网络恢复信号（onResume / 今日任务加载成功 / 网络回调）后触发：
+     * 由 {@link OutboxSync} 静默按作答顺序补传本地未同步的记录（App 启动时也会全局触发）。
      */
     private void flushPendingUploads() {
-        PendingUploadSync.sync(requireContext(), (syncedCount, remainCount) -> {
+        OutboxSync.sync(requireContext(), (syncedCount, remainCount) -> {
+            // 待同步条数变化后刷新离线横幅文案
+            if (isAdded()) {
+                updateOfflineBanner();
+            }
             // 补传完成后兜底：今日已全部完成时重报学习列表完成状态（幂等）
             if (!isAdded() || remainCount != 0) {
                 return;
@@ -776,11 +1003,33 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             j.put("lexiconId", lexiconId);
             j.put("studyDate", actualStudyDay);
             j.put("isCompleted", true);
+            // planDate：studyDate 只是"第几天"的序号，漏学一天会出现两天共用同一序号，
+            // 服务端仅按 studyDate 更新会误标今天的行；带 planDate 才能精确定位当日行
+            if (planDate != null && !planDate.isEmpty()) {
+                j.put("planDate", planDate);
+            }
         } catch (JSONException e) {
             return;
         }
-        ApiBridge.enqueue(MemoryApiClient.learning().updateLearningListCompletion(ApiBridge.jsonBody(j)),
-                new UpdateHandler(), msg_success, msg_failed, "UpdateCompletion");
+        // 幂等键固定：同一天/同一计划的完成上报只会占一条队列记录（唯一索引 REPLACE），
+        // 避免每答完一张卡都往队列里塞一条重复上报
+        String completionSubmitId = "complete_" + userId + "_" + planId + "_" + planDate;
+        // 入队：离线时完成上报也不丢（否则服务端 is_completed/连续天数会与本地漂移）
+        OutboxEntity entry = new OutboxEntity();
+        entry.kind = OutboxKind.LEARNING_LIST_COMPLETION;
+        entry.userId = userId;
+        entry.submitId = completionSubmitId;
+        entry.planId = planId == null ? "" : planId;
+        entry.planDate = planDate == null ? "" : planDate;
+        entry.lexiconId = lexiconId == null ? "" : lexiconId;
+        entry.studyDay = actualStudyDay;
+        entry.answeredAtEpochMs = System.currentTimeMillis();
+        entry.payloadJson = j.toString();
+        OutboxStore.enqueue(requireContext(), entry);
+        completionSubmitIdInFlight = completionSubmitId;
+
+        ApiBridge.enqueue(MemoryApiClient.learningFastFail().updateLearningListCompletion(ApiBridge.jsonBody(j)),
+                new UpdateHandler(), msg_success, msg_failed, "UpdateCompletion", 1);
     }
 
     /** 添加今日学习总结卡片（幂等：先移除旧总结卡片，再添加新的，避免重复堆积） */
@@ -860,10 +1109,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             super.handleMessage(msg);
             if (!isAdded())
                 return;
-            // 应用在后台（被拍照/裁剪等页面覆盖）时丢弃响应并复位加载标记，由 onResume 兜底重载
+            // 应用在后台（被拍照/裁剪等页面覆盖）时丢弃响应：标记待重载，由 onResume 兜底，
+            // 否则会出现"响应被丢掉、页面永久空白"（实测冷启动可复现）
             if (!isResumed()) {
                 isLoadingTask = false;
                 reloadPendingForMode = false;
+                reloadPendingForResume = true;
                 return;
             }
             switch (msg.what) {
@@ -890,7 +1141,10 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                 break;
             case msg_failed:
                 isLoadingTask = false;
-                Toast.makeText(getContext(), "网络请求失败", Toast.LENGTH_SHORT).show();
+                // 离线兜底：用本地任务快照进入学习（快照缺失/损坏才退化为提示）
+                if (!renderFromSnapshot()) {
+                    Toast.makeText(getContext(), "网络请求失败", Toast.LENGTH_SHORT).show();
+                }
                 break;
             }
         }
@@ -907,8 +1161,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
             super.handleMessage(msg);
             if (!isAdded())
                 return;
-            // 应用在后台时不处理学习完成回调，避免后台触发 Toast 等
+            // 应用在后台时不处理学习完成回调，避免后台触发 Toast 等；
+            // 但服务端已确认的完成上报仍要出队（否则会被补传重复提交，虽幂等但无必要）
             if (!isResumed()) {
+                if (msg.what == msg_success) {
+                    OutboxStore.deleteBySubmitId(requireContext(), completionSubmitIdInFlight);
+                }
                 return;
             }
             switch (msg.what) {
@@ -918,9 +1176,12 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                     JSONObject responseJson = new JSONObject(result);
                     String code = responseJson.getString("code");
                     if ("500".equals(code)) {
+                        // 服务端内部错误：保留队列，由补传重试
                         Toast.makeText(getContext(), "更新学习计划失败", Toast.LENGTH_SHORT).show();
                         return;
                     }
+                    // 成功（含幂等重复）：完成上报出队
+                    OutboxStore.deleteBySubmitId(requireContext(), completionSubmitIdInFlight);
                     String isCompleted = responseJson.optString("isCompleted", "false");
                     if ("true".equals(isCompleted)) {
                         Toast.makeText(getContext(), "恭喜！你已完成本词书全部单词的学习！", Toast.LENGTH_LONG).show();
@@ -934,6 +1195,9 @@ public class WordLearningFragment extends Fragment implements WordCardContainer.
                 }
                 break;
             case msg_failed:
+                // 离线：完成上报留在出站队列，联网后自动补传（不再静默丢失）
+                Log.i("StudyLog", "完成上报失败，已留在出站队列等待补传");
+                updateOfflineBanner();
                 break;
             }
         }

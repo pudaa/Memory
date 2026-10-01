@@ -62,7 +62,7 @@ graph TB
 | Markdown | Markwon 4.6.2（每日阅读） |
 | 图表 | MPAndroidChart 3.1.0（评估） |
 | 音频 | `AudioPlayer`（有道 TTS）+ `MemAudioRecord`（PCM 16kHz） |
-| 词库 | `res/raw/` 60+ JSON，`LexiconResourceMap` 按需加载 |
+| 词库 | `assets/databases/lexicon.db`（Room/SQLite，81 本词书 / 15.3 万词条 / 全字段），`LexiconResourceMap` 按需查询 + rank 懒缓存 |
 
 ## 5. 关键目录
 
@@ -90,14 +90,20 @@ app/src/main/java/com/deepsleep/memory/
 | **图片处理** | `handle_utils/BitmapManager` | 解码 / 缩放 / 旋转 |
 | **音频播放** | `handle_utils/AudioPlayer` | 有道 TTS 发音 |
 | **录音** | `handle_utils/MemAudioRecord` | PCM 16kHz 16bit |
-| **词库加载** | `handle_utils/lexicon/LexiconResourceMap` | 60+ 词库 + 缓存 |
+| **词库查询** | `handle_utils/lexicon/LexiconResourceMap` + `lexicon/db/`（Room） | 本地词书唯一入口：book/word 两个 DAO + rank 懒缓存 + 计划词书优先取词 + 相近词/词形查询 + 多词书切换清单 |
+| **词形归一化** | `handle_utils/lexicon/WordFormNormalizer` | 词尾规则 + 常见不规则表 → 原形候选（回查验证，不误解词） |
+| **词书数据修复** | `scripts/repair_glued_sentences.py` | 修复例句粘连词（内置替换表，幂等，支持 `--dry-run` / `--source-dir`）；更新 `lexicon.db` 后须 +1 `LexiconDatabase.ASSET_DATA_VERSION` 才会下发到存量安装 |
 | **相机拍照** | `ui/components/CameraCaptureActivity` | 自定义相机（4:3 分辨率策略） |
 | **图片裁剪** | `ui/components/UcropHelper` + uCrop | 主题化裁剪 |
 | **对话框** | `MaterialAlertDialogBuilder` | 全项目统一 |
 | **Markdown 渲染** | Markwon | 每日阅读 |
 | **主题** | `settings/ThemeHelper` | 跟随系统 / 浅色 / 深色 |
 | **图表** | MPAndroidChart | 学习评估 |
-| **查词** | `ui/extra_view/word_search_view/SearchingActivity` | 多源查词 + WebView |
+| **查词** | `ui/extra_view/word_search_view/SearchingActivity` | 多源查词（本地词书 Tab 走 SQLite：计划词书优先 + 全字段呈现 + 板块按需渲染 + 长例句折叠 + 词形归一化 + 相关词下钻与返回 + 切换词书）+ WebView |
+| **离线出站队列** | `sync/OutboxStore` + `sync/OutboxSync` + `sync/MemoryLocalDatabase` | 写操作统一入队（独立 Room 库 `memory_local.db`，**不得放 lexicon.db**）：作答 + 当日完成上报 + 收藏变更；按 `(userId, planId)` 分桶、按作答时刻顺序回放、指数退避 + 死信 + 30 天 TTL / 5000 条背压；触发点＝启动 / onResume / Tab 切回 / 任务加载成功 / **网络恢复回调（注册在 NetworkInitializer，任何页面都生效）** / **点横幅立即重试** / 死信面板重试；开销控制＝空队列短路不起线程、全局单飞、单轮最多 2 次尝试 + 连接超时 5s（`learningFastFail()` 与共享客户端同连接池）、网络失败 fail-fast；30 天 TTL 与残留 `syncing` 复位在每轮起轮前执行（死信保留可重试）；登出不清队列 |
+| **同步可观测** | `sync/SyncMetaStore` + 学习页离线横幅 | 「离线模式 · 数据为 X」/「待同步 N 条（上次同步 X）」/「N 条同步失败，点击处理（重试全部 · 清除）」；无死信时点横幅＝立即重试 |
+| **离线任务快照** | `sync/TaskSnapshotStore` + `TaskSnapshotEntity` | 缓存 `getTodayTask` 结果：断网冷启动直接进学习；以服务端 `planDate` 判定跨天，**跨天且未取到新任务时卡片区留空并引导联网**；离线态在 resume/Tab 切回/网络恢复时自动重试服务端 |
+| **离线读缓存** | `sync/WordListCacheStore` + `WordListCacheEntity` | 收藏词 / 薄弱词（逐条，可单项增删）/ 计划列表 / 每日一读收藏（整块）的读穿缓存：先渲染缓存→请求成功覆盖→失败保留并提示「离线数据 · 更新于 X」；取消收藏乐观更新 + 入队，服务端拒绝时回滚 |
 
 ## 7. 核心数据流
 

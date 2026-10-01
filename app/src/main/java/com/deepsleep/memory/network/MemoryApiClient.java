@@ -66,6 +66,11 @@ public final class MemoryApiClient {
 
     // ── 单一共享 OkHttpClient（连接池；原 HttpManager.client() 迁移） ──
     private static volatile OkHttpClient sClient;
+    /** 快速失败客户端（同连接池，仅更短连接超时）；见 {@link #fastFailClient()} */
+    private static volatile OkHttpClient sFastFailClient;
+    /** 出站队列/即时提交专用的 Retrofit（与主栈同鉴权，仅连接超时不同） */
+    private static volatile Retrofit fastFailRetrofit;
+    private static volatile String fastFailApiBaseUrl;
 
     /** 最近一次图片上传失败的可读原因（供 UI 层区分并引导用户），成功时清空 */
     private static volatile String sLastImageUploadError;
@@ -122,6 +127,48 @@ public final class MemoryApiClient {
     public static LearningApi learning() {
         ensureBuilt();
         return retrofit.create(LearningApi.class);
+    }
+
+    /**
+     * 快速失败客户端：与共享客户端**同一连接池 / Dispatcher**，仅把连接超时压到 5s。
+     *
+     * <p>用于有本地出站队列兜底的写操作（提交作答 / 补传 / 收藏变更）：服务端不可达但主机可达
+     * （丢包而非拒绝连接）时，共享客户端的 15s 连接超时会让前台"提交中"等待很久；
+     * 这些写操作即使本次失败也已落库，缩短连接超时换更快反馈是划算的。
+     * 读超时保持共享值（输入模式的服务端 AI 判分可能较慢，不能压缩）。</p>
+     */
+    public static OkHttpClient fastFailClient() {
+        OkHttpClient c = sFastFailClient;
+        if (c == null) {
+            synchronized (MemoryApiClient.class) {
+                c = sFastFailClient;
+                if (c == null) {
+                    c = client().newBuilder()
+                            .connectTimeout(5, TimeUnit.SECONDS)
+                            .build();
+                    sFastFailClient = c;
+                }
+            }
+        }
+        return c;
+    }
+
+    /**
+     * 学习域（快速失败版）：与 {@link #learning()} 同一套鉴权 / 401 刷新 / 日志拦截器，
+     * 仅连接超时更短，供出站队列补传与前台即时提交使用。
+     */
+    public static LearningApi learningFastFail() {
+        ensureBuilt();
+        String base = ApiConstants.getBaseUrl();
+        if (fastFailRetrofit == null || !base.equals(fastFailApiBaseUrl)) {
+            synchronized (MemoryApiClient.class) {
+                if (fastFailRetrofit == null || !base.equals(fastFailApiBaseUrl)) {
+                    fastFailRetrofit = build(tokenStore, base, fastFailClient());
+                    fastFailApiBaseUrl = base;
+                }
+            }
+        }
+        return fastFailRetrofit.create(LearningApi.class);
     }
 
     /** 作文批改 / 每日阅读 / 收藏域 */
@@ -518,9 +565,17 @@ public final class MemoryApiClient {
     }
 
     private static Retrofit build(TokenStore tokenStore, String baseUrl) {
+        return build(tokenStore, baseUrl, client());
+    }
+
+    /**
+     * 构建 Retrofit 栈。
+     *
+     * @param bareClient 基础客户端（决定超时等连接参数）；同一连接池，仅超时配置可不同
+     */
+    private static Retrofit build(TokenStore tokenStore, String baseUrl, OkHttpClient bareClient) {
         // 自持共享 OkHttpClient（同一连接池 / Dispatcher），
         // 仅叠加本栈需要的 auth 拦截器 + 401 自动刷新 + 日志
-        OkHttpClient bareClient = client();
 
         Interceptor authInterceptor = chain -> {
             Request original = chain.request();

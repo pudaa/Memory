@@ -29,11 +29,11 @@ import com.deepsleep.memory.handle_utils.AudioPlayer;
 import com.deepsleep.memory.network.ApiConstants;
 import com.deepsleep.memory.ui.components.LoadingDotsView;
 import com.deepsleep.memory.network.ApiBridge;
-import com.deepsleep.memory.network.ApiBridge;
-import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.network.MemoryApiClient;
 import com.deepsleep.memory.settings.InnerSettingsManager;
 import com.deepsleep.memory.settings.UserSettingsManager;
+import com.deepsleep.memory.sync.CacheKind;
+import com.deepsleep.memory.sync.WordListCacheStore;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import io.noties.markwon.*;
 
@@ -84,6 +84,8 @@ public class DailyReadingFragment extends Fragment {
     private boolean isDrawerOpen = false;
     private List<Long> favoriteIds = new ArrayList<>();
     private List<String> favoriteTitles = new ArrayList<>();
+    /** 收藏抽屉当前是否由本地缓存渲染（离线提示用，P3） */
+    private boolean favoritesRenderedFromCache = false;
 
     // ── 朗读（流式合成，边生成边播）──
     /** 正在朗读的按钮（用于再点停止与状态还原） */
@@ -524,6 +526,8 @@ public class DailyReadingFragment extends Fragment {
     }
 
     private void loadFavoritesList() {
+        // 离线兜底：先用上次缓存渲染（P3 读缓存），再请求服务端覆盖
+        renderFavoritesFromCache();
         ApiBridge.enqueue(MemoryApiClient.composition().favorites(String.valueOf(userId)),
                 new Handler(Looper.getMainLooper()) {
                     @Override
@@ -531,49 +535,112 @@ public class DailyReadingFragment extends Fragment {
                         if (msg.what == msg_success) {
                             try {
                                 JSONArray favorites = new JSONArray((String) msg.obj);
-
-                                favoriteIds.clear();
-                                favoriteTitles.clear();
-                                List<String> displayItems = new ArrayList<>();
-                                for (int i = 0; i < favorites.length(); i++) {
-                                    JSONObject fav = favorites.getJSONObject(i);
-                                    favoriteIds.add(fav.getLong("id"));
-                                    String title = fav.getString("articleTitle");
-                                    favoriteTitles.add(title);
-                                    displayItems.add(title);
-                                }
-
-                                favoritesLoading.setVisibility(View.GONE);
-
-                                if (favoriteTitles.isEmpty()) {
-                                    favoritesEmptyContainer.setVisibility(View.VISIBLE);
-                                    return;
-                                }
-
-                                favoritesListView.setVisibility(View.VISIBLE);
-                                // 自定义 item（图标 + 标题卡片），样式收敛进 XML，
-                                // 替代原 simple_list_item_1 + getView 手工补样式
-                                ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                                        R.layout.item_reading_favorite, R.id.tv_favorite_title, displayItems);
-                                favoritesListView.setAdapter(adapter);
-                                favoritesListView.setOnItemClickListener((parent, v, pos, id) -> {
-                                    closeFavoritesDrawer();
-                                    loadFavoriteArticle(favoriteIds.get(pos));
-                                });
-                                favoritesListView.setOnItemLongClickListener((parent, v, pos, id) -> {
-                                    closeFavoritesDrawer();
-                                    showDeleteConfirmDialog(favoriteIds.get(pos), favoriteTitles.get(pos));
-                                    return true;
-                                });
+                                saveFavoritesCache(favorites);
+                                renderFavoritesList(favorites, false);
                             } catch (Exception e) {
                                 Log.e("article", "加载收藏列表失败", e);
                                 favoritesLoading.setVisibility(View.GONE);
                                 favoritesEmptyView.setText("加载失败");
                                 favoritesEmptyContainer.setVisibility(View.VISIBLE);
                             }
+                        } else if (favoritesRenderedFromCache) {
+                            Toast.makeText(getContext(), WordListCacheStore.offlineHint(requireContext(), userId,
+                                    READING_CACHE_SCOPE, CacheKind.DAILY_READING_FAVORITE), Toast.LENGTH_SHORT).show();
                         }
                     }
                 }, msg_success, msg_failed, "FavList");
+    }
+
+    /**
+     * 文章收藏属于账号级数据（与当前学习计划无关），缓存作用域固定为空串。
+     */
+    private static final String READING_CACHE_SCOPE = "";
+
+    private void renderFavoritesFromCache() {
+        JSONObject blob = WordListCacheStore.loadBlob(requireContext(), userId, READING_CACHE_SCOPE,
+                CacheKind.DAILY_READING_FAVORITE);
+        if (blob == null) {
+            return;
+        }
+        JSONArray cached = blob.optJSONArray("favorites");
+        if (cached == null || cached.length() == 0) {
+            return;
+        }
+        favoritesRenderedFromCache = true;
+        renderFavoritesList(cached, true);
+    }
+
+    private void saveFavoritesCache(@NonNull JSONArray favorites) {
+        try {
+            JSONObject blob = new JSONObject();
+            blob.put("favorites", favorites);
+            WordListCacheStore.saveBlob(requireContext(), userId, READING_CACHE_SCOPE,
+                    CacheKind.DAILY_READING_FAVORITE, "", blob);
+        } catch (Exception e) {
+            Log.w("article", "收藏列表写缓存失败", e);
+        }
+    }
+
+    /** 取消收藏后同步更新缓存，避免离线再打开时"复活"已删除的文章 */
+    private void removeFavoriteFromCache(long favoriteId) {
+        JSONObject blob = WordListCacheStore.loadBlob(requireContext(), userId, READING_CACHE_SCOPE,
+                CacheKind.DAILY_READING_FAVORITE);
+        if (blob == null) {
+            return;
+        }
+        JSONArray cached = blob.optJSONArray("favorites");
+        if (cached == null) {
+            return;
+        }
+        JSONArray kept = new JSONArray();
+        for (int i = 0; i < cached.length(); i++) {
+            JSONObject item = cached.optJSONObject(i);
+            if (item != null && item.optLong("id", -1) != favoriteId) {
+                kept.put(item);
+            }
+        }
+        saveFavoritesCache(kept);
+    }
+
+    /** 渲染收藏列表（缓存与在线响应共用） */
+    private void renderFavoritesList(@NonNull JSONArray favorites, boolean fromCache) {
+        favoriteIds.clear();
+        favoriteTitles.clear();
+        List<String> displayItems = new ArrayList<>();
+        for (int i = 0; i < favorites.length(); i++) {
+            JSONObject fav = favorites.optJSONObject(i);
+            if (fav == null) {
+                continue;
+            }
+            favoriteIds.add(fav.optLong("id"));
+            String title = fav.optString("articleTitle", "");
+            favoriteTitles.add(title);
+            displayItems.add(title);
+        }
+        favoritesRenderedFromCache = fromCache;
+        favoritesLoading.setVisibility(View.GONE);
+
+        if (favoriteTitles.isEmpty()) {
+            favoritesListView.setVisibility(View.GONE);
+            favoritesEmptyContainer.setVisibility(View.VISIBLE);
+            return;
+        }
+        favoritesEmptyContainer.setVisibility(View.GONE);
+        favoritesListView.setVisibility(View.VISIBLE);
+        // 自定义 item（图标 + 标题卡片），样式收敛进 XML，
+        // 替代原 simple_list_item_1 + getView 手工补样式
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                R.layout.item_reading_favorite, R.id.tv_favorite_title, displayItems);
+        favoritesListView.setAdapter(adapter);
+        favoritesListView.setOnItemClickListener((parent, v, pos, id) -> {
+            closeFavoritesDrawer();
+            loadFavoriteArticle(favoriteIds.get(pos));
+        });
+        favoritesListView.setOnItemLongClickListener((parent, v, pos, id) -> {
+            closeFavoritesDrawer();
+            showDeleteConfirmDialog(favoriteIds.get(pos), favoriteTitles.get(pos));
+            return true;
+        });
     }
 
     // ==================== 加载收藏文章 ====================
@@ -653,6 +720,8 @@ public class DailyReadingFragment extends Fragment {
                     if (favoriteId == dailyFavId) {
                         clearDailyFavoriteState();
                     }
+                    // 同步更新读缓存（离线再打开时不应"复活"已删除的文章）
+                    removeFavoriteFromCache(favoriteId);
                     if (isViewingFavorite && currentFavoriteId == favoriteId) {
                         returnToTodayReading();
                     }

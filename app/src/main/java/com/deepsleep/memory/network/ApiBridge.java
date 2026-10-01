@@ -38,11 +38,23 @@ public final class ApiBridge {
 
     /** 发起 Retrofit 调用，结果经 Handler 回传（含自动重试） */
     public static void enqueue(Call<okhttp3.ResponseBody> call, Handler h, int ok, int fail, String tag) {
-        enqueueRetrying(call, h, ok, fail, tag, 0);
+        enqueue(call, h, ok, fail, tag, MAX_RETRIES);
+    }
+
+    /**
+     * 指定额外重试次数的版本：共 {@code 1 + maxRetries} 次尝试。
+     *
+     * <p>有本地出站队列兜底的写操作（提交作答 / 补传 / 收藏变更）传 {@code 1}：
+     * 请求已经持久化，前台不必为了一次瞬时抖动多等一轮连接超时
+     * （服务端不可达但主机可达时，每次尝试要等满 connectTimeout）。</p>
+     */
+    public static void enqueue(Call<okhttp3.ResponseBody> call, Handler h, int ok, int fail, String tag,
+            int maxRetries) {
+        enqueueRetrying(call, h, ok, fail, tag, 0, maxRetries);
     }
 
     private static void enqueueRetrying(Call<okhttp3.ResponseBody> call, Handler h, int ok, int fail, String tag,
-            int attempt) {
+            int attempt, int maxRetries) {
         call.enqueue(new Callback<okhttp3.ResponseBody>() {
             @Override
             public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
@@ -65,7 +77,7 @@ public final class ApiBridge {
                     else
                         e.printStackTrace();
                 }
-                retryOrFail(call, h, ok, fail, tag, attempt);
+                retryOrFail(call, h, ok, fail, tag, attempt, maxRetries);
             }
 
             @Override
@@ -74,14 +86,14 @@ public final class ApiBridge {
                     Log.e(tag, "Error: " + t.getMessage());
                 else
                     Log.e("ApiBridge", "request failed", t);
-                retryOrFail(call, h, ok, fail, tag, attempt);
+                retryOrFail(call, h, ok, fail, tag, attempt, maxRetries);
             }
         });
     }
 
     private static void retryOrFail(Call<okhttp3.ResponseBody> call, Handler h, int ok, int fail, String tag,
-            int attempt) {
-        if (attempt < MAX_RETRIES) {
+            int attempt, int maxRetries) {
+        if (attempt < maxRetries) {
             long delay = RETRY_BASE_DELAY_MS << attempt; // 1s、2s
             if (tag != null) {
                 Log.w(tag, "第 " + (attempt + 1) + " 次尝试失败，" + delay + "ms 后重试");
@@ -93,7 +105,7 @@ public final class ApiBridge {
                     Thread.currentThread().interrupt();
                     return;
                 }
-                enqueueRetrying(call.clone(), h, ok, fail, tag, attempt + 1);
+                enqueueRetrying(call.clone(), h, ok, fail, tag, attempt + 1, maxRetries);
             });
         } else {
             h.sendEmptyMessage(fail);

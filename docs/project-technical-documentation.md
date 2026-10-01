@@ -322,11 +322,13 @@ d:\Codes\Memory\
         ├── test/                      # 单元测试 (JUnit 4.13.2)
         └── main/
             ├── AndroidManifest.xml    # 应用清单（15+ Activity 声明）
+            ├── assets/                # 预置数据库
+            │   └── databases/lexicon.db   # 词书库（由 scripts/convert_lexicon_json_to_sqlite.py 生成）
             ├── res/                   # 资源文件
             │   ├── layout/            # 布局文件 (30+)
             │   ├── drawable/          # 图片/矢量图/Shape Drawable
             │   ├── anim/              # 切换动画资源
-            │   ├── raw/               # 原始资源（60+ 词库 JSON）
+            │   ├── raw/               # 原始资源（book_list.json 词书清单，Room 读取失败时的兜底）
             │   └── xml/               # XML 配置 (file_paths)
             └── java/com/deepsleep/memory/
                 ├── network/           # 网络通信层
@@ -342,9 +344,15 @@ d:\Codes\Memory\
                 │   ├── AudioPlayer.java       # 有道词典 TTS 播放
                 │   ├── MemAudioRecord.java    # PCM 录音 (16kHz 16bit)
                 │   ├── AdapterTool.java       # 适配器工具
-                │   └── lexicon/               # 本地词库
-                │       ├── LexiconResourceMap.java  # 60+ 词库映射+缓存
-                │       └── WordEntry.java           # 词条数据模型
+                │   └── lexicon/               # 本地词库（Room/SQLite）
+                │       ├── LexiconResourceMap.java    # 词库门面：查询/缓存/计划词书优先取词
+                │       ├── WordEntry.java             # 词条实体（全字段，Room @Entity）
+                │       ├── WordFormNormalizer.java    # 词形归一化（变形 → 原形候选）
+                │       └── db/                        # 存储层
+                │           ├── LexiconDatabase.java   # Room 单例（createFromAsset）
+                │           ├── LexiconWordDao.java    # 词条查询（精确/指定词书/前缀）
+                │           ├── LexiconBookDao.java    # 词书元数据查询
+                │           └── LexiconBookEntity.java # 词书实体
                 └── ui/                # 界面层
                     ├── MainActivity.java        # 底部导航容器
                     ├── components/              # 可复用组件
@@ -1242,12 +1250,33 @@ ViewPager2 承载 4 个 Fragment，分别从不同来源查询：
 
 | Tab | 数据源 | 技术实现 |
 |-----|--------|---------|
-| 本地词库 | `LexiconResourceMap.getWordByRank()` | 内存缓存查询 |
+| 本地词书 | `LexiconResourceMap.findWordForDisplay()` | Room/SQLite 查询（计划词书优先） |
 | Bing 词典 | `https://cn.bing.com/dict/search?q={word}` | WebView 加载 |
 | 牛津词典 | 牛津在线词典 | WebView 加载 |
 | 剑桥词典 | 剑桥在线词典 | WebView 加载 |
 
 **为何使用 WebView 而非 API？** 在线词典通常没有公开 API，通过 WebView 加载网页是最可靠的方案。
+
+#### 16.2.1 本地词书 Tab（`WordSearchLocalFragment`）
+
+单个单词可能被多本词书同时收录（15.3 万词条中 1.75 万个单词命中多本），各书的例句/英文释义详略差异很大，
+因此取词与呈现按下述策略执行：
+
+| 环节 | 实现 |
+|------|------|
+| 计划词书优先 | `LexiconResourceMap.getPreferredLexiconId()`：先取 `InnerSettingsManager.getCurrentLexiconId(userId)`（学习页拿到 `/learning/getTodayTask` 的 lexiconId 后落盘，离线可用），回退本会话已加载词书；先在计划词书内精确查询。计划词书代表用户当前期望水平，因此**即使其他词书内容更丰富也优先展示计划词书** |
+| 跨书择优 | 计划词书未收录时，对全部候选按 `richness()`（例句/真题权重最高）取最丰富条目，`book_id`/`id` 字典序兜底保证结果可复现 |
+| 词形归一化 | 精确未命中时，`WordFormNormalizer.baseCandidates()` 产出原形候选（复数/三单、过去式、进行式、比较级、副词 + 常见不规则表），逐个回查验证，命中即显示并提示「已按原形…显示」 |
+| 相近词 | `LexiconResourceMap.findSimilarWords()`：`head_word_lower GLOB 'abc*'` 走索引前缀匹配；无结果时逐字回退（≤3 字符、保留 ≥3 字符）兜住末尾打错 |
+| 全字段呈现 | 音标、词性、中文释义、英文释义、例句、真题例句、同近义词均来自本地库 |
+| 长板块预览 | 例句与真题例句默认各渲染前 5 条（`PREVIEW_COUNT`），超出部分折叠为「展开全部 N 条 / 收起」，切换时只重绘该板块、不重新查询，避免 70+ 条真题例句占满滚动视图 |
+| 板块按需渲染 | 每个板块复用 `word_result_section.xml`（分隔线 + 小标题 + 容器），默认 `GONE`，仅当该字段非空才 `VISIBLE`；音标同理隐藏，避免「美音:」空标签与悬空分隔线 |
+| 结果来源标注与切换 | 卡片底部标注来源词书（`LexiconBookDao.getBookTitleById`）；非计划词书命中时提示「当前计划词书未收录」并提供「切换词书 ▾」：`LexiconResourceMap.findWordInBooks()` 列出收录该词的全部词书（含「自动选择（内容最丰富）」），`MaterialAlertDialogBuilder` 单选切换，选择结果由 `pinnedBookId` 固定 |
+| 附加卡片 | 结果下方「变形 / 相关单词」（同根词，含词形变化）与「拼写相近」卡片，点击任意条目即回查该词；词组条目（如 `long for`）取首个单词回查 |
+| 返回上一词 | 点击附加卡片属于「下钻查询」：进入前把当前词压入 `history` 栈，卡片顶部出现「← 返回「上一个词」」，可逐级回退；顶部搜索框发起的新查询会清空栈 |
+
+> 覆盖率参考（`lexicon.db` 实测）：真题例句 93.2% 的词条为空（81 本词书中 73 本整本没有真题例句）、
+> 同根词 23.3%、同近义词 9.1%、例句 6.2%、英英释义 1.3%——这也是板块必须按需渲染的原因。
 
 ### 16.3 设置页 (`setting_view/`)
 
@@ -1440,25 +1469,61 @@ AudioPlayer.playAudio(context, word, AudioPlayer.TYPE_US);  // 美式
 
 内部使用 `MediaPlayer` + `prepareAsync()` 异步准备，播放完毕自动 `release()`。与听写模块的 MemoryServerTTS 不同，有道 TTS 用于单词学习页面的快速发音示范——不需要高质量 AI 合成，只需要快速的标准发音参考。
 
-### 18.2 本地词库 (`LexiconResourceMap`)
+### 18.2 本地词库 (`LexiconResourceMap` + Room/SQLite)
 
-60+ 词库以 JSON 形式存储在 `res/raw/` 目录下，通过 `LexiconResourceMap` 按需加载到 LRU 内存缓存。
+词书数据以 **Room/SQLite** 存储：`app/src/main/assets/databases/lexicon.db`（约 81 本词书、15.3 万词条），
+首次启动由 `LexiconDatabase.createFromAsset()` 复制到应用数据库目录，运行期只读查询、按需取词，不再把 JSON 载入内存。
 
-**WordEntry 结构**：
+**分层**：
+
+| 层 | 类 | 职责 |
+|----|----|------|
+| 存储 | `db/LexiconDatabase` | Room 单例（`createFromAsset` / `allowMainThreadQueries` / `fallbackToDestructiveMigration`，version 2）+ 资源数据版本 `ASSET_DATA_VERSION` + `warmUpAsync()` 后台预热 |
+| 存储 | `db/LexiconWordDao` | 精确查词（全库 / 指定词书 / 多词书清单）、前缀 `GLOB` 匹配、按 rank 取词、随机词、计数 |
+| 存储 | `db/LexiconBookDao` | 词书列表 / 标题 / 计数 |
+| 领域 | `LexiconResourceMap` | 静态门面：会话词书、rank 懒缓存、计划词书优先取词与跨书择优、相近词、多词书清单、词书标题、JSON 投影与 `res/raw/book_list.json` 兜底 |
+| 领域 | `WordFormNormalizer` | 词形归一化：词尾规则 + 常见不规则表 → 原形候选 |
+
+> 说明：`lexicon.db`（约 206 MB）由 `scripts/convert_lexicon_json_to_sqlite.py`（全字段版）预生成，
+> 原始词书 JSON 已不再随仓库分发，**该 db 即词书数据的唯一来源**；
+> 因此 DAO 的写入方法（`insertWord(s)` / `insertBook(s)`）当前无运行期调用点。
+
+**资源库更新（重要）**：Room 的 `createFromAsset` 只在数据库文件不存在时拷贝 assets 中的 db，
+仅替换 assets 对**存量安装无效**。因此 `LexiconDatabase.ASSET_DATA_VERSION` 充当数据版本号：
+
+1. 每次更新 `assets/databases/lexicon.db` 内容后必须将其 +1；
+2. `getInstance()` 会比较 `InnerSettingsManager.getLexiconAssetVersion()`（记录在 `StudyPrefs`），
+   落后则 `deleteDatabase()` 删库，交给 Room 重新拷贝资源库（本地库为只读数据，不会丢用户数据）；
+3. 数据版本在 `RoomDatabase.Callback.onOpen` 中写入 —— 只有成功打开才记账，拷贝失败下次启动自动重试。
+
+**例句粘连词修复**：词书源 JSON 的 `sContent` 在早期剥离 `<b>` 标签时丢过空格
+（`foras` / `Ittookme` / `andother`），`scripts/repair_glued_sentences.py` 内置 279 条人工复核的
+替换表就地修复 `example_sentences_json` / `real_exam_sentences_json`（幂等，支持 `--dry-run` 与
+`--source-dir` 修复 JSONL 源文件）。修复覆盖 963 处，已随 `ASSET_DATA_VERSION = 2` 发布。
+
+**WordEntry 结构**（Room 实体，涵盖词书 JSON 全部字段；嵌套集合以 JSON 列存储 + `@Ignore` 懒解析）：
 
 ```java
 class WordEntry {
-    String headWord;                  // 拼写 (如 "abandon")
-    int wordRank;                     // 序号 (如 1)
-    String usPhone, ukPhone;          // 音标 (如 "/əˈbændən/")
-    String usSpeechUrl, ukSpeechUrl;  // 有道 TTS 发音参数
-    String[] chineseTranslations;     // 中文释义
-    String[] englishDefinitions;      // 英文释义
-    ExampleSentence[] exampleSentences; // 例句 (EN + CN)
+    String headWord;                    // 拼写 (如 "abandon")
+    int wordRank;                       // 词书内序号
+    String bookId, wordId;              // 所属词书 / 全局词条 ID
+    String usPhone, ukPhone, phone;     // 音标
+    String usSpeech, ukSpeech, speech;  // 发音参数
+    int star; String pos;               // 星标 / 词性
+    List<String> chineseTranslations;   // 中文释义
+    List<String> englishDefinitions;    // 英文释义
+    List<ExampleSentence> exampleSentences;   // 例句 (EN + CN + EN-EN + 语音)
+    List<RealExamSentence> realExamSentences; // 真题例句 (含来源)
+    List<Synonym> synonyms;             // 同近义词
+    List<RelatedWord> relatedWords;     // 同根词 / 词形变化
 }
 ```
 
-本地词库是 App 体积的主要贡献者（60+ JSON 文件，总计约 15-20 MB）。这些数据在编译时被打包进 APK 的 `res/raw` 目录，运行时按需加载，避免全量加载导致 OOM。
+**字段实际覆盖率**（`lexicon.db` 实测，决定 UI 板块是否需要按需隐藏）：中文释义 100%；英文释义 98.7%；
+例句 93.8%；同近义词 90.9%；同根词 76.7%；真题例句 6.8%（81 本词书中 73 本整本没有真题例句）。
+
+**查词取词与渲染**：详见 [§16.2.1 本地词书 Tab](#1621-本地词书-tabwordsearchlocalfragment)。
 
 ---
 
@@ -1540,6 +1605,8 @@ public class UserSettingsManager {
 
 每日单词学习的"今日已完成"状态由 `main_view/DailyStateManager` 独立封装（key 为 `{userId}_completedWordIds` / `_completedLastDate` / `_completedWordDetails`），支持跨天自动重置。该管理器是 feature 内部封装，保持独立。
 
+> 待上传作答队列已于 2026-09-30 从本类迁出（原 key `{userId}_pendingUploads`），改由 `sync/` 包统一承载，见文末「离线优先与出站队列」。
+
 ---
 
 ## 20. 第三方依赖
@@ -1594,7 +1661,45 @@ public class UserSettingsManager {
 | **HttpClient** | 保持 Apache HttpClient |
 | **JSON** | `org.json.JSONObject` 手动解析 |
 | **Fragment 导航** | `show()/hide()` 而非 `replace()` |
-| **持久化** | `SharedPreferences` |
+| **持久化** | `SharedPreferences`（**例外**：离线出站队列 / 任务快照 / 读缓存走 `sync/MemoryLocalDatabase`，见 §22） |
+
+---
+
+## 22. 离线优先与出站队列（`sync/`，2026-09 起）
+
+> 方案与分期验收见 [离线优先改造方案](offline-first-plan.md)；服务端 FSRS 作答时间锚定改造见 MemoryServer `docs/project-documentation.md` §4.3。
+
+### 22.1 为什么需要
+
+历史实现的三个硬伤：① 今日任务只在内存，冷启动断网完全无法学习；② 待上传队列与登录信息同存 `UserPrefs`，**登出即被 clear 清空**，未上传的作答直接丢失；③ 每次入队/出队都要全量 JSON 解析 + 重写 SharedPreferences（O(n)，且发生在答题主线程）。故新增独立 `sync/` 包承载"本地优先 + 出站队列"。
+
+### 22.2 结构
+
+| 类 | 职责 |
+|----|------|
+| `sync/MemoryLocalDatabase` | 独立 Room 库 `memory_local.db`（4 张表一次建好，**刻意不用破坏性迁移**：里面是不能丢的未同步作答）。⚠️ 绝不能放 `lexicon.db`——那份库会随词书更新被「删库重拷」 |
+| `sync/OutboxEntity` / `OutboxDao` / `OutboxStore` | 出站队列：入队、取任务、状态流转、指数退避、背压（5000 条 / 30 天）、旧 SP 队列一次性迁移 |
+| `sync/OutboxSync` | 补传器：独立 `HandlerThread` 串行消费 + 全局防重入；网络类失败 fail-fast 中止本轮；`code=500` 可重试、其他业务码转 `dead`；注册 `ConnectivityManager.NetworkCallback`，网络恢复即补传 |
+| `sync/TaskSnapshotEntity` / `TaskSnapshotStore` | 每日任务快照（P2 已落地）：断网冷启动直接进学习；以服务端 `planDate` 判定跨天，**跨天且未取到新任务时卡片区留空 + 引导联网**（不展示过期卡片），并由 `offlineLocked` 兜底拦截提交 |
+| `sync/WordListCacheEntity` / `WordListCacheStore` | 读缓存（P3 已落地）：收藏词 / 薄弱词（逐条，`itemKey=headWord`）/ 计划列表 / 每日一读收藏（整块 blob），按 `(userId, planId, kind, itemKey)` 分键；提供读穿渲染、单项增删与回滚 |
+| `sync/SyncMetaEntity` / `SyncMetaStore` | 同步元信息（P4 已落地）：上次同步时间、上次任务拉取时间、最近错误，驱动「待同步 N 条（上次同步 …）」角标 |
+
+### 22.3 关键约定
+
+1. **作用域键＝`(userId, planId)`**：同账号切换 on-plan 计划后任务不同，必须分桶；`planId/planDate` 由 `getTodayTask` 下发（`planDate` 是「哪一天」的服务端权威口径）。
+2. **入队即构建 payload**：在线提交与补传共用同一份请求体（`OutboxStore.putAnchorFields` 写锚定字段），避免两条路径字段漂移。
+3. **回放顺序＝作答时刻升序**：保证服务端 FSRS 状态机按真实作答顺序推进。
+4. **`answeredAt` 是锚定字段**：服务端据此把 FSRS 复习时刻锚到真实作答时间；不传则退化为接收时刻（补传会造成 due 后移与间隔通胀）。
+5. **触发点**：App 启动、单词页 `onResume` / Tab 切回、今日任务加载成功、**网络恢复回调**（注册在 `network/NetworkInitializer`，早于 Application 执行，因此任何页面停留时网络恢复都能补传，不依赖学习页生命周期）、**点状态横幅「立即重试」**、死信面板「重试全部」。
+6. **登出不清队列**：Outbox 按 userId 保留（未同步数据属于该账号）；需要清理时走显式入口 `OutboxStore.clearForUser`。
+7. **读缓存策略（P3）**：先渲染缓存 → 请求成功覆盖并写缓存 → 失败保留缓存 + 提示「离线数据 · 更新于 X」；能单项增删的清单（收藏词/薄弱词）逐条缓存，整体刷新的清单（计划列表/每日一读收藏）存整块 JSON；写操作乐观更新 + 入队，服务端明确拒绝时回滚。
+   - 收藏/取消收藏需注意：服务端按**用户当前词书**分桶，因此取消收藏前必须先在当前计划词书内解析 `(wordId, lexiconId)`（`LexiconResourceMap.findWordInBook`），否则会命中 0 行静默失败。
+8. **完成上报也入队（P4）**：`updateLearningListCompletion` 用固定幂等键 `complete_{userId}_{planId}_{planDate}` 入队（同一天只占一条记录），既在线即时上报（拿服务端"词书完成"提示），离线时也不会丢 —— 否则服务端 `is_completed`/连续天数会与本地漂移。
+9. **可观测与自愈（P4/P5）**：学习页横幅按「离线态 / 待同步 N 条（上次同步 X）/ N 条同步失败」三种语义显示；死信可点击进入「重试全部 / 清除」，无死信时点击即"立即重试"。开销控制：空队列短路（不起 worker 线程）、全局单飞、单轮最多 2 次尝试 + 连接超时 5s（`MemoryApiClient.fastFailClient()` / `learningFastFail()`，与共享客户端**同一连接池**）、网络失败 fail-fast 中止本轮、退避 `min(2^attempts,3600)s` 且 `attempts` 只增不清（`markSyncing` 保留原值）；起轮前 `prepare()` 复位残留 `syncing` 并按 30 天 TTL 清理，但**死信不无条件删除**（保留供查看/重试）。任何早退分支都有日志，避免"为什么不补传"无从排查。
+
+### 22.4 验证
+
+真机 + 本机服务端联调结果（含「离线入队 → 恢复补传 → 服务端按作答时刻锚定」全链路证据）见 [offline-first-plan.md §8](offline-first-plan.md)。
 
 ---
 

@@ -79,6 +79,18 @@
     </LinearLayout>
 
 
+    <!-- 离线状态横幅：断网时提示"数据为哪一天 / 待同步 N 条"；跨天锁定时提示需联网获取今日任务 -->
+    <TextView
+        android:id="@+id/tv_offline_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/card_background_stress"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="6dp"
+        android:textSize="12sp"
+        android:textColor="@color/theme_text_secondary"
+        android:visibility="gone" />
+
     <com.deepsleep.memory.ui.main_view.WordCardContainer
         android:id="@+id/word_card_container"
         android:layout_width="match_parent"

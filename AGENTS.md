@@ -169,9 +169,10 @@ int userId = InnerSettingsManager.getInstance(context).getUserId();
 - `app/src/main/AndroidManifest.xml` - 15+ activities, file provider config
 - `settings/UserSettingsManager.java` - 用户偏好单例 + 观察者
 - `settings/InnerSettingsManager.java` - 应用内部信息记录器（集中持久化入口）
+- `sync/` - 离线优先层：`MemoryLocalDatabase`（独立 Room 库 `memory_local.db`，**勿放 lexicon.db**）/ `OutboxStore` + `OutboxSync`（出站队列与补传）/ 任务快照与读缓存实体；**会产生服务端副作用的写操作一律入队，不要另起直连提交路径**（详见 `docs/offline-first-plan.md`）
 - `network/ApiConstants.java` - 环境中间件: DEV/TEST/PROD + URL 拼接 + 共享网络线程池
-- `network/MemoryApiClient.java` - 网络层唯一入口：持有单一共享 OkHttpClient `client()`（连接 15s/读写 120s），含 Retrofit 域接口工厂（auth/learning/composition/conversation/evaluation/pronunciation）+ 底层专用能力（postStream SSE / downloadWav TTS / doHttpGetNoPara / streamingPart 流式文件体），环境切换自动重建
-- `network/ApiBridge.java` - Handler/Message 桥接层：enqueue 语义与历史一致，multipart 上传经 filePart 流式文件体
+- `network/MemoryApiClient.java` - 网络层唯一入口：持有单一共享 OkHttpClient `client()`（连接 15s/读写 120s），含 Retrofit 域接口工厂（auth/learning/composition/conversation/evaluation/pronunciation）+ 底层专用能力（postStream SSE / downloadWav TTS / doHttpGetNoPara / streamingPart 流式文件体），环境切换自动重建。另有**派生**的快速失败栈 `fastFailClient()` / `learningFastFail()`（仅连接超时 5s，`newBuilder()` 派生故**与共享客户端同一连接池**），专供有本地出站队列兜底的写操作（提交作答 / 补传 / 收藏变更），不是第二套客户端
+- `network/ApiBridge.java` - Handler/Message 桥接层：enqueue 语义与历史一致（默认失败后额外重试 2 次，1s/2s 退避）；队列兜底的写操作传 `maxRetries=1`；multipart 上传经 filePart 流式文件体
 - `network/MemoryApi.java` / 域接口（AuthApi 等）- Retrofit 声明式接口
 - `ui/MainActivity.java` - Tab navigation implementation
 - `handle_utils/BitmapManager.java` - Image processing utilities
